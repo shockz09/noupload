@@ -1,4 +1,4 @@
-# LocalPDF
+# PDF0
 
 **Free, private PDF tools that run entirely in your browser.**
 
@@ -39,8 +39,8 @@ No uploads. No servers. No tracking. Your files never leave your device.
 
 ```bash
 # Clone the repo
-git clone https://github.com/shockz09/localpdf.git
-cd localpdf
+git clone https://github.com/shockz09/pdf0.git
+cd pdf0
 
 # Install dependencies
 bun install

@@ -1,4 +1,4 @@
-# Contributing to LocalPDF
+# Contributing to PDF0
 
 Thanks for your interest in contributing!
 

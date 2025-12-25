@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LocalPDF — Private PDF Tools",
+  title: "PDF0 — Private PDF Tools",
   description: "Free, private PDF tools that run entirely in your browser. No uploads, no servers, no tracking.",
 };
 
@@ -21,7 +21,7 @@ export default function RootLayout({
         <header className="header-main sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
             <a href="/" className="header-logo">
-              Local<span>PDF</span>
+              PDF<span>0</span>
             </a>
 
             <nav className="flex items-center gap-3">
