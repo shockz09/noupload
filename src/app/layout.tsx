@@ -4,6 +4,20 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "noupload/pdf — Private PDF Tools",
   description: "Free, private PDF tools that run entirely in your browser. No uploads, no servers, no tracking.",
+  metadataBase: new URL("https://noupload.xyz"),
+  openGraph: {
+    title: "noupload/pdf",
+    description: "Free, private PDF tools that run entirely in your browser. No uploads, no servers, no tracking.",
+    url: "https://noupload.xyz",
+    siteName: "noupload/pdf",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "noupload/pdf",
+    description: "Free, private PDF tools that run entirely in your browser. No uploads, no servers, no tracking.",
+  },
 };
 
 export default function RootLayout({
@@ -24,21 +38,6 @@ export default function RootLayout({
               noupload/<span>pdf</span>
             </a>
 
-            <nav className="flex items-center gap-3">
-              <div className="header-badge">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-                <span>100% Private</span>
-              </div>
-              <div className="hidden sm:flex header-badge">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 6v6l4 2" />
-                </svg>
-                <span>Instant</span>
-              </div>
-            </nav>
           </div>
         </header>
 
