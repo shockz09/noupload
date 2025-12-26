@@ -75,88 +75,18 @@ export default async function Image() {
           <div
             style={{
               display: "flex",
-              gap: 32,
+              gap: 16,
               marginTop: 24,
+              fontSize: 20,
+              fontWeight: 600,
+              color: "#1a1a1a",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 20,
-                fontWeight: 600,
-              }}
-            >
-              <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  background: "#2D5A3D",
-                  border: "2px solid #1a1a1a",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              No uploads
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 20,
-                fontWeight: 600,
-              }}
-            >
-              <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  background: "#2D5A3D",
-                  border: "2px solid #1a1a1a",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              No servers
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 20,
-                fontWeight: 600,
-              }}
-            >
-              <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  background: "#2D5A3D",
-                  border: "2px solid #1a1a1a",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              Free forever
-            </div>
+            <span>No uploads</span>
+            <span style={{ color: "#999" }}>·</span>
+            <span>No servers</span>
+            <span style={{ color: "#999" }}>·</span>
+            <span>Free forever</span>
           </div>
         </div>
       </div>
