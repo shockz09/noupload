@@ -75,23 +75,29 @@ export async function createSearchablePDF(
   }
 
   // Stage 2: Run OCR on each page (25-75%)
+  // Create ONE worker and reuse it for all pages (loads language data only once)
+  onProgress?.(25, "Loading OCR engine...");
+  const worker = await Tesseract.createWorker(language, 1);
+
   const ocrResults: OCRPageResult[] = [];
 
-  for (let i = 0; i < images.length; i++) {
-    const progressBase = 25 + (i / images.length) * 50;
-    onProgress?.(Math.round(progressBase), `Running OCR on page ${i + 1} of ${images.length}...`);
+  try {
+    for (let i = 0; i < images.length; i++) {
+      const progressBase = 25 + (i / images.length) * 50;
+      onProgress?.(Math.round(progressBase), `Running OCR on page ${i + 1} of ${images.length}...`);
 
-    const words = await extractOCRWords(images[i].blob, language, (p) => {
-      const percent = progressBase + (p * 50) / images.length;
-      onProgress?.(Math.round(percent), `Running OCR on page ${i + 1} of ${images.length}...`);
-    });
+      const words = await extractOCRWordsWithWorker(worker, images[i].blob);
 
-    ocrResults.push({
-      pageNumber: i + 1,
-      words,
-      imageWidth: images[i].width,
-      imageHeight: images[i].height,
-    });
+      ocrResults.push({
+        pageNumber: i + 1,
+        words,
+        imageWidth: images[i].width,
+        imageHeight: images[i].height,
+      });
+    }
+  } finally {
+    // Always terminate worker when done
+    await worker.terminate();
   }
 
   // Stage 3: Create PDF with invisible text layer (75-100%)
@@ -178,25 +184,14 @@ export async function createSearchablePDF(
 }
 
 /**
- * Extract words with bounding boxes from an image using Tesseract OCR
+ * Extract words with bounding boxes using an existing Tesseract worker
  */
-async function extractOCRWords(
-  imageBlob: Blob,
-  language: string,
-  onProgress?: (progress: number) => void
+async function extractOCRWordsWithWorker(
+  worker: Tesseract.Worker,
+  imageBlob: Blob
 ): Promise<OCRWord[]> {
-  // Use worker API to get full word-level data
-  const worker = await Tesseract.createWorker(language, 1, {
-    logger: (m) => {
-      if (m.status === "recognizing text" && onProgress) {
-        onProgress(m.progress);
-      }
-    },
-  });
-
   // Request blocks output which includes word bounding boxes
   const result = await worker.recognize(imageBlob, {}, { blocks: true, text: true, hocr: true });
-  await worker.terminate();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = result.data as any;
@@ -205,7 +200,6 @@ async function extractOCRWords(
 
   // Parse HOCR to extract word bounding boxes
   if (data.hocr) {
-    // Match all ocrx_word spans with their bbox and text
     const wordRegex = /<span class='ocrx_word'[^>]*title='bbox (\d+) (\d+) (\d+) (\d+); x_wconf (\d+)'[^>]*>([^<]+)<\/span>/g;
     let match;
     while ((match = wordRegex.exec(data.hocr)) !== null) {
