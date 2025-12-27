@@ -177,7 +177,7 @@ export default function TrimAudioPage() {
         </Link>
 
         <div className="flex items-center gap-5">
-          <div className="tool-icon tool-audio">
+          <div className="tool-icon tool-audio-trim">
             <TrimIcon className="w-7 h-7" />
           </div>
           <div>

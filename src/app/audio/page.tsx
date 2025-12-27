@@ -1,19 +1,7 @@
-"use client";
-
 import Link from "next/link";
 import { ArrowLeftIcon } from "@/components/icons";
 
 // Audio icons
-function AudioIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M9 18V5l12-2v13" />
-      <circle cx="6" cy="18" r="3" />
-      <circle cx="18" cy="16" r="3" />
-    </svg>
-  );
-}
-
 function TrimIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -45,10 +33,8 @@ function VolumeIcon({ className }: { className?: string }) {
 function SpeedIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M19 17H5" />
-      <path d="M12 12V3" />
-      <path d="m8 7 4-4 4 4" />
-      <path d="M12 21v-6" />
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }
@@ -80,119 +66,195 @@ function WaveformIcon({ className }: { className?: string }) {
 
 const tools = [
   {
-    name: "Trim Audio",
+    title: "Trim Audio",
     description: "Cut audio to specific start and end time",
     href: "/audio/trim",
     icon: TrimIcon,
-    color: "tool-audio",
+    category: "edit",
+    colorClass: "tool-audio-trim",
   },
   {
-    name: "Record",
+    title: "Record",
     description: "Record audio from your microphone",
     href: "/audio/record",
     icon: MicIcon,
-    color: "tool-audio",
+    category: "create",
+    colorClass: "tool-audio-record",
   },
   {
-    name: "Volume",
+    title: "Volume",
     description: "Increase or decrease audio volume",
     href: "/audio/volume",
     icon: VolumeIcon,
-    color: "tool-audio",
+    category: "edit",
+    colorClass: "tool-audio-volume",
   },
   {
-    name: "Speed",
-    description: "Speed up or slow down audio",
+    title: "Speed",
+    description: "Speed up or slow down audio playback",
     href: "/audio/speed",
     icon: SpeedIcon,
-    color: "tool-audio",
+    category: "edit",
+    colorClass: "tool-audio-speed",
   },
   {
-    name: "Fade",
+    title: "Fade",
     description: "Add fade in and fade out effects",
     href: "/audio/fade",
     icon: FadeIcon,
-    color: "tool-audio",
+    category: "effects",
+    colorClass: "tool-audio-fade",
   },
   {
-    name: "Reverse",
+    title: "Reverse",
     description: "Play audio backwards",
     href: "/audio/reverse",
     icon: ReverseIcon,
-    color: "tool-audio",
+    category: "effects",
+    colorClass: "tool-audio-reverse",
   },
   {
-    name: "Waveform",
+    title: "Waveform",
     description: "Generate waveform image from audio",
     href: "/audio/waveform",
     icon: WaveformIcon,
-    color: "tool-audio",
+    category: "convert",
+    colorClass: "tool-audio-waveform",
   },
 ];
 
+const categoryLabels: Record<string, string> = {
+  edit: "Edit",
+  create: "Create",
+  effects: "Effects",
+  convert: "Convert",
+};
+
 export default function AudioPage() {
   return (
-    <div className="page-enter">
-      {/* Hero */}
-      <section className="border-b-2 border-foreground pb-16 mb-12">
-        <div className="max-w-6xl mx-auto px-6">
-          <Link href="/" className="back-link mb-8">
-            <ArrowLeftIcon className="w-4 h-4" />
-            Back to Tools
-          </Link>
+    <div className="page-enter space-y-16">
+      {/* Back Link + Hero Section */}
+      <section className="space-y-8 py-8">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeftIcon className="w-4 h-4" />
+          Back to PDF Tools
+        </Link>
 
-          <div className="flex flex-col lg:flex-row items-start gap-8">
-            <div className="flex-1">
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-display leading-[1.1] tracking-tight">
-                noupload/
-                <span className="text-primary">audio</span>
-              </h1>
+        <div className="max-w-3xl">
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-display leading-[1.1] tracking-tight">
+            Audio tools that{" "}
+            <span className="italic">stay</span>{" "}
+            <span className="relative inline-block">
+              private
+              <svg className="absolute -bottom-2 left-0 w-full h-3 text-primary" viewBox="0 0 200 12" preserveAspectRatio="none">
+                <path d="M0,8 Q50,0 100,8 T200,8" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+              </svg>
+            </span>
+          </h1>
+        </div>
 
-              <p className="text-lg text-muted-foreground mt-6 max-w-xl">
-                Trim, record, adjust, and transform audio files.
-                <span className="block mt-2 font-semibold text-foreground">
-                  Everything happens in your browser.
-                </span>
-              </p>
-            </div>
-          </div>
+        <p className="text-xl text-muted-foreground max-w-xl leading-relaxed">
+          Trim, record, adjust, and transform audio files entirely in your browser. No uploads, no waiting.
+        </p>
+
+        <div className="flex flex-wrap items-center gap-4 pt-2 text-sm font-semibold">
+          <span>No uploads</span>
+          <span className="text-muted-foreground">·</span>
+          <span>No servers</span>
+          <span className="text-muted-foreground">·</span>
+          <span>Free forever</span>
         </div>
       </section>
 
       {/* Tools Grid */}
-      <section className="max-w-6xl mx-auto px-6 pb-16">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
-          {tools.map((tool) => (
-            <Link
-              key={tool.name}
-              href={tool.href}
-              className="tool-card"
-            >
-              <div className={`tool-icon ${tool.color}`}>
-                <tool.icon className="w-7 h-7" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-lg">{tool.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {tool.description}
-                </p>
-              </div>
-            </Link>
-          ))}
+      <section className="space-y-8">
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-display">Audio Tools</h2>
+          <div className="flex-1 h-0.5 bg-foreground" />
         </div>
 
-        {/* Info */}
-        <div className="mt-12 border-2 border-foreground p-6 bg-muted/30">
-          <div className="flex gap-4">
-            <AudioIcon className="w-6 h-6 shrink-0 mt-1" />
-            <div>
-              <h3 className="font-bold text-lg mb-2">Audio Processing Notes</h3>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• All audio is exported as WAV for maximum compatibility</li>
-                <li>• Works best with files under 5 minutes (larger files use more memory)</li>
-                <li>• Supported formats: MP3, WAV, OGG, M4A, WebM</li>
-              </ul>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
+          {tools.map((tool) => {
+            const Icon = tool.icon;
+
+            return (
+              <Link key={tool.href} href={tool.href}>
+                <article className={`tool-card ${tool.colorClass} group h-full cursor-pointer`}>
+                  <span className="category-tag">{categoryLabels[tool.category]}</span>
+
+                  <div className="space-y-4">
+                    <div className="tool-icon">
+                      <Icon className="w-6 h-6" />
+                    </div>
+
+                    <div className="space-y-2 pr-16">
+                      <h3 className="text-xl font-bold text-foreground">
+                        {tool.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {tool.description}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
+                      <span>Use tool</span>
+                      <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14" />
+                        <path d="m12 5 7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </article>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-12 border-t-2 border-foreground">
+        <div className="grid sm:grid-cols-3 gap-6">
+          <div className="feature-item">
+            <div className="feature-icon">
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <polyline points="9 12 11 14 15 10" />
+              </svg>
             </div>
+            <h3 className="text-lg font-bold mb-2">100% Private</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Audio never leaves your device. Process sensitive recordings with confidence.
+            </p>
+          </div>
+
+          <div className="feature-item">
+            <div className="feature-icon">
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold mb-2">Instant Processing</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              No upload queues. Your browser does all the work instantly.
+            </p>
+          </div>
+
+          <div className="feature-item">
+            <div className="feature-icon">
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold mb-2">WAV Export</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              All audio exports as high-quality WAV for maximum compatibility.
+            </p>
           </div>
         </div>
       </section>

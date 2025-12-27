@@ -99,7 +99,7 @@ export default function VolumeAudioPage() {
           Back to Audio Tools
         </Link>
         <div className="flex items-center gap-5">
-          <div className="tool-icon tool-audio"><VolumeIcon className="w-7 h-7" /></div>
+          <div className="tool-icon tool-audio-volume"><VolumeIcon className="w-7 h-7" /></div>
           <div>
             <h1 className="text-4xl font-display">Adjust Volume</h1>
             <p className="text-muted-foreground mt-1">Increase or decrease audio volume</p>

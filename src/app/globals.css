@@ -396,23 +396,31 @@
 .tool-unlock { --tool-color: #2D7C5A; }
 .tool-sign { --tool-color: #4A1E7C; }
 
-/* Image tool colors */
-.tool-image-compress { --tool-color: #16A34A; }
-.tool-resize { --tool-color: #2563EB; }
-.tool-convert { --tool-color: #EA580C; }
-.tool-heic { --tool-color: #0891B2; }
-.tool-crop { --tool-color: #DC2626; }
-.tool-rotate-image { --tool-color: #9333EA; }
-.tool-strip-metadata { --tool-color: #65A30D; }
-.tool-adjust { --tool-color: #F59E0B; }
-.tool-filters { --tool-color: #EC4899; }
-.tool-image-watermark { --tool-color: #8B5CF6; }
-.tool-border { --tool-color: #6B7280; }
-.tool-base64 { --tool-color: #0D9488; }
-.tool-favicon { --tool-color: #7C3AED; }
-.tool-bulk { --tool-color: #059669; }
-.tool-qr { --tool-color: #0891B2; }
-.tool-audio { --tool-color: #7C3AED; }
+/* Image tool colors - deep, muted, earthy tones */
+.tool-image-compress { --tool-color: #166534; }
+.tool-resize { --tool-color: #1E4A7C; }
+.tool-convert { --tool-color: #9C4221; }
+.tool-heic { --tool-color: #0E7490; }
+.tool-crop { --tool-color: #991B1B; }
+.tool-rotate-image { --tool-color: #5B21B6; }
+.tool-strip-metadata { --tool-color: #3F6212; }
+.tool-adjust { --tool-color: #92400E; }
+.tool-filters { --tool-color: #9D174D; }
+.tool-image-watermark { --tool-color: #6B21A8; }
+.tool-border { --tool-color: #4B5563; }
+.tool-base64 { --tool-color: #115E59; }
+.tool-favicon { --tool-color: #4A1E7C; }
+.tool-bulk { --tool-color: #14532D; }
+.tool-qr { --tool-color: #0E7490; }
+.tool-qr-generate { --tool-color: #1E4A7C; }
+.tool-qr-scan { --tool-color: #7C1E4A; }
+.tool-audio-trim { --tool-color: #5B21B6; }
+.tool-audio-record { --tool-color: #991B1B; }
+.tool-audio-volume { --tool-color: #1E4A7C; }
+.tool-audio-speed { --tool-color: #92400E; }
+.tool-audio-fade { --tool-color: #166534; }
+.tool-audio-reverse { --tool-color: #7C1E4A; }
+.tool-audio-waveform { --tool-color: #0E7490; }
 
 /* Category tag */
 .category-tag {

@@ -89,7 +89,7 @@ export default function ReverseAudioPage() {
       <div className="space-y-6">
         <Link href="/audio" className="back-link"><ArrowLeftIcon className="w-4 h-4" />Back to Audio Tools</Link>
         <div className="flex items-center gap-5">
-          <div className="tool-icon tool-audio"><ReverseIcon className="w-7 h-7" /></div>
+          <div className="tool-icon tool-audio-reverse"><ReverseIcon className="w-7 h-7" /></div>
           <div>
             <h1 className="text-4xl font-display">Reverse Audio</h1>
             <p className="text-muted-foreground mt-1">Play audio backwards</p>

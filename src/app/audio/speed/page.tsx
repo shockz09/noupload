@@ -97,7 +97,7 @@ export default function SpeedAudioPage() {
       <div className="space-y-6">
         <Link href="/audio" className="back-link"><ArrowLeftIcon className="w-4 h-4" />Back to Audio Tools</Link>
         <div className="flex items-center gap-5">
-          <div className="tool-icon tool-audio"><SpeedIcon className="w-7 h-7" /></div>
+          <div className="tool-icon tool-audio-speed"><SpeedIcon className="w-7 h-7" /></div>
           <div>
             <h1 className="text-4xl font-display">Change Speed</h1>
             <p className="text-muted-foreground mt-1">Speed up or slow down audio</p>

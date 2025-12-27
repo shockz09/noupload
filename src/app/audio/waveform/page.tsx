@@ -101,7 +101,7 @@ export default function WaveformPage() {
       <div className="space-y-6">
         <Link href="/audio" className="back-link"><ArrowLeftIcon className="w-4 h-4" />Back to Audio Tools</Link>
         <div className="flex items-center gap-5">
-          <div className="tool-icon tool-audio"><WaveformIcon className="w-7 h-7" /></div>
+          <div className="tool-icon tool-audio-waveform"><WaveformIcon className="w-7 h-7" /></div>
           <div>
             <h1 className="text-4xl font-display">Waveform Image</h1>
             <p className="text-muted-foreground mt-1">Generate waveform image from audio</p>

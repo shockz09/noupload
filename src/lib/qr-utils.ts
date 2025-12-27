@@ -22,10 +22,20 @@ export interface SmsData {
   message?: string;
 }
 
+// Escape special characters for WiFi QR string
+function escapeWifiString(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\") // Backslash first
+    .replace(/;/g, "\\;")
+    .replace(/:/g, "\\:")
+    .replace(/,/g, "\\,")
+    .replace(/"/g, '\\"');
+}
+
 // Generate WiFi QR string
 export function generateWifiString(data: WifiData): string {
   const hidden = data.hidden ? "H:true" : "";
-  return `WIFI:T:${data.encryption};S:${data.ssid};P:${data.password};${hidden};`;
+  return `WIFI:T:${data.encryption};S:${escapeWifiString(data.ssid)};P:${escapeWifiString(data.password)};${hidden};`;
 }
 
 // Generate Email QR string (mailto:)

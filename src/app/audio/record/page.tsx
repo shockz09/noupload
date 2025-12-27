@@ -108,7 +108,7 @@ export default function RecordAudioPage() {
         </Link>
 
         <div className="flex items-center gap-5">
-          <div className="tool-icon tool-audio">
+          <div className="tool-icon tool-audio-record">
             <MicIcon className="w-7 h-7" />
           </div>
           <div>
