@@ -55,8 +55,8 @@ export async function createSearchablePDF(
   if (file.type === "application/pdf") {
     const converted = await pdfToImages(file, {
       scale,
-      format: "jpeg", // JPEG is faster to encode, OCR doesn't need lossless
-      quality: 0.85,
+      format: "jpeg",
+      quality: 0.95, // High quality needed for final PDF output
       onProgress: (current, total) => {
         const percent = Math.round((current / total) * 25);
         onProgress?.(percent, `Converting page ${current} of ${total}...`);
