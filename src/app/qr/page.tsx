@@ -298,7 +298,7 @@ export default function QRPage() {
         </Link>
 
         <div className="max-w-3xl">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-display leading-[1.1] tracking-tight">
+          <h1 className="text-3xl sm:text-5xl lg:text-7xl font-display leading-[1.1] tracking-tight">
             QR codes,{" "}
             <span className="relative inline-block">
               <span className="italic">instantly</span>
@@ -407,7 +407,7 @@ export default function QRPage() {
               {/* Data Type Selection */}
               <div className="space-y-3">
                 <label className="input-label">Content Type</label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                   {dataTypes.map((type) => {
                     const Icon = type.icon;
                     return (
@@ -596,8 +596,8 @@ export default function QRPage() {
               {qrImage && (
                 <div className="pt-6 border-t-2 border-foreground space-y-6 animate-fade-up">
                   <div className="flex flex-col items-center">
-                    <div className="bg-white p-8 border-2 border-foreground shadow-[8px_8px_0_0_#1A1612]">
-                      <img src={qrImage} alt="Generated QR Code" className="w-64 h-64" />
+                    <div className="bg-white p-4 sm:p-8 border-2 border-foreground shadow-[4px_4px_0_0_#1A1612] sm:shadow-[8px_8px_0_0_#1A1612]">
+                      <img src={qrImage} alt="Generated QR Code" className="w-48 h-48 sm:w-64 sm:h-64" />
                     </div>
                   </div>
                   <button onClick={handleDownload} className="btn-success w-full">

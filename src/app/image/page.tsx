@@ -175,7 +175,7 @@ export default function ImagesPage() {
         </Link>
 
         <div className="max-w-3xl">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-display leading-[1.1] tracking-tight">
+          <h1 className="text-3xl sm:text-5xl lg:text-7xl font-display leading-[1.1] tracking-tight">
             Image tools that{" "}
             <span className="italic">work</span>{" "}
             <span className="relative inline-block">
