@@ -198,51 +198,55 @@ export default function RotatePage() {
       ) : (
         <div className="space-y-6">
           {/* Toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-card border-2 border-foreground">
-            <div className="flex items-center gap-3">
-              <span className="font-bold">{pages.length} pages</span>
-              {rotatedCount > 0 && (
-                <span className="px-3 py-1 bg-primary text-white text-sm font-bold border-2 border-foreground">
-                  {rotatedCount} rotated
-                </span>
-              )}
+          <div className="p-4 bg-card border-2 border-foreground space-y-4">
+            {/* Top row: page count and change file */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="font-bold">{pages.length} pages</span>
+                {rotatedCount > 0 && (
+                  <span className="px-3 py-1 bg-primary text-white text-sm font-bold border-2 border-foreground">
+                    {rotatedCount} rotated
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={handleClear}
+                className="px-3 py-1.5 text-muted-foreground font-semibold text-sm hover:text-foreground transition-colors whitespace-nowrap"
+              >
+                Change file
+              </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Bottom row: action buttons */}
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => rotateAll(90)}
-                className="px-4 py-2 bg-muted border-2 border-foreground font-bold text-sm hover:bg-accent transition-colors flex items-center gap-2"
+                className="flex-1 px-3 py-2.5 sm:px-4 bg-muted border-2 border-foreground font-bold text-sm hover:bg-accent transition-colors flex items-center justify-center gap-1.5 sm:gap-2"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
                   <path d="M21 3v5h-5" />
                 </svg>
-                Rotate All →
+                All →
               </button>
               <button
                 onClick={() => rotateAll(-90)}
-                className="px-4 py-2 bg-muted border-2 border-foreground font-bold text-sm hover:bg-accent transition-colors flex items-center gap-2"
+                className="flex-1 px-3 py-2.5 sm:px-4 bg-muted border-2 border-foreground font-bold text-sm hover:bg-accent transition-colors flex items-center justify-center gap-1.5 sm:gap-2"
               >
-                <svg className="w-4 h-4 -scale-x-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="w-4 h-4 shrink-0 -scale-x-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
                   <path d="M21 3v5h-5" />
                 </svg>
-                ← Rotate All
+                ← All
               </button>
               {rotatedCount > 0 && (
                 <button
                   onClick={resetAll}
-                  className="px-4 py-2 bg-muted border-2 border-foreground font-bold text-sm hover:bg-destructive hover:text-white transition-colors"
+                  className="flex-1 px-3 py-2.5 sm:px-4 bg-muted border-2 border-foreground font-bold text-sm hover:bg-destructive hover:text-white transition-colors"
                 >
                   Reset
                 </button>
               )}
-              <button
-                onClick={handleClear}
-                className="px-4 py-2 text-muted-foreground font-semibold text-sm hover:text-foreground transition-colors"
-              >
-                Change file
-              </button>
             </div>
           </div>
 
