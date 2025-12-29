@@ -11,6 +11,7 @@ interface ImageItem {
   file: File;
   id: string;
   preview: string;
+  rotation: number; // 0, 90, 180, 270
 }
 
 interface ConvertResult {
@@ -42,12 +43,21 @@ export default function ImagesToPdfPage() {
         file,
         id: crypto.randomUUID(),
         preview,
+        rotation: 0,
       });
     }
 
     setImages((prev) => [...prev, ...newItems]);
     setError(null);
     setResult(null);
+  }, []);
+
+  const handleRotate = useCallback((id: string) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === id ? { ...img, rotation: (img.rotation + 90) % 360 } : img
+      )
+    );
   }, []);
 
   const handleRemove = useCallback((id: string) => {
@@ -82,6 +92,7 @@ export default function ImagesToPdfPage() {
         images.map((i) => i.file),
         {
           pageSize,
+          rotations: images.map((i) => i.rotation),
           onProgress: (current, total) => {
             setProgress(Math.round((current / total) * 100));
           },
@@ -192,7 +203,7 @@ export default function ImagesToPdfPage() {
                 {images.map((image, index) => (
                   <div
                     key={image.id}
-                    className={`relative group border-2 border-foreground overflow-hidden cursor-move transition-all
+                    className={`relative group border-2 border-foreground overflow-hidden transition-all
                       ${draggingId === image.id ? "opacity-50 scale-95" : ""}
                     `}
                     draggable
@@ -201,23 +212,37 @@ export default function ImagesToPdfPage() {
                     onDragEnd={handleDragEnd}
                     onDrop={(e) => handleDrop(e, index)}
                   >
-                    <img
-                      src={image.preview}
-                      alt={image.file.name}
-                      className="w-full aspect-square object-cover"
-                      draggable={false}
-                    />
+                    {/* Clickable image for rotation */}
+                    <div
+                      onClick={() => handleRotate(image.id)}
+                      className="cursor-pointer w-full aspect-square flex items-center justify-center bg-muted/30 overflow-hidden"
+                      title="Click to rotate"
+                    >
+                      <img
+                        src={image.preview}
+                        alt={image.file.name}
+                        className="max-w-full max-h-full object-contain transition-transform duration-200"
+                        style={{ transform: `rotate(${image.rotation}deg)` }}
+                        draggable={false}
+                      />
+                    </div>
                     {/* Index badge */}
                     <div className="absolute top-1 left-1 file-number text-xs">
                       {index + 1}
                     </div>
+                    {/* Rotation badge */}
+                    {image.rotation !== 0 && (
+                      <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold border border-foreground">
+                        {image.rotation}°
+                      </div>
+                    )}
                     {/* Drag handle */}
-                    <div className="absolute top-1 right-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-1 right-8 opacity-0 group-hover:opacity-100 transition-opacity cursor-move">
                       <GripIcon className="w-4 h-4 text-white drop-shadow" />
                     </div>
                     {/* Remove button */}
                     <button
-                      onClick={() => handleRemove(image.id)}
+                      onClick={(e) => { e.stopPropagation(); handleRemove(image.id); }}
                       className="absolute top-1 right-1 w-5 h-5 bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <XIcon className="w-3 h-3" />
@@ -227,7 +252,7 @@ export default function ImagesToPdfPage() {
               </div>
 
               <p className="text-xs text-muted-foreground text-center font-medium">
-                Drag images to reorder them
+                Click to rotate · Drag to reorder
               </p>
 
               {/* Page Size Options */}

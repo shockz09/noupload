@@ -117,15 +117,63 @@ interface PreparedImage {
   index: number;
 }
 
+// Rotate image using canvas
+async function rotateImageBytes(
+  bytes: Uint8Array,
+  type: "png" | "jpeg",
+  rotation: number
+): Promise<{ bytes: Uint8Array; type: "png" | "jpeg" }> {
+  if (rotation === 0) return { bytes, type };
+
+  const mimeType = type === "png" ? "image/png" : "image/jpeg";
+  const blob = new Blob([new Uint8Array(bytes)], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+
+      // Swap dimensions for 90/270 rotation
+      if (rotation === 90 || rotation === 270) {
+        canvas.width = img.height;
+        canvas.height = img.width;
+      } else {
+        canvas.width = img.width;
+        canvas.height = img.height;
+      }
+
+      // Move to center, rotate, draw
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+      canvas.toBlob(
+        async (rotatedBlob) => {
+          const arrayBuffer = await rotatedBlob!.arrayBuffer();
+          resolve({ bytes: new Uint8Array(arrayBuffer), type: "jpeg" });
+        },
+        "image/jpeg",
+        0.92
+      );
+    };
+    img.src = url;
+  });
+}
+
 export async function imagesToPdf(
   files: File[],
   options: {
     pageSize?: "a4" | "letter" | "fit";
     margin?: number;
+    rotations?: number[]; // Per-image rotation in degrees (0, 90, 180, 270)
     onProgress?: (current: number, total: number) => void;
   } = {}
 ): Promise<Uint8Array> {
-  const { pageSize = "a4", margin = 20, onProgress } = options;
+  const { pageSize = "a4", margin = 20, rotations = [], onProgress } = options;
   const isLowEnd = isLowEndDevice();
   const concurrency = isLowEnd ? 2 : 4;
 
@@ -136,7 +184,7 @@ export async function imagesToPdf(
     fit: null as { width: number; height: number } | null,
   };
 
-  // Step 1: Prepare all images in parallel (load + convert)
+  // Step 1: Prepare all images in parallel (load + convert + rotate)
   const preparedImages = await processInParallel(
     files.map((f, i) => ({ file: f, index: i })),
     async ({ file, index }) => {
@@ -155,6 +203,14 @@ export async function imagesToPdf(
         const dataUrl = await fileToDataUrl(file);
         bytes = await dataUrlToJpegBytes(dataUrl);
         type = "jpeg";
+      }
+
+      // Apply rotation if specified
+      const rotation = rotations[index] || 0;
+      if (rotation !== 0) {
+        const rotated = await rotateImageBytes(bytes, type, rotation);
+        bytes = rotated.bytes;
+        type = rotated.type;
       }
 
       return { bytes, type, index } as PreparedImage;
