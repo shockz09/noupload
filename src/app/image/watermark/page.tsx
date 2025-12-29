@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { addWatermark, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 import { WatermarkIcon, ImageIcon, LoaderIcon } from "@/components/icons";
-import { ImagePageHeader, ErrorBox, SuccessCard, ImageFileInfo } from "@/components/image/shared";
+import { ImagePageHeader, ErrorBox, SuccessCard } from "@/components/image/shared";
 
 type Position = "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
@@ -13,12 +13,25 @@ interface WatermarkResult {
   filename: string;
 }
 
-const positions: { value: Position; label: string }[] = [
-  { value: "center", label: "Center" },
-  { value: "top-left", label: "Top Left" },
-  { value: "top-right", label: "Top Right" },
-  { value: "bottom-left", label: "Bottom Left" },
-  { value: "bottom-right", label: "Bottom Right" },
+// Size presets instead of slider
+const sizePresets = [
+  { value: 24, label: "S" },
+  { value: 48, label: "M" },
+  { value: 72, label: "L" },
+  { value: 120, label: "XL" },
+];
+
+// Opacity presets
+const opacityPresets = [
+  { value: 25, label: "25%" },
+  { value: 50, label: "50%" },
+  { value: 75, label: "75%" },
+  { value: 100, label: "100%" },
+];
+
+// Color presets (6 to fit in one row)
+const colorPresets = [
+  "#000000", "#FFFFFF", "#ef4444", "#3b82f6", "#22c55e", "#eab308",
 ];
 
 export default function ImageWatermarkPage() {
@@ -39,7 +52,6 @@ export default function ImageWatermarkPage() {
       setFile(selectedFile);
       setError(null);
       setResult(null);
-
       const url = URL.createObjectURL(selectedFile);
       setPreview(url);
     }
@@ -65,8 +77,8 @@ export default function ImageWatermarkPage() {
       if (!items) return;
       for (const item of items) {
         if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) handleFileSelected([file]);
+          const pastedFile = item.getAsFile();
+          if (pastedFile) handleFileSelected([pastedFile]);
           break;
         }
       }
@@ -77,7 +89,6 @@ export default function ImageWatermarkPage() {
 
   const handleApply = async () => {
     if (!file || !text.trim()) return;
-
     setIsProcessing(true);
     setError(null);
     setResult(null);
@@ -91,7 +102,6 @@ export default function ImageWatermarkPage() {
         rotation: 0,
         color,
       });
-
       setResult({
         blob: watermarked,
         filename: getOutputFilename(file.name, undefined, "_watermarked"),
@@ -117,8 +127,30 @@ export default function ImageWatermarkPage() {
     setError(null);
   };
 
+  // Get preview watermark position styles
+  const getWatermarkStyle = () => {
+    const base: React.CSSProperties = {
+      position: "absolute",
+      fontSize: `${Math.max(8, fontSize * 0.15)}px`,
+      color,
+      opacity: opacity / 100,
+      fontWeight: "bold",
+      whiteSpace: "nowrap",
+      textShadow: color === "#FFFFFF" || color === "#f5f5f5"
+        ? "0 1px 2px rgba(0,0,0,0.3)"
+        : "0 1px 2px rgba(255,255,255,0.3)",
+    };
+    switch (position) {
+      case "top-left": return { ...base, top: "8px", left: "8px" };
+      case "top-right": return { ...base, top: "8px", right: "8px" };
+      case "center": return { ...base, top: "50%", left: "50%", transform: "translate(-50%, -50%)" };
+      case "bottom-left": return { ...base, bottom: "8px", left: "8px" };
+      case "bottom-right": return { ...base, bottom: "8px", right: "8px" };
+    }
+  };
+
   return (
-    <div className="page-enter max-w-2xl mx-auto space-y-8">
+    <div className="page-enter max-w-4xl mx-auto space-y-8">
       <ImagePageHeader
         icon={<WatermarkIcon className="w-7 h-7" />}
         iconClass="tool-image-watermark"
@@ -146,116 +178,143 @@ export default function ImageWatermarkPage() {
           subtitle="or click to browse · Ctrl+V to paste"
         />
       ) : (
-        <div className="space-y-6">
-          {preview && (
-            <div className="border-2 border-foreground p-4 bg-muted/30">
-              <img src={preview} alt="Preview" className="max-h-48 mx-auto object-contain" />
-            </div>
-          )}
-
-          <ImageFileInfo
-            file={file}
-            fileSize={formatFileSize(file.size)}
-            onClear={handleClear}
-            icon={<ImageIcon className="w-5 h-5" />}
-          />
-
-          <div className="space-y-2">
-            <label className="input-label">Watermark Text</label>
-            <input
-              type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Enter watermark text"
-              className="input-field w-full"
-            />
-          </div>
-
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Left: Preview */}
           <div className="space-y-3">
-            <label className="input-label">Position</label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {positions.map((pos) => (
-                <button
-                  key={pos.value}
-                  onClick={() => setPosition(pos.value)}
-                  className={`px-3 py-2 text-xs font-bold border-2 border-foreground transition-colors ${
-                    position === pos.value ? "bg-foreground text-background" : "hover:bg-muted"
-                  }`}
-                >
-                  {pos.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="input-label">Font Size</label>
-              <span className="text-sm font-bold">{fontSize}px</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Preview</span>
+              <button onClick={handleClear} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+                Change file
+              </button>
             </div>
-            <input
-              type="range"
-              min="12"
-              max="200"
-              value={fontSize}
-              onChange={(e) => setFontSize(Number(e.target.value))}
-              className="w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-foreground [&::-webkit-slider-thumb]:cursor-pointer"
-            />
+            <div className="border-2 border-foreground p-2 bg-muted/30 flex justify-center items-center min-h-[200px]">
+              <div className="relative inline-block overflow-hidden">
+                <img src={preview!} alt="Preview" className="max-h-[180px] object-contain" />
+                {text && <div style={getWatermarkStyle()}>{text}</div>}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground truncate">{file.name} • {formatFileSize(file.size)}</p>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="input-label">Opacity</label>
-              <span className="text-sm font-bold">{opacity}%</span>
-            </div>
-            <input
-              type="range"
-              min="10"
-              max="100"
-              value={opacity}
-              onChange={(e) => setOpacity(Number(e.target.value))}
-              className="w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-foreground [&::-webkit-slider-thumb]:cursor-pointer"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="input-label">Color</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="w-14 h-12 border-2 border-foreground cursor-pointer p-1"
-              />
+          {/* Right: Controls */}
+          <div className="space-y-4">
+            {/* Text Input */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Text</label>
               <input
                 type="text"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="input-field flex-1"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Watermark text"
+                autoFocus
+                className="w-full px-3 py-2 text-sm border-2 border-foreground/30 focus:border-foreground outline-none bg-background"
               />
             </div>
-          </div>
 
-          {error && <ErrorBox message={error} />}
+            {/* Position + Size Row */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Position - Visual Grid */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Position</label>
+                <div className="grid grid-cols-3 gap-1 w-fit">
+                  {(["top-left", null, "top-right", null, "center", null, "bottom-left", null, "bottom-right"] as const).map((pos, i) => (
+                    pos ? (
+                      <button
+                        key={pos}
+                        onClick={() => setPosition(pos)}
+                        className={`w-7 h-7 border-2 transition-all flex items-center justify-center ${
+                          position === pos
+                            ? "border-foreground bg-foreground"
+                            : "border-foreground/30 hover:border-foreground bg-muted/50"
+                        }`}
+                      >
+                        <div className={`w-2 h-2 rounded-full ${position === pos ? "bg-background" : "bg-foreground/40"}`} />
+                      </button>
+                    ) : (
+                      <div key={i} className="w-7 h-7" />
+                    )
+                  ))}
+                </div>
+              </div>
 
-          {isProcessing && (
-            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground py-4">
-              <LoaderIcon className="w-4 h-4" />
-              <span>Adding watermark...</span>
+              {/* Size Presets */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Size</label>
+                <div className="flex gap-1">
+                  {sizePresets.map((size) => (
+                    <button
+                      key={size.value}
+                      onClick={() => setFontSize(size.value)}
+                      className={`flex-1 py-1.5 text-xs font-bold border-2 transition-all ${
+                        fontSize === size.value
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-foreground/30 hover:border-foreground"
+                      }`}
+                    >
+                      {size.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          )}
 
-          <button
-            onClick={handleApply}
-            disabled={isProcessing || !text.trim()}
-            className="btn-primary w-full"
-          >
-            {isProcessing ? (
-              <><LoaderIcon className="w-5 h-5" />Processing...</>
-            ) : (
-              <><WatermarkIcon className="w-5 h-5" />Add Watermark</>
-            )}
-          </button>
+            {/* Opacity + Color Row */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Opacity Presets */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Opacity</label>
+                <div className="flex gap-1">
+                  {opacityPresets.map((op) => (
+                    <button
+                      key={op.value}
+                      onClick={() => setOpacity(op.value)}
+                      className={`flex-1 py-1.5 text-xs font-bold border-2 transition-all ${
+                        opacity === op.value
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-foreground/30 hover:border-foreground"
+                      }`}
+                    >
+                      {op.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Color Chips */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Color</label>
+                <div className="flex gap-1">
+                  {colorPresets.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setColor(c)}
+                      className={`w-7 h-8 border-2 transition-all ${
+                        color === c
+                          ? "border-foreground ring-2 ring-offset-1 ring-foreground"
+                          : "border-foreground/20 hover:border-foreground/50"
+                      }`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {error && <ErrorBox message={error} />}
+
+            {/* Action Button */}
+            <button
+              onClick={handleApply}
+              disabled={isProcessing || !text.trim()}
+              className="btn-primary w-full"
+            >
+              {isProcessing ? (
+                <><LoaderIcon className="w-5 h-5" />Processing...</>
+              ) : (
+                <><WatermarkIcon className="w-5 h-5" />Add Watermark</>
+              )}
+            </button>
+          </div>
         </div>
       )}
     </div>

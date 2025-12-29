@@ -11,6 +11,7 @@ import {
   AudioFileInfo,
   AudioPageHeader,
 } from "@/components/audio/shared";
+import { AudioPlayer } from "@/components/audio/AudioPlayer";
 
 export default function VolumeAudioPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -108,7 +109,7 @@ export default function VolumeAudioPage() {
         <div className="space-y-6">
           <AudioFileInfo file={file} duration={duration} onClear={handleStartOver} />
 
-          {audioUrl && <audio controls src={audioUrl} className="w-full" />}
+          {audioUrl && <AudioPlayer src={audioUrl} />}
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">

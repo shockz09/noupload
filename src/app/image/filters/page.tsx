@@ -3,14 +3,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { applyFilter, downloadImage, formatFileSize, getOutputFilename, FilterType } from "@/lib/image-utils";
-import { FiltersIcon, ImageIcon, LoaderIcon } from "@/components/icons";
-import { ImagePageHeader, ErrorBox, SuccessCard, ImageFileInfo } from "@/components/image/shared";
-
-interface FilterResult {
-  blob: Blob;
-  filename: string;
-  filter: FilterType;
-}
+import { FiltersIcon, LoaderIcon } from "@/components/icons";
+import { ImagePageHeader, ErrorBox, SuccessCard } from "@/components/image/shared";
 
 const filters: { value: FilterType; label: string; cssFilter: string }[] = [
   { value: "grayscale", label: "Grayscale", cssFilter: "grayscale(100%)" },
@@ -24,18 +18,15 @@ export default function ImageFiltersPage() {
   const [selectedFilter, setSelectedFilter] = useState<FilterType | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<FilterResult | null>(null);
+  const [result, setResult] = useState<{ blob: Blob; filename: string; filter: FilterType } | null>(null);
 
   const handleFileSelected = useCallback((files: File[]) => {
     if (files.length > 0) {
-      const selectedFile = files[0];
-      setFile(selectedFile);
+      setFile(files[0]);
       setError(null);
       setResult(null);
       setSelectedFilter(null);
-
-      const url = URL.createObjectURL(selectedFile);
-      setPreview(url);
+      setPreview(URL.createObjectURL(files[0]));
     }
   }, []);
 
@@ -49,9 +40,7 @@ export default function ImageFiltersPage() {
   }, [preview]);
 
   useEffect(() => {
-    return () => {
-      if (preview) URL.revokeObjectURL(preview);
-    };
+    return () => { if (preview) URL.revokeObjectURL(preview); };
   }, [preview]);
 
   useEffect(() => {
@@ -60,8 +49,8 @@ export default function ImageFiltersPage() {
       if (!items) return;
       for (const item of items) {
         if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) handleFileSelected([file]);
+          const f = item.getAsFile();
+          if (f) handleFileSelected([f]);
           break;
         }
       }
@@ -76,14 +65,10 @@ export default function ImageFiltersPage() {
 
   const handleApply = async () => {
     if (!file || !selectedFilter) return;
-
     setIsProcessing(true);
     setError(null);
-    setResult(null);
-
     try {
       const filtered = await applyFilter(file, selectedFilter);
-
       setResult({
         blob: filtered,
         filename: getOutputFilename(file.name, undefined, `_${selectedFilter}`),
@@ -98,7 +83,6 @@ export default function ImageFiltersPage() {
 
   const handleDownload = (e: React.MouseEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     if (result) downloadImage(result.blob, result.filename);
   };
 
@@ -112,7 +96,7 @@ export default function ImageFiltersPage() {
   };
 
   return (
-    <div className="page-enter max-w-2xl mx-auto space-y-8">
+    <div className="page-enter max-w-4xl mx-auto space-y-8">
       <ImagePageHeader
         icon={<FiltersIcon className="w-7 h-7" />}
         iconClass="tool-filters"
@@ -142,86 +126,84 @@ export default function ImageFiltersPage() {
           subtitle="or click to browse · Ctrl+V to paste"
         />
       ) : (
-        <div className="space-y-6">
-          {preview && (
-            <div className="border-2 border-foreground p-4 bg-muted/30">
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Left: Live Preview */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Preview</span>
+              <button onClick={handleClear} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+                Change file
+              </button>
+            </div>
+            <div className="border-2 border-foreground p-2 bg-muted/30 flex justify-center items-center min-h-[200px]">
               <img
-                src={preview}
+                src={preview!}
                 alt="Preview"
                 style={currentFilterStyle}
-                className="max-h-64 mx-auto object-contain transition-all duration-300"
+                className="max-h-[180px] object-contain transition-all duration-200"
               />
             </div>
-          )}
+            <p className="text-xs text-muted-foreground truncate">{file.name} • {formatFileSize(file.size)}</p>
+          </div>
 
-          <ImageFileInfo
-            file={file}
-            fileSize={formatFileSize(file.size)}
-            onClear={handleClear}
-            icon={<ImageIcon className="w-5 h-5" />}
-          />
-
-          <div className="space-y-3">
-            <label className="input-label">Select Filter</label>
-            <div className="grid grid-cols-3 gap-3">
-              {filters.map((filter) => (
-                <button
-                  key={filter.value}
-                  onClick={() => setSelectedFilter(filter.value)}
-                  className={`relative overflow-hidden border-2 border-foreground aspect-square transition-all ${
-                    selectedFilter === filter.value ? "ring-4 ring-primary ring-offset-2" : "hover:scale-105"
-                  }`}
-                >
-                  {preview && (
+          {/* Right: Controls */}
+          <div className="space-y-4">
+            {/* Filter Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Select Filter</label>
+              <div className="grid grid-cols-3 gap-2">
+                {filters.map((filter) => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setSelectedFilter(filter.value)}
+                    className={`relative overflow-hidden border-2 border-foreground aspect-[4/3] transition-all ${
+                      selectedFilter === filter.value ? "ring-2 ring-offset-2 ring-foreground" : "hover:scale-[1.02]"
+                    }`}
+                  >
                     <img
-                      src={preview}
+                      src={preview!}
                       alt={filter.label}
                       style={{ filter: filter.cssFilter }}
                       className="w-full h-full object-cover"
                     />
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 bg-foreground/90 py-2">
-                    <span className="text-xs font-bold text-background">{filter.label}</span>
-                  </div>
-                </button>
-              ))}
+                    <div className="absolute inset-x-0 bottom-0 bg-foreground/90 py-1.5">
+                      <span className="text-xs font-bold text-background">{filter.label}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {selectedFilter && (
-            <button
-              onClick={() => setSelectedFilter(null)}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Clear filter selection
-            </button>
-          )}
-
-          {error && <ErrorBox message={error} />}
-
-          {isProcessing && (
-            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground py-4">
-              <LoaderIcon className="w-4 h-4" />
-              <span>Applying filter...</span>
-            </div>
-          )}
-
-          <button
-            onClick={handleApply}
-            disabled={isProcessing || !selectedFilter}
-            className="btn-primary w-full"
-          >
-            {isProcessing ? (
-              <><LoaderIcon className="w-5 h-5" />Processing...</>
-            ) : (
-              <>
-                <FiltersIcon className="w-5 h-5" />
-                {selectedFilter
-                  ? `Apply ${selectedFilter.charAt(0).toUpperCase() + selectedFilter.slice(1)}`
-                  : "Select a Filter"}
-              </>
+            {/* Clear Selection */}
+            {selectedFilter && (
+              <button
+                onClick={() => setSelectedFilter(null)}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Clear filter selection
+              </button>
             )}
-          </button>
+
+            {error && <ErrorBox message={error} />}
+
+            {/* Action Button */}
+            <button
+              onClick={handleApply}
+              disabled={isProcessing || !selectedFilter}
+              className="btn-primary w-full"
+            >
+              {isProcessing ? (
+                <><LoaderIcon className="w-5 h-5" />Processing...</>
+              ) : (
+                <>
+                  <FiltersIcon className="w-5 h-5" />
+                  {selectedFilter
+                    ? `Apply ${selectedFilter.charAt(0).toUpperCase() + selectedFilter.slice(1)}`
+                    : "Select a Filter"}
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
     </div>

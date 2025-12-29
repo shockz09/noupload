@@ -1,15 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { adjustImage, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
-import { BrightnessIcon, ImageIcon, LoaderIcon } from "@/components/icons";
-import { ImagePageHeader, ErrorBox, SuccessCard, ImageFileInfo } from "@/components/image/shared";
-
-interface AdjustResult {
-  blob: Blob;
-  filename: string;
-}
+import { BrightnessIcon, LoaderIcon } from "@/components/icons";
+import { ImagePageHeader, ErrorBox, SuccessCard } from "@/components/image/shared";
 
 export default function ImageAdjustPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -19,21 +14,17 @@ export default function ImageAdjustPage() {
   const [saturation, setSaturation] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<AdjustResult | null>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const [result, setResult] = useState<{ blob: Blob; filename: string } | null>(null);
 
   const handleFileSelected = useCallback((files: File[]) => {
     if (files.length > 0) {
-      const selectedFile = files[0];
-      setFile(selectedFile);
+      setFile(files[0]);
       setError(null);
       setResult(null);
       setBrightness(0);
       setContrast(0);
       setSaturation(0);
-
-      const url = URL.createObjectURL(selectedFile);
-      setPreview(url);
+      setPreview(URL.createObjectURL(files[0]));
     }
   }, []);
 
@@ -49,9 +40,7 @@ export default function ImageAdjustPage() {
   }, [preview]);
 
   useEffect(() => {
-    return () => {
-      if (preview) URL.revokeObjectURL(preview);
-    };
+    return () => { if (preview) URL.revokeObjectURL(preview); };
   }, [preview]);
 
   useEffect(() => {
@@ -60,8 +49,8 @@ export default function ImageAdjustPage() {
       if (!items) return;
       for (const item of items) {
         if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) handleFileSelected([file]);
+          const f = item.getAsFile();
+          if (f) handleFileSelected([f]);
           break;
         }
       }
@@ -69,12 +58,6 @@ export default function ImageAdjustPage() {
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
   }, [handleFileSelected]);
-
-  const handleReset = () => {
-    setBrightness(0);
-    setContrast(0);
-    setSaturation(0);
-  };
 
   const filterStyle = {
     filter: `brightness(${100 + brightness}%) contrast(${100 + contrast}%) saturate(${100 + saturation}%)`,
@@ -84,17 +67,11 @@ export default function ImageAdjustPage() {
 
   const handleApply = async () => {
     if (!file) return;
-
     setIsProcessing(true);
     setError(null);
-    setResult(null);
-
     try {
       const adjusted = await adjustImage(file, { brightness, contrast, saturation });
-      setResult({
-        blob: adjusted,
-        filename: getOutputFilename(file.name, undefined, "_adjusted"),
-      });
+      setResult({ blob: adjusted, filename: getOutputFilename(file.name, undefined, "_adjusted") });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to adjust image");
     } finally {
@@ -104,7 +81,6 @@ export default function ImageAdjustPage() {
 
   const handleDownload = (e: React.MouseEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     if (result) downloadImage(result.blob, result.filename);
   };
 
@@ -119,8 +95,10 @@ export default function ImageAdjustPage() {
     setSaturation(0);
   };
 
+  const sliderClass = "w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:cursor-pointer";
+
   return (
-    <div className="page-enter max-w-2xl mx-auto space-y-8">
+    <div className="page-enter max-w-4xl mx-auto space-y-8">
       <ImagePageHeader
         icon={<BrightnessIcon className="w-7 h-7" />}
         iconClass="tool-adjust"
@@ -148,31 +126,33 @@ export default function ImageAdjustPage() {
           subtitle="or click to browse · Ctrl+V to paste"
         />
       ) : (
-        <div className="space-y-6">
-          {preview && (
-            <div className="border-2 border-foreground p-4 bg-muted/30">
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Left: Live Preview */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Preview</span>
+              <button onClick={handleClear} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+                Change file
+              </button>
+            </div>
+            <div className="border-2 border-foreground p-2 bg-muted/30 flex justify-center items-center min-h-[200px]">
               <img
-                ref={imgRef}
-                src={preview}
+                src={preview!}
                 alt="Preview"
                 style={filterStyle}
-                className="max-h-64 mx-auto object-contain transition-all duration-150"
+                className="max-h-[180px] object-contain transition-all duration-100"
               />
             </div>
-          )}
+            <p className="text-xs text-muted-foreground truncate">{file.name} • {formatFileSize(file.size)}</p>
+          </div>
 
-          <ImageFileInfo
-            file={file}
-            fileSize={formatFileSize(file.size)}
-            onClear={handleClear}
-            icon={<ImageIcon className="w-5 h-5" />}
-          />
-
-          <div className="space-y-6">
+          {/* Right: Controls */}
+          <div className="space-y-4">
+            {/* Brightness */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="input-label">Brightness</label>
-                <span className="text-sm font-bold">{brightness > 0 ? `+${brightness}` : brightness}</span>
+                <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Brightness</label>
+                <span className="text-xs font-bold tabular-nums">{brightness > 0 ? `+${brightness}` : brightness}</span>
               </div>
               <input
                 type="range"
@@ -180,14 +160,15 @@ export default function ImageAdjustPage() {
                 max="100"
                 value={brightness}
                 onChange={(e) => setBrightness(Number(e.target.value))}
-                className="w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-foreground [&::-webkit-slider-thumb]:cursor-pointer"
+                className={sliderClass}
               />
             </div>
 
+            {/* Contrast */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="input-label">Contrast</label>
-                <span className="text-sm font-bold">{contrast > 0 ? `+${contrast}` : contrast}</span>
+                <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Contrast</label>
+                <span className="text-xs font-bold tabular-nums">{contrast > 0 ? `+${contrast}` : contrast}</span>
               </div>
               <input
                 type="range"
@@ -195,14 +176,15 @@ export default function ImageAdjustPage() {
                 max="100"
                 value={contrast}
                 onChange={(e) => setContrast(Number(e.target.value))}
-                className="w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-foreground [&::-webkit-slider-thumb]:cursor-pointer"
+                className={sliderClass}
               />
             </div>
 
+            {/* Saturation */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="input-label">Saturation</label>
-                <span className="text-sm font-bold">{saturation > 0 ? `+${saturation}` : saturation}</span>
+                <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Saturation</label>
+                <span className="text-xs font-bold tabular-nums">{saturation > 0 ? `+${saturation}` : saturation}</span>
               </div>
               <input
                 type="range"
@@ -210,40 +192,35 @@ export default function ImageAdjustPage() {
                 max="100"
                 value={saturation}
                 onChange={(e) => setSaturation(Number(e.target.value))}
-                className="w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-foreground [&::-webkit-slider-thumb]:cursor-pointer"
+                className={sliderClass}
               />
             </div>
-          </div>
 
-          {hasChanges && (
-            <button
-              onClick={handleReset}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Reset all adjustments
-            </button>
-          )}
-
-          {error && <ErrorBox message={error} />}
-
-          {isProcessing && (
-            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground py-4">
-              <LoaderIcon className="w-4 h-4" />
-              <span>Applying adjustments...</span>
-            </div>
-          )}
-
-          <button
-            onClick={handleApply}
-            disabled={isProcessing || !hasChanges}
-            className="btn-primary w-full"
-          >
-            {isProcessing ? (
-              <><LoaderIcon className="w-5 h-5" />Processing...</>
-            ) : (
-              <><BrightnessIcon className="w-5 h-5" />Apply Adjustments</>
+            {/* Reset */}
+            {hasChanges && (
+              <button
+                onClick={() => { setBrightness(0); setContrast(0); setSaturation(0); }}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Reset all adjustments
+              </button>
             )}
-          </button>
+
+            {error && <ErrorBox message={error} />}
+
+            {/* Action Button */}
+            <button
+              onClick={handleApply}
+              disabled={isProcessing || !hasChanges}
+              className="btn-primary w-full"
+            >
+              {isProcessing ? (
+                <><LoaderIcon className="w-5 h-5" />Processing...</>
+              ) : (
+                <><BrightnessIcon className="w-5 h-5" />Apply Adjustments</>
+              )}
+            </button>
+          </div>
         </div>
       )}
     </div>

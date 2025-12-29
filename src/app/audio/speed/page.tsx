@@ -11,6 +11,7 @@ import {
   AudioFileInfo,
   AudioPageHeader,
 } from "@/components/audio/shared";
+import { AudioPlayer } from "@/components/audio/AudioPlayer";
 
 const speedPresets = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -112,7 +113,7 @@ export default function SpeedAudioPage() {
         <div className="space-y-6">
           <AudioFileInfo file={file} duration={duration} onClear={handleStartOver} />
 
-          {audioUrl && <audio controls src={audioUrl} className="w-full" />}
+          {audioUrl && <AudioPlayer src={audioUrl} />}
 
           <div className="space-y-3">
             <label className="input-label">Speed</label>
