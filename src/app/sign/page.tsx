@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages, PageGridLoading } from "@/components/pdf/pdf-page-preview";
 import { addSignature, downloadBlob } from "@/lib/pdf-utils";
-import { ArrowLeftIcon, SignatureIcon, DownloadIcon, LoaderIcon, TrashIcon, UploadIcon } from "@/components/icons";
+import { SignatureIcon, LoaderIcon, TrashIcon, UploadIcon } from "@/components/icons";
+import { PdfPageHeader, ErrorBox, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 
 interface SignResult {
   data: Uint8Array;
@@ -271,54 +271,25 @@ export default function SignPage() {
 
   return (
     <div className="page-enter max-w-6xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to tools
-        </Link>
+      <PdfPageHeader
+        icon={<SignatureIcon className="w-7 h-7" />}
+        iconClass="tool-sign"
+        title="Sign PDF"
+        description="Draw or upload your signature, then place it anywhere"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-sign">
-            <SignatureIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Sign PDF</h1>
-            <p className="text-muted-foreground mt-1">
-              Draw or upload your signature, then place it anywhere
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up max-w-2xl mx-auto">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Signed</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-2 mb-8">
-              <h2 className="text-3xl font-display">PDF Signed!</h2>
-              <p className="text-muted-foreground">
-                Your signature has been added to the PDF
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button type="button" onClick={handleDownload} className="btn-success flex-1">
-                <DownloadIcon className="w-5 h-5" />
-                Download Signed PDF
-              </button>
-              <button type="button" onClick={handleStartOver} className="btn-secondary flex-1">
-                Sign Another PDF
-              </button>
-            </div>
-          </div>
+        <div className="max-w-2xl mx-auto">
+          <SuccessCard
+            stampText="Signed"
+            title="PDF Signed!"
+            downloadLabel="Download Signed PDF"
+            onDownload={handleDownload}
+            onStartOver={handleStartOver}
+            startOverLabel="Sign Another PDF"
+          >
+            <p className="text-muted-foreground">Your signature has been added to the PDF</p>
+          </SuccessCard>
         </div>
       ) : !file ? (
         <div className="max-w-2xl mx-auto">
@@ -580,28 +551,8 @@ export default function SignPage() {
               </span>
             </div>
 
-            {error && (
-              <div className="error-box animate-shake">
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span className="font-medium">{error}</span>
-              </div>
-            )}
-
-            {isProcessing && (
-              <div className="space-y-3">
-                <div className="progress-bar">
-                  <div className="progress-bar-fill" style={{ width: "50%" }} />
-                </div>
-                <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                  <LoaderIcon className="w-4 h-4" />
-                  <span>Adding signature...</span>
-                </div>
-              </div>
-            )}
+            {error && <ErrorBox message={error} />}
+            {isProcessing && <ProgressBar progress={50} label="Adding signature..." />}
 
             {/* Action Button */}
             <button

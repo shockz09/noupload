@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages, PageThumbnailCard, PageGridLoading } from "@/components/pdf/pdf-page-preview";
 import { rotatePDF, downloadBlob } from "@/lib/pdf-utils";
-import { ArrowLeftIcon, RotateIcon, DownloadIcon, LoaderIcon } from "@/components/icons";
+import { RotateIcon, LoaderIcon } from "@/components/icons";
+import { PdfPageHeader, ErrorBox, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 
 interface RotateResult {
   data: Uint8Array;
@@ -137,54 +137,27 @@ export default function RotatePage() {
 
   return (
     <div className="page-enter max-w-5xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to tools
-        </Link>
+      <PdfPageHeader
+        icon={<RotateIcon className="w-7 h-7" />}
+        iconClass="tool-rotate"
+        title="Rotate PDF"
+        description="Click on pages to rotate them individually"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-rotate">
-            <RotateIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Rotate PDF</h1>
-            <p className="text-muted-foreground mt-1">
-              Click on pages to rotate them individually
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up max-w-2xl mx-auto">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Complete</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-2 mb-8">
-              <h2 className="text-3xl font-display">PDF Rotated!</h2>
-              <p className="text-muted-foreground">
-                {rotatedCount} {rotatedCount === 1 ? "page" : "pages"} rotated successfully
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button type="button" onClick={handleDownload} className="btn-success flex-1">
-                <DownloadIcon className="w-5 h-5" />
-                Download PDF
-              </button>
-              <button type="button" onClick={handleStartOver} className="btn-secondary flex-1">
-                Rotate Another PDF
-              </button>
-            </div>
-          </div>
+        <div className="max-w-2xl mx-auto">
+          <SuccessCard
+            stampText="Complete"
+            title="PDF Rotated!"
+            downloadLabel="Download PDF"
+            onDownload={handleDownload}
+            onStartOver={handleStartOver}
+            startOverLabel="Rotate Another PDF"
+          >
+            <p className="text-muted-foreground">
+              {rotatedCount} {rotatedCount === 1 ? "page" : "pages"} rotated successfully
+            </p>
+          </SuccessCard>
         </div>
       ) : !file ? (
         <div className="max-w-2xl mx-auto">
@@ -288,28 +261,8 @@ export default function RotatePage() {
             </span>
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
-
-          {isProcessing && (
-            <div className="space-y-3">
-              <div className="progress-bar">
-                <div className="progress-bar-fill" style={{ width: "50%" }} />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                <LoaderIcon className="w-4 h-4" />
-                <span>Applying rotations...</span>
-              </div>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
+          {isProcessing && <ProgressBar progress={50} label="Applying rotations..." />}
 
           {/* Action Button */}
           <button

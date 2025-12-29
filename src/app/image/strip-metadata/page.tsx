@@ -1,22 +1,10 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import {
-  stripMetadata,
-  downloadImage,
-  formatFileSize,
-  getOutputFilename,
-} from "@/lib/image-utils";
-import {
-  ArrowLeftIcon,
-  MetadataIcon,
-  DownloadIcon,
-  LoaderIcon,
-  ImageIcon,
-  ShieldIcon,
-} from "@/components/icons";
+import { stripMetadata, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { MetadataIcon, ImageIcon, ShieldIcon, LoaderIcon } from "@/components/icons";
+import { ImagePageHeader, ErrorBox, SuccessCard, ImageFileInfo } from "@/components/image/shared";
 
 interface StripResult {
   blob: Blob;
@@ -51,12 +39,27 @@ export default function StripMetadataPage() {
     setResult(null);
   }, [preview]);
 
-  // Cleanup preview URL on unmount
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFileSelected([file]);
+          break;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [handleFileSelected]);
 
   const handleStrip = async () => {
     if (!file) return;
@@ -74,9 +77,7 @@ export default function StripMetadataPage() {
         originalSize: file.size,
       });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to strip metadata"
-      );
+      setError(err instanceof Error ? err.message : "Failed to strip metadata");
     } finally {
       setIsProcessing(false);
     }
@@ -100,76 +101,36 @@ export default function StripMetadataPage() {
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/image" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Image Tools
-        </Link>
+      <ImagePageHeader
+        icon={<MetadataIcon className="w-7 h-7" />}
+        iconClass="tool-strip-metadata"
+        title="Strip Metadata"
+        description="Remove EXIF data and GPS location from photos"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-strip-metadata">
-            <MetadataIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Strip Metadata</h1>
-            <p className="text-muted-foreground mt-1">
-              Remove EXIF data and GPS location from photos
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Clean</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-4 mb-8">
-              <h2 className="text-3xl font-display">Metadata Removed!</h2>
-
-              {/* What was removed */}
-              <div className="bg-muted/50 border-2 border-foreground p-4 text-left">
-                <p className="font-bold text-sm mb-2">Removed data includes:</p>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Camera make and model</li>
-                  <li>• GPS coordinates and location</li>
-                  <li>• Date and time taken</li>
-                  <li>• Software used</li>
-                  <li>• Other EXIF metadata</li>
-                </ul>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                New file size: {formatFileSize(result.blob.size)}
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="btn-success flex-1"
-              >
-                <DownloadIcon className="w-5 h-5" />
-                Download Clean Image
-              </button>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="btn-secondary flex-1"
-              >
-                Clean Another
-              </button>
-            </div>
+        <SuccessCard
+          stampText="Clean"
+          title="Metadata Removed!"
+          downloadLabel="Download Clean Image"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Clean Another"
+        >
+          <div className="bg-muted/50 border-2 border-foreground p-4 text-left">
+            <p className="font-bold text-sm mb-2">Removed data includes:</p>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li>• Camera make and model</li>
+              <li>• GPS coordinates and location</li>
+              <li>• Date and time taken</li>
+              <li>• Software used</li>
+              <li>• Other EXIF metadata</li>
+            </ul>
           </div>
-        </div>
+          <p className="text-sm text-muted-foreground">
+            New file size: {formatFileSize(result.blob.size)}
+          </p>
+        </SuccessCard>
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone
@@ -177,7 +138,7 @@ export default function StripMetadataPage() {
             multiple={false}
             onFilesSelected={handleFileSelected}
             title="Drop your image here"
-            subtitle="or click to browse from your device"
+            subtitle="or click to browse · Ctrl+V to paste"
           />
 
           <div className="info-box">
@@ -194,46 +155,23 @@ export default function StripMetadataPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Preview */}
           {preview && (
             <div className="border-2 border-foreground p-4 bg-muted/30">
-              <img
-                src={preview}
-                alt="Preview"
-                className="max-h-48 mx-auto object-contain"
-              />
+              <img src={preview} alt="Preview" className="max-h-48 mx-auto object-contain" />
             </div>
           )}
 
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatFileSize(file.size)}
-              </p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+          <ImageFileInfo
+            file={file}
+            fileSize={formatFileSize(file.size)}
+            onClear={handleClear}
+            icon={<ImageIcon className="w-5 h-5" />}
+          />
 
           {/* Warning */}
           <div className="bg-[#FEF3C7] border-2 border-foreground p-4">
             <div className="flex gap-3">
-              <svg
-                className="w-5 h-5 text-[#92400E] shrink-0 mt-0.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
+              <svg className="w-5 h-5 text-[#92400E] shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                 <line x1="12" y1="9" x2="12" y2="13" />
                 <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -249,22 +187,7 @@ export default function StripMetadataPage() {
             </div>
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
 
           {isProcessing && (
             <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground py-4">
@@ -273,21 +196,11 @@ export default function StripMetadataPage() {
             </div>
           )}
 
-          <button
-            onClick={handleStrip}
-            disabled={isProcessing}
-            className="btn-primary w-full"
-          >
+          <button onClick={handleStrip} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Processing...
-              </>
+              <><LoaderIcon className="w-5 h-5" />Processing...</>
             ) : (
-              <>
-                <ShieldIcon className="w-5 h-5" />
-                Remove All Metadata
-              </>
+              <><ShieldIcon className="w-5 h-5" />Remove All Metadata</>
             )}
           </button>
         </div>

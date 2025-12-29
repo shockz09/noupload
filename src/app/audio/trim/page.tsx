@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import {
   trimAudio,
@@ -11,42 +10,13 @@ import {
   formatFileSize,
   getWaveformData,
 } from "@/lib/audio-utils";
-import { ArrowLeftIcon, DownloadIcon, LoaderIcon } from "@/components/icons";
-
-function TrimIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M6 2v20M18 2v20M6 12h12" />
-    </svg>
-  );
-}
-
-function AudioIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M9 18V5l12-2v13" />
-      <circle cx="6" cy="18" r="3" />
-      <circle cx="18" cy="16" r="3" />
-    </svg>
-  );
-}
-
-function PlayIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <polygon points="5 3 19 12 5 21 5 3" />
-    </svg>
-  );
-}
-
-function PauseIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <rect x="6" y="4" width="4" height="16" />
-      <rect x="14" y="4" width="4" height="16" />
-    </svg>
-  );
-}
+import { TrimIcon, AudioIcon, PlayIcon, PauseIcon } from "@/components/icons";
+import {
+  ErrorBox,
+  ProcessButton,
+  SuccessCard,
+  AudioPageHeader,
+} from "@/components/audio/shared";
 
 export default function TrimAudioPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -63,7 +33,6 @@ export default function TrimAudioPage() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (audioUrl) URL.revokeObjectURL(audioUrl);
@@ -89,7 +58,7 @@ export default function TrimAudioPage() {
         const url = URL.createObjectURL(selectedFile);
         if (audioUrl) URL.revokeObjectURL(audioUrl);
         setAudioUrl(url);
-      } catch (err) {
+      } catch {
         setError("Failed to load audio file. Please try a different format.");
       }
     }
@@ -121,7 +90,6 @@ export default function TrimAudioPage() {
     if (!audioRef.current) return;
     setCurrentTime(audioRef.current.currentTime);
 
-    // Stop at end time
     if (audioRef.current.currentTime >= endTime) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -162,74 +130,39 @@ export default function TrimAudioPage() {
     setError(null);
   };
 
-  // Calculate selection percentages for visual display
   const startPercent = duration > 0 ? (startTime / duration) * 100 : 0;
   const endPercent = duration > 0 ? (endTime / duration) * 100 : 100;
   const currentPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/audio" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Audio Tools
-        </Link>
+      <AudioPageHeader
+        icon={<TrimIcon className="w-7 h-7" />}
+        iconClass="tool-audio-trim"
+        title="Trim Audio"
+        description="Cut audio to specific start and end time"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-audio-trim">
-            <TrimIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Trim Audio</h1>
-            <p className="text-muted-foreground mt-1">
-              Cut audio to specific start and end time
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up space-y-6">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Trimmed</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              <h2 className="text-3xl font-display">Audio Trimmed!</h2>
-              <p className="text-muted-foreground">
-                Duration: {formatDuration(endTime - startTime)} • {formatFileSize(result.size)}
-              </p>
-            </div>
-
-            <button onClick={handleDownload} className="btn-success w-full mb-4">
-              <DownloadIcon className="w-5 h-5" />
-              Download Trimmed Audio
-            </button>
-          </div>
-
-          <button onClick={handleStartOver} className="btn-secondary w-full">
-            Trim Another Audio
-          </button>
-        </div>
+        <SuccessCard
+          stampText="Trimmed"
+          title="Audio Trimmed!"
+          subtitle={`Duration: ${formatDuration(endTime - startTime)} • ${formatFileSize(result.size)}`}
+          downloadLabel="Download Trimmed Audio"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Trim Another Audio"
+        />
       ) : !file ? (
-        <div className="space-y-6">
-          <FileDropzone
-            accept=".mp3,.wav,.ogg,.m4a,.webm,.aac"
-            multiple={false}
-            onFilesSelected={handleFileSelected}
-            title="Drop your audio file here"
-            subtitle="MP3, WAV, OGG, M4A, WebM"
-          />
-        </div>
+        <FileDropzone
+          accept=".mp3,.wav,.ogg,.m4a,.webm,.aac"
+          multiple={false}
+          onFilesSelected={handleFileSelected}
+          title="Drop your audio file here"
+          subtitle="MP3, WAV, OGG, M4A, WebM"
+        />
       ) : (
         <div className="space-y-6">
-          {/* Audio element (hidden) */}
           {audioUrl && (
             <audio
               ref={audioRef}
@@ -350,34 +283,15 @@ export default function TrimAudioPage() {
             </p>
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
 
-          <button
+          <ProcessButton
             onClick={handleTrim}
-            disabled={isProcessing}
-            className="btn-primary w-full"
-          >
-            {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Trimming...
-              </>
-            ) : (
-              <>
-                <TrimIcon className="w-5 h-5" />
-                Trim Audio
-              </>
-            )}
-          </button>
+            isProcessing={isProcessing}
+            processingLabel="Trimming..."
+            icon={<TrimIcon className="w-5 h-5" />}
+            label="Trim Audio"
+          />
         </div>
       )}
     </div>

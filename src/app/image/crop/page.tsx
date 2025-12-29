@@ -1,23 +1,10 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import {
-  cropImage,
-  downloadImage,
-  formatFileSize,
-  getOutputFilename,
-  getImageDimensions,
-  CropArea,
-} from "@/lib/image-utils";
-import {
-  ArrowLeftIcon,
-  CropIcon,
-  DownloadIcon,
-  LoaderIcon,
-  ImageIcon,
-} from "@/components/icons";
+import { cropImage, downloadImage, formatFileSize, getOutputFilename, getImageDimensions, CropArea } from "@/lib/image-utils";
+import { CropIcon, ImageIcon, LoaderIcon } from "@/components/icons";
+import { ImagePageHeader, ErrorBox, SuccessCard } from "@/components/image/shared";
 
 const aspectRatios = [
   { label: "Free", value: null },
@@ -37,22 +24,13 @@ interface CropResult {
 export default function ImageCropPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [imageDimensions, setImageDimensions] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
-  const [cropArea, setCropArea] = useState<CropArea>({
-    x: 0,
-    y: 0,
-    width: 100,
-    height: 100,
-  });
+  const [cropArea, setCropArea] = useState<CropArea>({ x: 0, y: 0, width: 100, height: 100 });
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CropResult | null>(null);
 
-  // Cropping state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isResizing, setIsResizing] = useState<string | null>(null);
@@ -72,7 +50,6 @@ export default function ImageCropPage() {
       const dims = await getImageDimensions(selectedFile);
       setImageDimensions(dims);
 
-      // Initialize crop area to center
       const initialSize = Math.min(dims.width, dims.height) * 0.8;
       setCropArea({
         x: (dims.width - initialSize) / 2,
@@ -93,7 +70,6 @@ export default function ImageCropPage() {
     setAspectRatio(null);
   }, [preview]);
 
-  // Calculate scale when container size changes
   useEffect(() => {
     if (containerRef.current && imageDimensions) {
       const containerWidth = containerRef.current.clientWidth;
@@ -104,7 +80,6 @@ export default function ImageCropPage() {
     }
   }, [imageDimensions]);
 
-  // Apply aspect ratio
   useEffect(() => {
     if (aspectRatio && imageDimensions) {
       const currentArea = cropArea;
@@ -153,12 +128,8 @@ export default function ImageCropPage() {
         setCropArea((prev) => {
           let newArea = { ...prev };
 
-          if (isResizing.includes("e")) {
-            newArea.width = Math.max(50, Math.min(imageDimensions.width - prev.x, prev.width + dx));
-          }
-          if (isResizing.includes("s")) {
-            newArea.height = Math.max(50, Math.min(imageDimensions.height - prev.y, prev.height + dy));
-          }
+          if (isResizing.includes("e")) newArea.width = Math.max(50, Math.min(imageDimensions.width - prev.x, prev.width + dx));
+          if (isResizing.includes("s")) newArea.height = Math.max(50, Math.min(imageDimensions.height - prev.y, prev.height + dy));
           if (isResizing.includes("w")) {
             const newX = Math.max(0, prev.x + dx);
             newArea.width = prev.width - (newX - prev.x);
@@ -170,7 +141,6 @@ export default function ImageCropPage() {
             newArea.y = newY;
           }
 
-          // Apply aspect ratio if set
           if (aspectRatio) {
             newArea.height = newArea.width / aspectRatio;
             if (newArea.y + newArea.height > imageDimensions.height) {
@@ -203,12 +173,27 @@ export default function ImageCropPage() {
     }
   }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
 
-  // Cleanup preview URL on unmount
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFileSelected([file]);
+          break;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [handleFileSelected]);
 
   const handleCrop = async () => {
     if (!file) return;
@@ -228,10 +213,7 @@ export default function ImageCropPage() {
       setResult({
         blob: cropped,
         filename: getOutputFilename(file.name, undefined, "_cropped"),
-        dimensions: {
-          width: Math.round(cropArea.width),
-          height: Math.round(cropArea.height),
-        },
+        dimensions: { width: Math.round(cropArea.width), height: Math.round(cropArea.height) },
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to crop image");
@@ -243,9 +225,7 @@ export default function ImageCropPage() {
   const handleDownload = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (result) {
-      downloadImage(result.blob, result.filename);
-    }
+    if (result) downloadImage(result.blob, result.filename);
   };
 
   const handleStartOver = () => {
@@ -260,77 +240,36 @@ export default function ImageCropPage() {
 
   return (
     <div className="page-enter max-w-3xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/image" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Image Tools
-        </Link>
+      <ImagePageHeader
+        icon={<CropIcon className="w-7 h-7" />}
+        iconClass="tool-crop"
+        title="Crop Image"
+        description="Crop images with custom aspect ratios"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-crop">
-            <CropIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Crop Image</h1>
-            <p className="text-muted-foreground mt-1">
-              Crop images with custom aspect ratios
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Cropped</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-4 mb-8">
-              <h2 className="text-3xl font-display">Image Cropped!</h2>
-              <p className="text-muted-foreground">
-                New size: {result.dimensions.width}×{result.dimensions.height} •{" "}
-                {formatFileSize(result.blob.size)}
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="btn-success flex-1"
-              >
-                <DownloadIcon className="w-5 h-5" />
-                Download Image
-              </button>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="btn-secondary flex-1"
-              >
-                Crop Another
-              </button>
-            </div>
-          </div>
-        </div>
+        <SuccessCard
+          stampText="Cropped"
+          title="Image Cropped!"
+          downloadLabel="Download Image"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Crop Another"
+        >
+          <p className="text-muted-foreground">
+            New size: {result.dimensions.width}×{result.dimensions.height} • {formatFileSize(result.blob.size)}
+          </p>
+        </SuccessCard>
       ) : !file ? (
-        <div className="space-y-6">
-          <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp"
-            multiple={false}
-            onFilesSelected={handleFileSelected}
-            title="Drop your image here"
-            subtitle="or click to browse from your device"
-          />
-        </div>
+        <FileDropzone
+          accept=".jpg,.jpeg,.png,.webp"
+          multiple={false}
+          onFilesSelected={handleFileSelected}
+          title="Drop your image here"
+          subtitle="or click to browse · Ctrl+V to paste"
+        />
       ) : (
         <div className="space-y-6">
-          {/* Aspect Ratio Selection */}
           <div className="space-y-3">
             <label className="input-label">Aspect Ratio</label>
             <div className="flex flex-wrap gap-2">
@@ -339,9 +278,7 @@ export default function ImageCropPage() {
                   key={ar.label}
                   onClick={() => setAspectRatio(ar.value)}
                   className={`px-4 py-2 text-sm font-bold border-2 border-foreground transition-colors ${
-                    aspectRatio === ar.value
-                      ? "bg-foreground text-background"
-                      : "hover:bg-muted"
+                    aspectRatio === ar.value ? "bg-foreground text-background" : "hover:bg-muted"
                   }`}
                 >
                   {ar.label}
@@ -350,16 +287,12 @@ export default function ImageCropPage() {
             </div>
           </div>
 
-          {/* Crop Area */}
           {preview && imageDimensions && (
             <div
               ref={containerRef}
               className="relative border-2 border-foreground bg-[#1a1a1a] overflow-hidden"
-              style={{
-                height: Math.min(400, imageDimensions.height * scale),
-              }}
+              style={{ height: Math.min(400, imageDimensions.height * scale) }}
             >
-              {/* Image */}
               <img
                 src={preview}
                 alt="To crop"
@@ -374,22 +307,6 @@ export default function ImageCropPage() {
                 draggable={false}
               />
 
-              {/* Darkened overlay */}
-              <div
-                className="absolute inset-0 bg-black/50 pointer-events-none"
-                style={{
-                  clipPath: `polygon(
-                    0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%,
-                    ${((imageDimensions.width - cropArea.width) / 2 + cropArea.x) * scale / (containerRef.current?.clientWidth || 1) * 100}% ${cropArea.y * scale / Math.min(400, imageDimensions.height * scale) * 100}%,
-                    ${((imageDimensions.width - cropArea.width) / 2 + cropArea.x) * scale / (containerRef.current?.clientWidth || 1) * 100}% ${(cropArea.y + cropArea.height) * scale / Math.min(400, imageDimensions.height * scale) * 100}%,
-                    ${((imageDimensions.width - cropArea.width) / 2 + cropArea.x + cropArea.width) * scale / (containerRef.current?.clientWidth || 1) * 100}% ${(cropArea.y + cropArea.height) * scale / Math.min(400, imageDimensions.height * scale) * 100}%,
-                    ${((imageDimensions.width - cropArea.width) / 2 + cropArea.x + cropArea.width) * scale / (containerRef.current?.clientWidth || 1) * 100}% ${cropArea.y * scale / Math.min(400, imageDimensions.height * scale) * 100}%,
-                    ${((imageDimensions.width - cropArea.width) / 2 + cropArea.x) * scale / (containerRef.current?.clientWidth || 1) * 100}% ${cropArea.y * scale / Math.min(400, imageDimensions.height * scale) * 100}%
-                  )`,
-                }}
-              />
-
-              {/* Crop selection */}
               <div
                 className="absolute border-2 border-white cursor-move"
                 style={{
@@ -400,7 +317,6 @@ export default function ImageCropPage() {
                 }}
                 onMouseDown={(e) => handleMouseDown(e)}
               >
-                {/* Resize handles */}
                 {["nw", "ne", "sw", "se", "n", "s", "e", "w"].map((handle) => (
                   <div
                     key={handle}
@@ -411,12 +327,8 @@ export default function ImageCropPage() {
                       ...(handle.includes("s") ? { bottom: -6 } : {}),
                       ...(handle.includes("w") ? { left: -6 } : {}),
                       ...(handle.includes("e") ? { right: -6 } : {}),
-                      ...(handle === "n" || handle === "s"
-                        ? { left: "50%", transform: "translateX(-50%)" }
-                        : {}),
-                      ...(handle === "e" || handle === "w"
-                        ? { top: "50%", transform: "translateY(-50%)" }
-                        : {}),
+                      ...(handle === "n" || handle === "s" ? { left: "50%", transform: "translateX(-50%)" } : {}),
+                      ...(handle === "e" || handle === "w" ? { top: "50%", transform: "translateY(-50%)" } : {}),
                     }}
                     onMouseDown={(e) => {
                       e.stopPropagation();
@@ -425,7 +337,6 @@ export default function ImageCropPage() {
                   />
                 ))}
 
-                {/* Grid lines */}
                 <div className="absolute inset-0 pointer-events-none">
                   <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/30" />
                   <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/30" />
@@ -436,41 +347,20 @@ export default function ImageCropPage() {
             </div>
           )}
 
-          {/* File Info */}
           <div className="file-item">
             <div className="pdf-icon-box">
               <ImageIcon className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                Selection: {Math.round(cropArea.width)}×{Math.round(cropArea.height)}
-              </p>
+              <p className="text-sm text-muted-foreground">Selection: {Math.round(cropArea.width)}×{Math.round(cropArea.height)}</p>
             </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <button onClick={handleClear} className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
               Change file
             </button>
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
 
           {isProcessing && (
             <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground py-4">
@@ -479,21 +369,11 @@ export default function ImageCropPage() {
             </div>
           )}
 
-          <button
-            onClick={handleCrop}
-            disabled={isProcessing}
-            className="btn-primary w-full"
-          >
+          <button onClick={handleCrop} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Processing...
-              </>
+              <><LoaderIcon className="w-5 h-5" />Processing...</>
             ) : (
-              <>
-                <CropIcon className="w-5 h-5" />
-                Crop Image
-              </>
+              <><CropIcon className="w-5 h-5" />Crop Image</>
             )}
           </button>
         </div>

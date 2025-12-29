@@ -1,70 +1,38 @@
 import Link from "next/link";
-import { ArrowLeftIcon } from "@/components/icons";
-
-// Audio icons
-function TrimIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M6 2v20M18 2v20M6 12h12" />
-    </svg>
-  );
-}
-
-function MicIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" y1="19" x2="12" y2="22" />
-    </svg>
-  );
-}
-
-function VolumeIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-    </svg>
-  );
-}
-
-function SpeedIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-
-function FadeIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M2 12h4l3-9 6 18 3-9h4" />
-    </svg>
-  );
-}
-
-function ReverseIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polyline points="1 4 1 10 7 10" />
-      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-    </svg>
-  );
-}
-
-function WaveformIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M2 12h2l2-7 3 14 3-7 2 3h8" />
-    </svg>
-  );
-}
+import {
+  ArrowLeftIcon,
+  TrimIcon,
+  MicIcon,
+  VolumeIcon,
+  SpeedIcon,
+  FadeIcon,
+  ReverseIcon,
+  WaveformIcon,
+  ConvertIcon,
+  ExtractIcon,
+  DenoiseIcon,
+  NormalizeIcon,
+  SilenceIcon,
+  AudioMergeIcon,
+} from "@/components/icons";
 
 const tools = [
+  {
+    title: "Convert",
+    description: "Convert between audio formats",
+    href: "/audio/convert",
+    icon: ConvertIcon,
+    category: "convert",
+    colorClass: "tool-audio-convert",
+  },
+  {
+    title: "Extract Audio",
+    description: "Extract audio track from any video file",
+    href: "/audio/extract",
+    icon: ExtractIcon,
+    category: "convert",
+    colorClass: "tool-audio-extract",
+  },
   {
     title: "Trim Audio",
     description: "Cut audio to specific start and end time",
@@ -72,14 +40,6 @@ const tools = [
     icon: TrimIcon,
     category: "edit",
     colorClass: "tool-audio-trim",
-  },
-  {
-    title: "Record",
-    description: "Record audio from your microphone",
-    href: "/audio/record",
-    icon: MicIcon,
-    category: "create",
-    colorClass: "tool-audio-record",
   },
   {
     title: "Volume",
@@ -98,20 +58,12 @@ const tools = [
     colorClass: "tool-audio-speed",
   },
   {
-    title: "Fade",
-    description: "Add fade in and fade out effects",
-    href: "/audio/fade",
-    icon: FadeIcon,
-    category: "effects",
-    colorClass: "tool-audio-fade",
-  },
-  {
-    title: "Reverse",
-    description: "Play audio backwards",
-    href: "/audio/reverse",
-    icon: ReverseIcon,
-    category: "effects",
-    colorClass: "tool-audio-reverse",
+    title: "Record",
+    description: "Record audio from your microphone",
+    href: "/audio/record",
+    icon: MicIcon,
+    category: "create",
+    colorClass: "tool-audio-record",
   },
   {
     title: "Waveform",
@@ -120,6 +72,54 @@ const tools = [
     icon: WaveformIcon,
     category: "convert",
     colorClass: "tool-audio-waveform",
+  },
+  {
+    title: "Fade",
+    description: "Add fade in and fade out effects",
+    href: "/audio/fade",
+    icon: FadeIcon,
+    category: "effects",
+    colorClass: "tool-audio-fade",
+  },
+  {
+    title: "Denoise",
+    description: "Remove background noise from recordings",
+    href: "/audio/denoise",
+    icon: DenoiseIcon,
+    category: "effects",
+    colorClass: "tool-audio-denoise",
+  },
+  {
+    title: "Normalize",
+    description: "Make audio volume consistent",
+    href: "/audio/normalize",
+    icon: NormalizeIcon,
+    category: "edit",
+    colorClass: "tool-audio-normalize",
+  },
+  {
+    title: "Remove Silence",
+    description: "Trim silent parts from audio",
+    href: "/audio/remove-silence",
+    icon: SilenceIcon,
+    category: "edit",
+    colorClass: "tool-audio-silence",
+  },
+  {
+    title: "Merge",
+    description: "Combine multiple audio files",
+    href: "/audio/merge",
+    icon: AudioMergeIcon,
+    category: "edit",
+    colorClass: "tool-audio-merge",
+  },
+  {
+    title: "Reverse",
+    description: "Play audio backwards",
+    href: "/audio/reverse",
+    icon: ReverseIcon,
+    category: "effects",
+    colorClass: "tool-audio-reverse",
   },
 ];
 

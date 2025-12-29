@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { imagesToPdf } from "@/lib/pdf-image-utils";
 import { downloadBlob } from "@/lib/pdf-utils";
-import { ArrowLeftIcon, FileIcon, DownloadIcon, LoaderIcon, XIcon, GripIcon } from "@/components/icons";
+import { FileIcon, LoaderIcon, XIcon, GripIcon } from "@/components/icons";
+import { PdfPageHeader, ErrorBox, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 
 interface ImageItem {
   file: File;
@@ -139,54 +139,25 @@ export default function ImagesToPdfPage() {
 
   return (
     <div className="page-enter max-w-5xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to tools
-        </Link>
+      <PdfPageHeader
+        icon={<FileIcon className="w-7 h-7" />}
+        iconClass="tool-images-to-pdf"
+        title="Images to PDF"
+        description="Combine multiple images into a single PDF"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-images-to-pdf">
-            <FileIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Images to PDF</h1>
-            <p className="text-muted-foreground mt-1">
-              Combine multiple images into a single PDF
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up max-w-2xl mx-auto">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Complete</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-2 mb-8">
-              <h2 className="text-3xl font-display">PDF Created!</h2>
-              <p className="text-muted-foreground">
-                {result.pageCount} images combined into one PDF
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button type="button" onClick={handleDownload} className="btn-success flex-1">
-                <DownloadIcon className="w-5 h-5" />
-                Download PDF
-              </button>
-              <button type="button" onClick={handleStartOver} className="btn-secondary flex-1">
-                Create Another PDF
-              </button>
-            </div>
-          </div>
+        <div className="max-w-2xl mx-auto">
+          <SuccessCard
+            stampText="Complete"
+            title="PDF Created!"
+            downloadLabel="Download PDF"
+            onDownload={handleDownload}
+            onStartOver={handleStartOver}
+            startOverLabel="Create Another PDF"
+          >
+            <p className="text-muted-foreground">{result.pageCount} images combined into one PDF</p>
+          </SuccessCard>
         </div>
       ) : (
         <div className="space-y-6">
@@ -280,28 +251,8 @@ export default function ImagesToPdfPage() {
                 </div>
               </div>
 
-              {error && (
-                <div className="error-box animate-shake">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <span className="font-medium">{error}</span>
-                </div>
-              )}
-
-              {isProcessing && (
-                <div className="space-y-3">
-                  <div className="progress-bar">
-                    <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
-                  </div>
-                  <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                    <LoaderIcon className="w-4 h-4" />
-                    <span>Creating PDF... {progress}%</span>
-                  </div>
-                </div>
-              )}
+              {error && <ErrorBox message={error} />}
+              {isProcessing && <ProgressBar progress={progress} label={`Creating PDF... ${progress}%`} />}
 
               <button
                 onClick={handleConvert}

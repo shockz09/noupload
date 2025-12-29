@@ -1,21 +1,10 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import {
-  addBorder,
-  downloadImage,
-  formatFileSize,
-  getOutputFilename,
-} from "@/lib/image-utils";
-import {
-  ArrowLeftIcon,
-  BorderIcon,
-  DownloadIcon,
-  LoaderIcon,
-  ImageIcon,
-} from "@/components/icons";
+import { addBorder, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { BorderIcon, ImageIcon, LoaderIcon } from "@/components/icons";
+import { ImagePageHeader, ErrorBox, SuccessCard, ImageFileInfo } from "@/components/image/shared";
 
 interface BorderResult {
   blob: Blob;
@@ -23,18 +12,9 @@ interface BorderResult {
 }
 
 const presetColors = [
-  "#000000",
-  "#FFFFFF",
-  "#1a1a1a",
-  "#f5f5f5",
-  "#ef4444",
-  "#f97316",
-  "#eab308",
-  "#22c55e",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-  "#14b8a6",
+  "#000000", "#FFFFFF", "#1a1a1a", "#f5f5f5",
+  "#ef4444", "#f97316", "#eab308", "#22c55e",
+  "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6",
 ];
 
 export default function ImageBorderPage() {
@@ -66,12 +46,27 @@ export default function ImageBorderPage() {
     setResult(null);
   }, [preview]);
 
-  // Cleanup preview URL on unmount
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFileSelected([file]);
+          break;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [handleFileSelected]);
 
   const handleApply = async () => {
     if (!file) return;
@@ -82,7 +77,6 @@ export default function ImageBorderPage() {
 
     try {
       const bordered = await addBorder(file, borderWidth, borderColor);
-
       setResult({
         blob: bordered,
         filename: getOutputFilename(file.name, undefined, "_bordered"),
@@ -97,9 +91,7 @@ export default function ImageBorderPage() {
   const handleDownload = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (result) {
-      downloadImage(result.blob, result.filename);
-    }
+    if (result) downloadImage(result.blob, result.filename);
   };
 
   const handleStartOver = () => {
@@ -112,76 +104,34 @@ export default function ImageBorderPage() {
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/image" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Image Tools
-        </Link>
+      <ImagePageHeader
+        icon={<BorderIcon className="w-7 h-7" />}
+        iconClass="tool-border"
+        title="Add Border"
+        description="Add a colored border around images"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-border">
-            <BorderIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Add Border</h1>
-            <p className="text-muted-foreground mt-1">
-              Add a colored border around images
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Done</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-4 mb-8">
-              <h2 className="text-3xl font-display">Border Added!</h2>
-              <p className="text-muted-foreground">
-                File size: {formatFileSize(result.blob.size)}
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="btn-success flex-1"
-              >
-                <DownloadIcon className="w-5 h-5" />
-                Download Image
-              </button>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="btn-secondary flex-1"
-              >
-                Add Border to Another
-              </button>
-            </div>
-          </div>
-        </div>
+        <SuccessCard
+          stampText="Done"
+          title="Border Added!"
+          downloadLabel="Download Image"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Add Border to Another"
+        >
+          <p className="text-muted-foreground">File size: {formatFileSize(result.blob.size)}</p>
+        </SuccessCard>
       ) : !file ? (
-        <div className="space-y-6">
-          <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp"
-            multiple={false}
-            onFilesSelected={handleFileSelected}
-            title="Drop your image here"
-            subtitle="or click to browse from your device"
-          />
-        </div>
+        <FileDropzone
+          accept=".jpg,.jpeg,.png,.webp"
+          multiple={false}
+          onFilesSelected={handleFileSelected}
+          title="Drop your image here"
+          subtitle="or click to browse · Ctrl+V to paste"
+        />
       ) : (
         <div className="space-y-6">
-          {/* Preview with border preview */}
           {preview && (
             <div className="border-2 border-foreground p-4 bg-muted/30">
               <div
@@ -193,38 +143,19 @@ export default function ImageBorderPage() {
                 }}
                 className="mx-auto block"
               >
-                <img
-                  src={preview}
-                  alt="Preview"
-                  className="max-h-48 object-contain block"
-                />
+                <img src={preview} alt="Preview" className="max-h-48 object-contain block" />
               </div>
-              <p className="text-center text-xs text-muted-foreground mt-2">
-                Preview (scaled)
-              </p>
+              <p className="text-center text-xs text-muted-foreground mt-2">Preview (scaled)</p>
             </div>
           )}
 
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatFileSize(file.size)}
-              </p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+          <ImageFileInfo
+            file={file}
+            fileSize={formatFileSize(file.size)}
+            onClear={handleClear}
+            icon={<ImageIcon className="w-5 h-5" />}
+          />
 
-          {/* Border Width */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="input-label">Border Width</label>
@@ -240,7 +171,6 @@ export default function ImageBorderPage() {
             />
           </div>
 
-          {/* Border Color */}
           <div className="space-y-3">
             <label className="input-label">Border Color</label>
             <div className="flex flex-wrap gap-2">
@@ -249,9 +179,7 @@ export default function ImageBorderPage() {
                   key={color}
                   onClick={() => setBorderColor(color)}
                   className={`w-8 h-8 border-2 transition-transform ${
-                    borderColor === color
-                      ? "border-primary scale-110"
-                      : "border-foreground hover:scale-105"
+                    borderColor === color ? "border-primary scale-110" : "border-foreground hover:scale-105"
                   }`}
                   style={{ backgroundColor: color }}
                   aria-label={color}
@@ -275,22 +203,7 @@ export default function ImageBorderPage() {
             </div>
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
 
           {isProcessing && (
             <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground py-4">
@@ -299,21 +212,11 @@ export default function ImageBorderPage() {
             </div>
           )}
 
-          <button
-            onClick={handleApply}
-            disabled={isProcessing}
-            className="btn-primary w-full"
-          >
+          <button onClick={handleApply} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Processing...
-              </>
+              <><LoaderIcon className="w-5 h-5" />Processing...</>
             ) : (
-              <>
-                <BorderIcon className="w-5 h-5" />
-                Add Border
-              </>
+              <><BorderIcon className="w-5 h-5" />Add Border</>
             )}
           </button>
         </div>

@@ -1,22 +1,18 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { resizeImage, downloadImage, formatFileSize, getOutputFilename, getImageDimensions } from "@/lib/image-utils";
+import { ResizeIcon, ImageIcon } from "@/components/icons";
 import {
-  resizeImage,
-  downloadImage,
-  formatFileSize,
-  getOutputFilename,
-  getImageDimensions,
-} from "@/lib/image-utils";
-import {
-  ArrowLeftIcon,
-  ResizeIcon,
-  DownloadIcon,
-  LoaderIcon,
-  ImageIcon,
-} from "@/components/icons";
+  ImagePageHeader,
+  ErrorBox,
+  ProgressBar,
+  ProcessButton,
+  SuccessCard,
+  ImageFileInfo,
+  ComparisonDisplay,
+} from "@/components/image/shared";
 
 interface ResizeResult {
   blob: Blob;
@@ -37,10 +33,7 @@ const presets = [
 export default function ImageResizePage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [originalDimensions, setOriginalDimensions] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
+  const [originalDimensions, setOriginalDimensions] = useState<{ width: number; height: number } | null>(null);
   const [width, setWidth] = useState<number>(800);
   const [height, setHeight] = useState<number>(600);
   const [maintainAspect, setMaintainAspect] = useState(true);
@@ -56,11 +49,9 @@ export default function ImageResizePage() {
       setError(null);
       setResult(null);
 
-      // Create preview
       const url = URL.createObjectURL(selectedFile);
       setPreview(url);
 
-      // Get dimensions
       const dims = await getImageDimensions(selectedFile);
       setOriginalDimensions(dims);
       setWidth(dims.width);
@@ -77,12 +68,27 @@ export default function ImageResizePage() {
     setResult(null);
   }, [preview]);
 
-  // Cleanup preview URL on unmount
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFileSelected([file]);
+          break;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [handleFileSelected]);
 
   const handleWidthChange = (newWidth: number) => {
     setWidth(newWidth);
@@ -137,9 +143,7 @@ export default function ImageResizePage() {
   const handleDownload = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (result) {
-      downloadImage(result.blob, result.filename);
-    }
+    if (result) downloadImage(result.blob, result.filename);
   };
 
   const handleStartOver = () => {
@@ -154,119 +158,45 @@ export default function ImageResizePage() {
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/image" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Image Tools
-        </Link>
+      <ImagePageHeader
+        icon={<ResizeIcon className="w-7 h-7" />}
+        iconClass="tool-resize"
+        title="Resize Image"
+        description="Change image dimensions with presets or custom sizes"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-resize">
-            <ResizeIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Resize Image</h1>
-            <p className="text-muted-foreground mt-1">
-              Change image dimensions with presets or custom sizes
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            {/* Stamp */}
-            <div className="success-stamp">
-              <span className="success-stamp-text">Resized</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            {/* Success Message */}
-            <div className="space-y-4 mb-8">
-              <h2 className="text-3xl font-display">Image Resized!</h2>
-
-              {/* Dimensions Display */}
-              <div className="flex items-center justify-center gap-6">
-                <div className="text-center">
-                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                    Original
-                  </p>
-                  <p className="text-xl font-bold">
-                    {result.originalDimensions.width}×
-                    {result.originalDimensions.height}
-                  </p>
-                </div>
-                <div className="w-12 h-12 flex items-center justify-center bg-foreground text-background">
-                  <svg
-                    className="w-5 h-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                    New Size
-                  </p>
-                  <p className="text-xl font-bold">
-                    {result.newDimensions.width}×{result.newDimensions.height}
-                  </p>
-                </div>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                File size: {formatFileSize(result.blob.size)}
-              </p>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="btn-success flex-1"
-              >
-                <DownloadIcon className="w-5 h-5" />
-                Download Image
-              </button>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="btn-secondary flex-1"
-              >
-                Resize Another
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : !file ? (
-        <div className="space-y-6">
-          <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp"
-            multiple={false}
-            onFilesSelected={handleFileSelected}
-            title="Drop your image here"
-            subtitle="or click to browse from your device"
+        <SuccessCard
+          stampText="Resized"
+          title="Image Resized!"
+          downloadLabel="Download Image"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Resize Another"
+        >
+          <ComparisonDisplay
+            originalLabel="Original"
+            originalValue={`${result.originalDimensions.width}×${result.originalDimensions.height}`}
+            newLabel="New Size"
+            newValue={`${result.newDimensions.width}×${result.newDimensions.height}`}
           />
-        </div>
+          <p className="text-sm text-muted-foreground">
+            File size: {formatFileSize(result.blob.size)}
+          </p>
+        </SuccessCard>
+      ) : !file ? (
+        <FileDropzone
+          accept=".jpg,.jpeg,.png,.webp"
+          multiple={false}
+          onFilesSelected={handleFileSelected}
+          title="Drop your image here"
+          subtitle="or click to browse · Ctrl+V to paste"
+        />
       ) : (
         <div className="space-y-6">
-          {/* Preview */}
           {preview && (
             <div className="border-2 border-foreground p-4 bg-muted/30">
-              <img
-                src={preview}
-                alt="Preview"
-                className="max-h-48 mx-auto object-contain"
-              />
+              <img src={preview} alt="Preview" className="max-h-48 mx-auto object-contain" />
               {originalDimensions && (
                 <p className="text-center text-sm text-muted-foreground mt-2">
                   Original: {originalDimensions.width}×{originalDimensions.height}
@@ -275,26 +205,13 @@ export default function ImageResizePage() {
             </div>
           )}
 
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatFileSize(file.size)}
-              </p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+          <ImageFileInfo
+            file={file}
+            fileSize={formatFileSize(file.size)}
+            onClear={handleClear}
+            icon={<ImageIcon className="w-5 h-5" />}
+          />
 
-          {/* Presets */}
           <div className="space-y-3">
             <label className="input-label">Quick Presets</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -305,22 +222,17 @@ export default function ImageResizePage() {
                   className="px-3 py-2 text-xs font-bold border-2 border-foreground hover:bg-foreground hover:text-background transition-colors text-left"
                 >
                   <span className="block">{preset.label}</span>
-                  <span className="text-muted-foreground">
-                    {preset.width}×{preset.height}
-                  </span>
+                  <span className="text-muted-foreground">{preset.width}×{preset.height}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Custom Dimensions */}
           <div className="space-y-4">
             <label className="input-label">Custom Size</label>
             <div className="flex items-center gap-4">
               <div className="flex-1 space-y-1">
-                <label className="text-xs text-muted-foreground font-medium">
-                  Width
-                </label>
+                <label className="text-xs text-muted-foreground font-medium">Width</label>
                 <input
                   type="number"
                   value={width}
@@ -332,9 +244,7 @@ export default function ImageResizePage() {
               </div>
               <div className="pt-6 text-muted-foreground font-bold">×</div>
               <div className="flex-1 space-y-1">
-                <label className="text-xs text-muted-foreground font-medium">
-                  Height
-                </label>
+                <label className="text-xs text-muted-foreground font-medium">Height</label>
                 <input
                   type="number"
                   value={height}
@@ -346,7 +256,6 @@ export default function ImageResizePage() {
               </div>
             </div>
 
-            {/* Maintain Aspect Ratio */}
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -358,55 +267,16 @@ export default function ImageResizePage() {
             </label>
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
+          {isProcessing && <ProgressBar progress={progress} label="Resizing..." />}
 
-          {isProcessing && (
-            <div className="space-y-3">
-              <div className="progress-bar">
-                <div
-                  className="progress-bar-fill"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                <LoaderIcon className="w-4 h-4" />
-                <span>Resizing...</span>
-              </div>
-            </div>
-          )}
-
-          <button
+          <ProcessButton
             onClick={handleResize}
-            disabled={isProcessing}
-            className="btn-primary w-full"
-          >
-            {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Resizing...
-              </>
-            ) : (
-              <>
-                <ResizeIcon className="w-5 h-5" />
-                Resize to {width}×{height}
-              </>
-            )}
-          </button>
+            isProcessing={isProcessing}
+            processingLabel="Resizing..."
+            icon={<ResizeIcon className="w-5 h-5" />}
+            label={`Resize to ${width}×${height}`}
+          />
         </div>
       )}
     </div>

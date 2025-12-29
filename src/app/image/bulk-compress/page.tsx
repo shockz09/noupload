@@ -1,21 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import {
-  compressImage,
-  downloadImage,
-  formatFileSize,
-  getOutputFilename,
-} from "@/lib/image-utils";
-import {
-  ArrowLeftIcon,
-  BulkIcon,
-  DownloadIcon,
-  LoaderIcon,
-  ImageIcon,
-} from "@/components/icons";
+import { compressImage, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { BulkIcon, DownloadIcon, LoaderIcon, ImageIcon } from "@/components/icons";
+import { ImagePageHeader, ErrorBox, ProgressBar, SavingsBadge } from "@/components/image/shared";
 
 interface FileItem {
   id: string;
@@ -68,7 +57,6 @@ export default function BulkCompressPage() {
     const BATCH_SIZE = 5;
 
     try {
-      // Process in parallel batches for better performance
       for (let i = 0; i < files.length; i += BATCH_SIZE) {
         const batch = files.slice(i, i + BATCH_SIZE);
 
@@ -115,33 +103,17 @@ export default function BulkCompressPage() {
 
   const totalOriginalSize = files.reduce((sum, f) => sum + f.file.size, 0);
   const totalCompressedSize = results.reduce((sum, r) => sum + r.blob.size, 0);
-  const totalSavings = results.length > 0
-    ? Math.round((1 - totalCompressedSize / totalOriginalSize) * 100)
-    : 0;
+  const totalSavings = results.length > 0 ? Math.round((1 - totalCompressedSize / totalOriginalSize) * 100) : 0;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/image" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Image Tools
-        </Link>
+      <ImagePageHeader
+        icon={<BulkIcon className="w-7 h-7" />}
+        iconClass="tool-bulk"
+        title="Bulk Compress"
+        description="Compress multiple images at once"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-bulk">
-            <BulkIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Bulk Compress</h1>
-            <p className="text-muted-foreground mt-1">
-              Compress multiple images at once
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {results.length > 0 ? (
         <div className="animate-fade-up space-y-6">
           <div className="success-card">
@@ -154,44 +126,27 @@ export default function BulkCompressPage() {
 
             <div className="space-y-4 mb-6">
               <h2 className="text-3xl font-display">{results.length} Images Compressed!</h2>
-              <div className="inline-flex items-center gap-2 px-4 py-2 border-2 font-bold text-sm bg-[#2D5A3D] text-white border-foreground">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="17 11 12 6 7 11" />
-                  <path d="M12 6v12" />
-                </svg>
-                {totalSavings}% total savings
-              </div>
+              <SavingsBadge savings={totalSavings} />
             </div>
 
-            <button
-              type="button"
-              onClick={handleDownloadAll}
-              className="btn-success w-full mb-4"
-            >
+            <button type="button" onClick={handleDownloadAll} className="btn-success w-full mb-4">
               <DownloadIcon className="w-5 h-5" />
               Download All ({results.length} files)
             </button>
           </div>
 
-          {/* Results List */}
           <div className="space-y-2">
             {results.map((item, i) => {
               const savings = Math.round((1 - item.blob.size / item.original.size) * 100);
               return (
-                <div
-                  key={i}
-                  className="flex items-center justify-between p-3 border-2 border-foreground bg-background"
-                >
+                <div key={i} className="flex items-center justify-between p-3 border-2 border-foreground bg-background">
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm truncate">{item.filename}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatFileSize(item.original.size)} → {formatFileSize(item.blob.size)} ({savings}% saved)
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleDownloadOne(item)}
-                    className="text-sm font-bold text-primary hover:underline ml-4"
-                  >
+                  <button onClick={() => handleDownloadOne(item)} className="text-sm font-bold text-primary hover:underline ml-4">
                     Download
                   </button>
                 </div>
@@ -199,11 +154,7 @@ export default function BulkCompressPage() {
             })}
           </div>
 
-          <button
-            type="button"
-            onClick={handleStartOver}
-            className="btn-secondary w-full"
-          >
+          <button type="button" onClick={handleStartOver} className="btn-secondary w-full">
             Compress More Images
           </button>
         </div>
@@ -220,45 +171,30 @@ export default function BulkCompressPage() {
 
           {files.length > 0 && (
             <>
-              {/* File List */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="input-label">{files.length} files selected</label>
-                  <button
-                    onClick={handleClearAll}
-                    className="text-sm font-semibold text-muted-foreground hover:text-foreground"
-                  >
+                  <button onClick={handleClearAll} className="text-sm font-semibold text-muted-foreground hover:text-foreground">
                     Clear all
                   </button>
                 </div>
                 <div className="max-h-48 overflow-y-auto space-y-1 border-2 border-foreground p-2">
                   {files.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between py-1 px-2 hover:bg-muted/50"
-                    >
+                    <div key={item.id} className="flex items-center justify-between py-1 px-2 hover:bg-muted/50">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <ImageIcon className="w-4 h-4 shrink-0" />
                         <span className="text-sm truncate">{item.file.name}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          {formatFileSize(item.file.size)}
-                        </span>
+                        <span className="text-xs text-muted-foreground shrink-0">{formatFileSize(item.file.size)}</span>
                       </div>
-                      <button
-                        onClick={() => handleRemoveFile(item.id)}
-                        className="text-xs text-muted-foreground hover:text-foreground ml-2"
-                      >
+                      <button onClick={() => handleRemoveFile(item.id)} className="text-xs text-muted-foreground hover:text-foreground ml-2">
                         Remove
                       </button>
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Total: {formatFileSize(totalOriginalSize)}
-                </p>
+                <p className="text-xs text-muted-foreground">Total: {formatFileSize(totalOriginalSize)}</p>
               </div>
 
-              {/* Quality Slider */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="input-label">Quality</label>
@@ -274,47 +210,20 @@ export default function BulkCompressPage() {
                 />
               </div>
 
-              {error && (
-                <div className="error-box animate-shake">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <span className="font-medium">{error}</span>
-                </div>
-              )}
+              {error && <ErrorBox message={error} />}
 
               {isProcessing && (
-                <div className="space-y-3">
-                  <div className="progress-bar">
-                    <div
-                      className="progress-bar-fill"
-                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                    <LoaderIcon className="w-4 h-4" />
-                    <span>Compressing {progress.current} of {progress.total}...</span>
-                  </div>
-                </div>
+                <ProgressBar
+                  progress={(progress.current / progress.total) * 100}
+                  label={`Compressing ${progress.current} of ${progress.total}...`}
+                />
               )}
 
-              <button
-                onClick={handleCompress}
-                disabled={isProcessing || files.length === 0}
-                className="btn-primary w-full"
-              >
+              <button onClick={handleCompress} disabled={isProcessing || files.length === 0} className="btn-primary w-full">
                 {isProcessing ? (
-                  <>
-                    <LoaderIcon className="w-5 h-5" />
-                    Compressing...
-                  </>
+                  <><LoaderIcon className="w-5 h-5" />Compressing...</>
                 ) : (
-                  <>
-                    <BulkIcon className="w-5 h-5" />
-                    Compress {files.length} Images
-                  </>
+                  <><BulkIcon className="w-5 h-5" />Compress {files.length} Images</>
                 )}
               </button>
             </>

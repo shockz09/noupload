@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { compressPDF, downloadBlob } from "@/lib/pdf-utils";
-import { ArrowLeftIcon, CompressIcon, DownloadIcon, LoaderIcon, PdfIcon } from "@/components/icons";
+import { CompressIcon, PdfIcon } from "@/components/icons";
+import { PdfPageHeader, ErrorBox, ProgressBar, SuccessCard, PdfFileInfo, ComparisonDisplay, SavingsBadge } from "@/components/pdf/shared";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return bytes + " B";
@@ -90,101 +90,30 @@ export default function CompressPage() {
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to tools
-        </Link>
+      <PdfPageHeader
+        icon={<CompressIcon className="w-7 h-7" />}
+        iconClass="tool-compress"
+        title="Compress PDF"
+        description="Reduce file size while preserving quality"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-compress">
-            <CompressIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Compress PDF</h1>
-            <p className="text-muted-foreground mt-1">
-              Reduce file size while preserving quality
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            {/* Stamp */}
-            <div className="success-stamp">
-              <span className="success-stamp-text">Optimized</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            {/* Success Message */}
-            <div className="space-y-4 mb-8">
-              <h2 className="text-3xl font-display">
-                PDF Compressed!
-              </h2>
-
-              {/* Savings Display */}
-              <div className="flex items-center justify-center gap-6">
-                <div className="text-center">
-                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Original</p>
-                  <p className="text-xl font-bold">{formatFileSize(result.originalSize)}</p>
-                </div>
-                <div className="w-12 h-12 flex items-center justify-center bg-foreground text-background">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Compressed</p>
-                  <p className="text-xl font-bold">{formatFileSize(result.compressedSize)}</p>
-                </div>
-              </div>
-
-              {/* Savings Badge */}
-              <div className={`inline-flex items-center gap-2 px-4 py-2 border-2 font-bold text-sm ${
-                savings > 0
-                  ? "bg-[#2D5A3D] text-white border-foreground"
-                  : "bg-muted text-muted-foreground border-border"
-              }`}>
-                {savings > 0 ? (
-                  <>
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="17 11 12 6 7 11" />
-                      <path d="M12 6v12" />
-                    </svg>
-                    {savings}% smaller
-                  </>
-                ) : (
-                  "Already optimized"
-                )}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="btn-success flex-1"
-              >
-                <DownloadIcon className="w-5 h-5" />
-                Download PDF
-              </button>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="btn-secondary flex-1"
-              >
-                Compress Another
-              </button>
-            </div>
-          </div>
-        </div>
+        <SuccessCard
+          stampText="Optimized"
+          title="PDF Compressed!"
+          downloadLabel="Download PDF"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Compress Another"
+        >
+          <ComparisonDisplay
+            originalLabel="Original"
+            originalValue={formatFileSize(result.originalSize)}
+            newLabel="Compressed"
+            newValue={formatFileSize(result.compressedSize)}
+          />
+          <SavingsBadge savings={savings} />
+        </SuccessCard>
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone
@@ -208,61 +137,21 @@ export default function CompressPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
-              <PdfIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+          <PdfFileInfo
+            file={file}
+            fileSize={formatFileSize(file.size)}
+            onClear={handleClear}
+            icon={<PdfIcon className="w-5 h-5" />}
+          />
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
+          {isProcessing && <ProgressBar progress={progress} label="Compressing..." />}
 
-          {isProcessing && (
-            <div className="space-y-3">
-              <div className="progress-bar">
-                <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                <LoaderIcon className="w-4 h-4" />
-                <span>Compressing...</span>
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={handleCompress}
-            disabled={isProcessing}
-            className="btn-primary w-full"
-          >
+          <button onClick={handleCompress} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Compressing...
-              </>
+              <><span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Compressing...</>
             ) : (
-              <>
-                <CompressIcon className="w-5 h-5" />
-                Compress PDF
-              </>
+              <><CompressIcon className="w-5 h-5" />Compress PDF</>
             )}
           </button>
         </div>

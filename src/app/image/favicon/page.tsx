@@ -1,21 +1,10 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import {
-  generateFavicons,
-  downloadImage,
-  formatFileSize,
-  FaviconSet,
-} from "@/lib/image-utils";
-import {
-  ArrowLeftIcon,
-  FaviconIcon,
-  DownloadIcon,
-  LoaderIcon,
-  ImageIcon,
-} from "@/components/icons";
+import { generateFavicons, downloadImage, formatFileSize, FaviconSet } from "@/lib/image-utils";
+import { FaviconIcon, ImageIcon, DownloadIcon, LoaderIcon } from "@/components/icons";
+import { ImagePageHeader, ErrorBox, ImageFileInfo } from "@/components/image/shared";
 
 interface FaviconResult {
   favicons: FaviconSet;
@@ -61,12 +50,27 @@ export default function FaviconPage() {
     setResult(null);
   }, [preview]);
 
-  // Cleanup preview URL on unmount
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFileSelected([file]);
+          break;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [handleFileSelected]);
 
   const handleGenerate = async () => {
     if (!file) return;
@@ -86,9 +90,7 @@ export default function FaviconPage() {
   };
 
   const handleDownloadSvg = () => {
-    if (result?.favicons.svg) {
-      downloadImage(result.favicons.svg, "favicon.svg");
-    }
+    if (result?.favicons.svg) downloadImage(result.favicons.svg, "favicon.svg");
   };
 
   const handleDownloadPng = (key: keyof FaviconSet, filename: string) => {
@@ -101,13 +103,11 @@ export default function FaviconPage() {
   const handleDownloadAll = async () => {
     if (!result) return;
 
-    // Download SVG first if available
     if (result.favicons.svg) {
       downloadImage(result.favicons.svg, "favicon.svg");
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    // Download all PNGs
     for (const size of pngSizes) {
       const blob = result.favicons[size.key as keyof FaviconSet];
       if (blob) {
@@ -128,27 +128,13 @@ export default function FaviconPage() {
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/image" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Image Tools
-        </Link>
+      <ImagePageHeader
+        icon={<FaviconIcon className="w-7 h-7" />}
+        iconClass="tool-favicon"
+        title="Favicon Generator"
+        description="Generate modern favicon set from one image"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-favicon">
-            <FaviconIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Favicon Generator</h1>
-            <p className="text-muted-foreground mt-1">
-              Generate modern favicon set from one image
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
         <div className="animate-fade-up space-y-6">
           <div className="success-card">
@@ -166,21 +152,15 @@ export default function FaviconPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleDownloadAll}
-              className="btn-success w-full mb-6"
-            >
+            <button type="button" onClick={handleDownloadAll} className="btn-success w-full mb-6">
               <DownloadIcon className="w-5 h-5" />
               Download All
             </button>
           </div>
 
-          {/* Individual Downloads */}
           <div className="space-y-3">
             <label className="input-label">Or download individually</label>
             <div className="grid gap-2">
-              {/* SVG Primary */}
               {result.hasSvg && (
                 <div className="flex items-center justify-between p-3 border-2 border-primary bg-primary/5">
                   <div className="flex items-center gap-3">
@@ -192,21 +172,14 @@ export default function FaviconPage() {
                       <p className="text-xs text-primary font-semibold">Primary - Modern browsers</p>
                     </div>
                   </div>
-                  <button
-                    onClick={handleDownloadSvg}
-                    className="text-sm font-bold text-primary hover:underline"
-                  >
+                  <button onClick={handleDownloadSvg} className="text-sm font-bold text-primary hover:underline">
                     Download
                   </button>
                 </div>
               )}
 
-              {/* PNG Fallbacks */}
               {pngSizes.map((size) => (
-                <div
-                  key={size.key}
-                  className="flex items-center justify-between p-3 border-2 border-foreground bg-background"
-                >
+                <div key={size.key} className="flex items-center justify-between p-3 border-2 border-foreground bg-background">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 border-2 border-foreground flex items-center justify-center bg-muted/30">
                       <span className="text-xs font-bold">{size.label.split("×")[0]}</span>
@@ -227,7 +200,6 @@ export default function FaviconPage() {
             </div>
           </div>
 
-          {/* Usage Guide */}
           <div className="bg-muted/50 border-2 border-foreground p-4 space-y-3">
             <p className="font-bold text-sm">Add to your HTML:</p>
             <pre className="text-xs font-mono bg-background p-3 border border-foreground overflow-x-auto">
@@ -238,11 +210,7 @@ export default function FaviconPage() {
             </pre>
           </div>
 
-          <button
-            type="button"
-            onClick={handleStartOver}
-            className="btn-secondary w-full"
-          >
+          <button type="button" onClick={handleStartOver} className="btn-secondary w-full">
             Generate from Another Image
           </button>
         </div>
@@ -253,17 +221,11 @@ export default function FaviconPage() {
             multiple={false}
             onFilesSelected={handleFileSelected}
             title="Drop your logo here"
-            subtitle="Square images work best"
+            subtitle="Square images work best · Ctrl+V to paste"
           />
 
           <div className="info-box">
-            <svg
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
+            <svg className="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <path d="M12 16v-4" />
               <path d="M12 8h.01" />
@@ -278,14 +240,9 @@ export default function FaviconPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Preview */}
           {preview && (
             <div className="border-2 border-foreground p-4 bg-muted/30">
-              <img
-                src={preview}
-                alt="Preview"
-                className="w-32 h-32 mx-auto object-contain"
-              />
+              <img src={preview} alt="Preview" className="w-32 h-32 mx-auto object-contain" />
               {isSvgUpload && (
                 <p className="text-center text-xs text-primary font-semibold mt-2">
                   SVG detected - will be used as primary favicon
@@ -294,26 +251,13 @@ export default function FaviconPage() {
             </div>
           )}
 
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatFileSize(file.size)}
-              </p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+          <ImageFileInfo
+            file={file}
+            fileSize={formatFileSize(file.size)}
+            onClear={handleClear}
+            icon={<ImageIcon className="w-5 h-5" />}
+          />
 
-          {/* What will be generated */}
           <div className="bg-muted/50 border-2 border-foreground p-4">
             <p className="font-bold text-sm mb-2">Will generate:</p>
             <div className="flex flex-wrap gap-2">
@@ -323,32 +267,14 @@ export default function FaviconPage() {
                 </span>
               )}
               {pngSizes.map((size) => (
-                <span
-                  key={size.key}
-                  className="px-2 py-1 bg-background border border-foreground text-xs font-bold"
-                >
+                <span key={size.key} className="px-2 py-1 bg-background border border-foreground text-xs font-bold">
                   {size.label} PNG
                 </span>
               ))}
             </div>
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
 
           {isProcessing && (
             <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground py-4">
@@ -357,21 +283,11 @@ export default function FaviconPage() {
             </div>
           )}
 
-          <button
-            onClick={handleGenerate}
-            disabled={isProcessing}
-            className="btn-primary w-full"
-          >
+          <button onClick={handleGenerate} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Generating...
-              </>
+              <><LoaderIcon className="w-5 h-5" />Generating...</>
             ) : (
-              <>
-                <FaviconIcon className="w-5 h-5" />
-                Generate Favicons
-              </>
+              <><FaviconIcon className="w-5 h-5" />Generate Favicons</>
             )}
           </button>
         </div>

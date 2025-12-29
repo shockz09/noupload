@@ -1,22 +1,10 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import {
-  addWatermark,
-  downloadImage,
-  formatFileSize,
-  getOutputFilename,
-  WatermarkOptions,
-} from "@/lib/image-utils";
-import {
-  ArrowLeftIcon,
-  WatermarkIcon,
-  DownloadIcon,
-  LoaderIcon,
-  ImageIcon,
-} from "@/components/icons";
+import { addWatermark, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { WatermarkIcon, ImageIcon, LoaderIcon } from "@/components/icons";
+import { ImagePageHeader, ErrorBox, SuccessCard, ImageFileInfo } from "@/components/image/shared";
 
 type Position = "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
@@ -40,7 +28,6 @@ export default function ImageWatermarkPage() {
   const [fontSize, setFontSize] = useState(48);
   const [opacity, setOpacity] = useState(50);
   const [position, setPosition] = useState<Position>("bottom-right");
-  const [rotation, setRotation] = useState(0);
   const [color, setColor] = useState("#000000");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,12 +53,27 @@ export default function ImageWatermarkPage() {
     setResult(null);
   }, [preview]);
 
-  // Cleanup preview URL on unmount
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFileSelected([file]);
+          break;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [handleFileSelected]);
 
   const handleApply = async () => {
     if (!file || !text.trim()) return;
@@ -86,7 +88,7 @@ export default function ImageWatermarkPage() {
         fontSize,
         opacity: opacity / 100,
         position,
-        rotation,
+        rotation: 0,
         color,
       });
 
@@ -104,9 +106,7 @@ export default function ImageWatermarkPage() {
   const handleDownload = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (result) {
-      downloadImage(result.blob, result.filename);
-    }
+    if (result) downloadImage(result.blob, result.filename);
   };
 
   const handleStartOver = () => {
@@ -119,106 +119,47 @@ export default function ImageWatermarkPage() {
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/image" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Image Tools
-        </Link>
+      <ImagePageHeader
+        icon={<WatermarkIcon className="w-7 h-7" />}
+        iconClass="tool-image-watermark"
+        title="Add Watermark"
+        description="Add text watermarks to your images"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-image-watermark">
-            <WatermarkIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Add Watermark</h1>
-            <p className="text-muted-foreground mt-1">
-              Add text watermarks to your images
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Done</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-4 mb-8">
-              <h2 className="text-3xl font-display">Watermark Added!</h2>
-              <p className="text-muted-foreground">
-                File size: {formatFileSize(result.blob.size)}
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="btn-success flex-1"
-              >
-                <DownloadIcon className="w-5 h-5" />
-                Download Image
-              </button>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="btn-secondary flex-1"
-              >
-                Watermark Another
-              </button>
-            </div>
-          </div>
-        </div>
+        <SuccessCard
+          stampText="Done"
+          title="Watermark Added!"
+          downloadLabel="Download Image"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Watermark Another"
+        >
+          <p className="text-muted-foreground">File size: {formatFileSize(result.blob.size)}</p>
+        </SuccessCard>
       ) : !file ? (
-        <div className="space-y-6">
-          <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp"
-            multiple={false}
-            onFilesSelected={handleFileSelected}
-            title="Drop your image here"
-            subtitle="or click to browse from your device"
-          />
-        </div>
+        <FileDropzone
+          accept=".jpg,.jpeg,.png,.webp"
+          multiple={false}
+          onFilesSelected={handleFileSelected}
+          title="Drop your image here"
+          subtitle="or click to browse · Ctrl+V to paste"
+        />
       ) : (
         <div className="space-y-6">
-          {/* Preview */}
           {preview && (
             <div className="border-2 border-foreground p-4 bg-muted/30">
-              <img
-                src={preview}
-                alt="Preview"
-                className="max-h-48 mx-auto object-contain"
-              />
+              <img src={preview} alt="Preview" className="max-h-48 mx-auto object-contain" />
             </div>
           )}
 
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatFileSize(file.size)}
-              </p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+          <ImageFileInfo
+            file={file}
+            fileSize={formatFileSize(file.size)}
+            onClear={handleClear}
+            icon={<ImageIcon className="w-5 h-5" />}
+          />
 
-          {/* Watermark Text */}
           <div className="space-y-2">
             <label className="input-label">Watermark Text</label>
             <input
@@ -230,7 +171,6 @@ export default function ImageWatermarkPage() {
             />
           </div>
 
-          {/* Position */}
           <div className="space-y-3">
             <label className="input-label">Position</label>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
@@ -239,9 +179,7 @@ export default function ImageWatermarkPage() {
                   key={pos.value}
                   onClick={() => setPosition(pos.value)}
                   className={`px-3 py-2 text-xs font-bold border-2 border-foreground transition-colors ${
-                    position === pos.value
-                      ? "bg-foreground text-background"
-                      : "hover:bg-muted"
+                    position === pos.value ? "bg-foreground text-background" : "hover:bg-muted"
                   }`}
                 >
                   {pos.label}
@@ -250,7 +188,6 @@ export default function ImageWatermarkPage() {
             </div>
           </div>
 
-          {/* Font Size */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="input-label">Font Size</label>
@@ -266,7 +203,6 @@ export default function ImageWatermarkPage() {
             />
           </div>
 
-          {/* Opacity */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="input-label">Opacity</label>
@@ -282,7 +218,6 @@ export default function ImageWatermarkPage() {
             />
           </div>
 
-          {/* Color */}
           <div className="space-y-2">
             <label className="input-label">Color</label>
             <div className="flex items-center gap-2">
@@ -301,22 +236,7 @@ export default function ImageWatermarkPage() {
             </div>
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
 
           {isProcessing && (
             <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground py-4">
@@ -331,15 +251,9 @@ export default function ImageWatermarkPage() {
             className="btn-primary w-full"
           >
             {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Processing...
-              </>
+              <><LoaderIcon className="w-5 h-5" />Processing...</>
             ) : (
-              <>
-                <WatermarkIcon className="w-5 h-5" />
-                Add Watermark
-              </>
+              <><WatermarkIcon className="w-5 h-5" />Add Watermark</>
             )}
           </button>
         </div>

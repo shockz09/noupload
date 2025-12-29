@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { convertHeicToJpeg, downloadImage, formatFileSize } from "@/lib/image-utils";
+import { HeicIcon, ImageIcon } from "@/components/icons";
 import {
-  ArrowLeftIcon,
-  HeicIcon,
-  DownloadIcon,
-  LoaderIcon,
-  ImageIcon,
-} from "@/components/icons";
+  ImagePageHeader,
+  ErrorBox,
+  ProgressBar,
+  ProcessButton,
+  SuccessCard,
+  ImageFileInfo,
+  ComparisonDisplay,
+} from "@/components/image/shared";
 
 interface ConvertResult {
   blob: Blob;
@@ -89,96 +91,32 @@ export default function HeicToJpegPage() {
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/image" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Image Tools
-        </Link>
+      <ImagePageHeader
+        icon={<HeicIcon className="w-7 h-7" />}
+        iconClass="tool-heic"
+        title="HEIC → JPEG"
+        description="Convert iPhone photos to standard JPEG format"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-heic">
-            <HeicIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">HEIC → JPEG</h1>
-            <p className="text-muted-foreground mt-1">
-              Convert iPhone photos to standard JPEG format
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            {/* Stamp */}
-            <div className="success-stamp">
-              <span className="success-stamp-text">Converted</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            {/* Success Message */}
-            <div className="space-y-4 mb-8">
-              <h2 className="text-3xl font-display">HEIC Converted!</h2>
-
-              {/* Format Display */}
-              <div className="flex items-center justify-center gap-6">
-                <div className="text-center">
-                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                    Original
-                  </p>
-                  <p className="text-xl font-bold">HEIC</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatFileSize(result.originalSize)}
-                  </p>
-                </div>
-                <div className="w-12 h-12 flex items-center justify-center bg-foreground text-background">
-                  <svg
-                    className="w-5 h-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                    Converted
-                  </p>
-                  <p className="text-xl font-bold">JPEG</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatFileSize(result.blob.size)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="btn-success flex-1"
-              >
-                <DownloadIcon className="w-5 h-5" />
-                Download JPEG
-              </button>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="btn-secondary flex-1"
-              >
-                Convert Another
-              </button>
-            </div>
-          </div>
-        </div>
+        <SuccessCard
+          stampText="Converted"
+          title="HEIC Converted!"
+          downloadLabel="Download JPEG"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Convert Another"
+        >
+          <ComparisonDisplay
+            originalLabel="Original"
+            originalValue="HEIC"
+            newLabel="Converted"
+            newValue="JPEG"
+          />
+          <p className="text-sm text-muted-foreground">
+            {formatFileSize(result.originalSize)} → {formatFileSize(result.blob.size)}
+          </p>
+        </SuccessCard>
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone
@@ -213,74 +151,24 @@ export default function HeicToJpegPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatFileSize(file.size)}
-              </p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+          <ImageFileInfo
+            file={file}
+            fileSize={formatFileSize(file.size)}
+            onClear={handleClear}
+            icon={<ImageIcon className="w-5 h-5" />}
+          />
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
 
-          {isProcessing && (
-            <div className="space-y-3">
-              <div className="progress-bar">
-                <div
-                  className="progress-bar-fill"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                <LoaderIcon className="w-4 h-4" />
-                <span>Converting HEIC...</span>
-              </div>
-            </div>
-          )}
+          {isProcessing && <ProgressBar progress={progress} label="Converting HEIC..." />}
 
-          <button
+          <ProcessButton
             onClick={handleConvert}
-            disabled={isProcessing}
-            className="btn-primary w-full"
-          >
-            {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Converting...
-              </>
-            ) : (
-              <>
-                <HeicIcon className="w-5 h-5" />
-                Convert to JPEG
-              </>
-            )}
-          </button>
+            isProcessing={isProcessing}
+            processingLabel="Converting..."
+            icon={<HeicIcon className="w-5 h-5" />}
+            label="Convert to JPEG"
+          />
         </div>
       )}
     </div>

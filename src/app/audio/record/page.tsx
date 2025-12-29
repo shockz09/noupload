@@ -1,27 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
 import { downloadAudio, formatDuration, formatFileSize } from "@/lib/audio-utils";
-import { ArrowLeftIcon, DownloadIcon } from "@/components/icons";
-
-function MicIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" y1="19" x2="12" y2="22" />
-    </svg>
-  );
-}
-
-function StopIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-    </svg>
-  );
-}
+import { MicIcon, StopIcon, DownloadIcon } from "@/components/icons";
+import { ErrorBox, AudioPageHeader } from "@/components/audio/shared";
 
 export default function RecordAudioPage() {
   const [isRecording, setIsRecording] = useState(false);
@@ -67,7 +49,7 @@ export default function RecordAudioPage() {
       timerRef.current = setInterval(() => {
         setRecordingTime((t) => t + 1);
       }, 1000);
-    } catch (err) {
+    } catch {
       setError("Failed to access microphone. Please allow microphone permissions.");
     }
   };
@@ -100,27 +82,13 @@ export default function RecordAudioPage() {
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/audio" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Audio Tools
-        </Link>
+      <AudioPageHeader
+        icon={<MicIcon className="w-7 h-7" />}
+        iconClass="tool-audio-record"
+        title="Record Audio"
+        description="Record audio from your microphone"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-audio-record">
-            <MicIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Record Audio</h1>
-            <p className="text-muted-foreground mt-1">
-              Record audio from your microphone
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {audioBlob && !isRecording ? (
         <div className="animate-fade-up space-y-6">
           <div className="success-card">
@@ -176,16 +144,7 @@ export default function RecordAudioPage() {
             )}
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
 
           {isRecording ? (
             <button onClick={stopRecording} className="btn-primary w-full bg-destructive hover:bg-destructive/90">

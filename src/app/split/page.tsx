@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { splitPDF, extractPages, getPDFPageCount, downloadBlob, downloadMultiple } from "@/lib/pdf-utils";
-import { ArrowLeftIcon, SplitIcon, DownloadIcon, LoaderIcon, PdfIcon } from "@/components/icons";
+import { SplitIcon, LoaderIcon, PdfIcon } from "@/components/icons";
+import { PdfPageHeader, ErrorBox, ProgressBar, SuccessCard, PdfFileInfo } from "@/components/pdf/shared";
 
 type SplitMode = "extract" | "range" | "each";
 
@@ -172,68 +172,26 @@ export default function SplitPage() {
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to tools
-        </Link>
+      <PdfPageHeader
+        icon={<SplitIcon className="w-7 h-7" />}
+        iconClass="tool-split"
+        title="Split PDF"
+        description="Extract pages or divide into multiple files"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-split">
-            <SplitIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Split PDF</h1>
-            <p className="text-muted-foreground mt-1">
-              Extract pages or divide into multiple files
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            {/* Stamp */}
-            <div className="success-stamp">
-              <span className="success-stamp-text">Complete</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-2 mb-8">
-              <h2 className="text-3xl font-display">
-                PDF Split!
-              </h2>
-              <p className="text-muted-foreground">
-                {result.files.length === 1
-                  ? "Your extracted pages are ready"
-                  : `Created ${result.files.length} PDF files`}
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="btn-success flex-1"
-              >
-                <DownloadIcon className="w-5 h-5" />
-                {result.files.length === 1 ? "Download PDF" : `Download ${result.files.length} Files`}
-              </button>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="btn-secondary flex-1"
-              >
-                Split Another PDF
-              </button>
-            </div>
-          </div>
-        </div>
+        <SuccessCard
+          stampText="Complete"
+          title="PDF Split!"
+          downloadLabel={result.files.length === 1 ? "Download PDF" : `Download ${result.files.length} Files`}
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Split Another PDF"
+        >
+          <p className="text-muted-foreground">
+            {result.files.length === 1 ? "Your extracted pages are ready" : `Created ${result.files.length} PDF files`}
+          </p>
+        </SuccessCard>
       ) : !file ? (
         <FileDropzone
           accept=".pdf"
@@ -243,22 +201,12 @@ export default function SplitPage() {
         />
       ) : (
         <div className="space-y-6">
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
-              <PdfIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">{pageCount} pages</p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+          <PdfFileInfo
+            file={file}
+            fileSize={`${pageCount} pages`}
+            onClear={handleClear}
+            icon={<PdfIcon className="w-5 h-5" />}
+          />
 
           {/* Mode Selection */}
           <div className="mode-selector">
@@ -319,28 +267,8 @@ export default function SplitPage() {
             </div>
           )}
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
-
-          {isProcessing && (
-            <div className="space-y-3">
-              <div className="progress-bar">
-                <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                <LoaderIcon className="w-4 h-4" />
-                <span>Processing...</span>
-              </div>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
+          {isProcessing && <ProgressBar progress={progress} label="Processing..." />}
 
           <button
             onClick={handleSplit}

@@ -15,9 +15,28 @@ import {
   FaviconIcon,
   BulkIcon,
   ArrowLeftIcon,
+  ArrowRightIcon,
+  ScreenshotIcon,
 } from "@/components/icons";
 
 const tools = [
+  // Featured
+  {
+    title: "Convert",
+    description: "Convert between PNG, JPEG, and WebP formats",
+    href: "/image/convert",
+    icon: ConvertIcon,
+    category: "convert",
+    colorClass: "tool-convert",
+  },
+  {
+    title: "Screenshot Beautifier",
+    description: "Add gradient backgrounds and frames to screenshots",
+    href: "/image/screenshot",
+    icon: ScreenshotIcon,
+    category: "edit",
+    colorClass: "tool-screenshot",
+  },
   // Wave 1: Essential
   {
     title: "Compress",
@@ -28,28 +47,28 @@ const tools = [
     colorClass: "tool-image-compress",
   },
   {
-    title: "Resize",
-    description: "Change image dimensions with presets or custom sizes",
-    href: "/image/resize",
-    icon: ResizeIcon,
-    category: "edit",
-    colorClass: "tool-resize",
-  },
-  {
-    title: "Convert",
-    description: "Convert between PNG, JPEG, and WebP formats",
-    href: "/image/convert",
-    icon: ConvertIcon,
-    category: "convert",
-    colorClass: "tool-convert",
-  },
-  {
     title: "HEIC → JPEG",
     description: "Convert iPhone photos to standard JPEG",
     href: "/image/heic-to-jpeg",
     icon: HeicIcon,
     category: "convert",
     colorClass: "tool-heic",
+  },
+  {
+    title: "Strip Metadata",
+    description: "Remove EXIF data and GPS location from photos",
+    href: "/image/strip-metadata",
+    icon: MetadataIcon,
+    category: "privacy",
+    colorClass: "tool-strip-metadata",
+  },
+  {
+    title: "Resize",
+    description: "Change image dimensions with presets or custom sizes",
+    href: "/image/resize",
+    icon: ResizeIcon,
+    category: "edit",
+    colorClass: "tool-resize",
   },
   // Wave 2: Editing
   {
@@ -67,14 +86,6 @@ const tools = [
     icon: RotateIcon,
     category: "edit",
     colorClass: "tool-rotate-image",
-  },
-  {
-    title: "Strip Metadata",
-    description: "Remove EXIF data and GPS location from photos",
-    href: "/image/strip-metadata",
-    icon: MetadataIcon,
-    category: "privacy",
-    colorClass: "tool-strip-metadata",
   },
   // Wave 3: Adjustments
   {
@@ -199,6 +210,23 @@ export default function ImagesPage() {
           <span>Free forever</span>
         </div>
       </section>
+
+      {/* Audio Tools Banner */}
+      <Link href="/audio" className="block group">
+        <div className="relative overflow-hidden border-2 border-foreground bg-gradient-to-r from-[#8B5CF6]/10 to-[#EC4899]/10 p-6 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0_0_#1a1a1a] transition-all">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">New</div>
+              <h3 className="text-xl font-bold">Audio Tools</h3>
+              <p className="text-sm text-muted-foreground">Trim, speed, reverse, fade, and more</p>
+            </div>
+            <div className="flex items-center gap-2 text-primary font-bold">
+              <span>Explore</span>
+              <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+        </div>
+      </Link>
 
       {/* Tools Grid */}
       <section className="space-y-8">

@@ -1,22 +1,10 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import {
-  applyFilter,
-  downloadImage,
-  formatFileSize,
-  getOutputFilename,
-  FilterType,
-} from "@/lib/image-utils";
-import {
-  ArrowLeftIcon,
-  FiltersIcon,
-  DownloadIcon,
-  LoaderIcon,
-  ImageIcon,
-} from "@/components/icons";
+import { applyFilter, downloadImage, formatFileSize, getOutputFilename, FilterType } from "@/lib/image-utils";
+import { FiltersIcon, ImageIcon, LoaderIcon } from "@/components/icons";
+import { ImagePageHeader, ErrorBox, SuccessCard, ImageFileInfo } from "@/components/image/shared";
 
 interface FilterResult {
   blob: Blob;
@@ -60,12 +48,27 @@ export default function ImageFiltersPage() {
     setSelectedFilter(null);
   }, [preview]);
 
-  // Cleanup preview URL on unmount
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFileSelected([file]);
+          break;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [handleFileSelected]);
 
   const currentFilterStyle = selectedFilter
     ? { filter: filters.find((f) => f.value === selectedFilter)?.cssFilter }
@@ -96,9 +99,7 @@ export default function ImageFiltersPage() {
   const handleDownload = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (result) {
-      downloadImage(result.blob, result.filename);
-    }
+    if (result) downloadImage(result.blob, result.filename);
   };
 
   const handleStartOver = () => {
@@ -112,77 +113,36 @@ export default function ImageFiltersPage() {
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/image" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Image Tools
-        </Link>
+      <ImagePageHeader
+        icon={<FiltersIcon className="w-7 h-7" />}
+        iconClass="tool-filters"
+        title="Image Filters"
+        description="Apply grayscale, sepia, or invert effects"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-filters">
-            <FiltersIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Image Filters</h1>
-            <p className="text-muted-foreground mt-1">
-              Apply grayscale, sepia, or invert effects
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Filtered</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-4 mb-8">
-              <h2 className="text-3xl font-display">Filter Applied!</h2>
-              <p className="text-muted-foreground">
-                {result.filter.charAt(0).toUpperCase() + result.filter.slice(1)}{" "}
-                filter • {formatFileSize(result.blob.size)}
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="btn-success flex-1"
-              >
-                <DownloadIcon className="w-5 h-5" />
-                Download Image
-              </button>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="btn-secondary flex-1"
-              >
-                Apply to Another
-              </button>
-            </div>
-          </div>
-        </div>
+        <SuccessCard
+          stampText="Filtered"
+          title="Filter Applied!"
+          downloadLabel="Download Image"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Apply to Another"
+        >
+          <p className="text-muted-foreground">
+            {result.filter.charAt(0).toUpperCase() + result.filter.slice(1)} filter • {formatFileSize(result.blob.size)}
+          </p>
+        </SuccessCard>
       ) : !file ? (
-        <div className="space-y-6">
-          <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp"
-            multiple={false}
-            onFilesSelected={handleFileSelected}
-            title="Drop your image here"
-            subtitle="or click to browse from your device"
-          />
-        </div>
+        <FileDropzone
+          accept=".jpg,.jpeg,.png,.webp"
+          multiple={false}
+          onFilesSelected={handleFileSelected}
+          title="Drop your image here"
+          subtitle="or click to browse · Ctrl+V to paste"
+        />
       ) : (
         <div className="space-y-6">
-          {/* Preview */}
           {preview && (
             <div className="border-2 border-foreground p-4 bg-muted/30">
               <img
@@ -194,26 +154,13 @@ export default function ImageFiltersPage() {
             </div>
           )}
 
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatFileSize(file.size)}
-              </p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+          <ImageFileInfo
+            file={file}
+            fileSize={formatFileSize(file.size)}
+            onClear={handleClear}
+            icon={<ImageIcon className="w-5 h-5" />}
+          />
 
-          {/* Filter Selection */}
           <div className="space-y-3">
             <label className="input-label">Select Filter</label>
             <div className="grid grid-cols-3 gap-3">
@@ -222,9 +169,7 @@ export default function ImageFiltersPage() {
                   key={filter.value}
                   onClick={() => setSelectedFilter(filter.value)}
                   className={`relative overflow-hidden border-2 border-foreground aspect-square transition-all ${
-                    selectedFilter === filter.value
-                      ? "ring-4 ring-primary ring-offset-2"
-                      : "hover:scale-105"
+                    selectedFilter === filter.value ? "ring-4 ring-primary ring-offset-2" : "hover:scale-105"
                   }`}
                 >
                   {preview && (
@@ -236,16 +181,13 @@ export default function ImageFiltersPage() {
                     />
                   )}
                   <div className="absolute inset-x-0 bottom-0 bg-foreground/90 py-2">
-                    <span className="text-xs font-bold text-background">
-                      {filter.label}
-                    </span>
+                    <span className="text-xs font-bold text-background">{filter.label}</span>
                   </div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* No filter selected hint */}
           {selectedFilter && (
             <button
               onClick={() => setSelectedFilter(null)}
@@ -255,22 +197,7 @@ export default function ImageFiltersPage() {
             </button>
           )}
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
 
           {isProcessing && (
             <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground py-4">
@@ -285,10 +212,7 @@ export default function ImageFiltersPage() {
             className="btn-primary w-full"
           >
             {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Processing...
-              </>
+              <><LoaderIcon className="w-5 h-5" />Processing...</>
             ) : (
               <>
                 <FiltersIcon className="w-5 h-5" />

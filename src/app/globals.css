@@ -417,6 +417,7 @@
 .tool-base64 { --tool-color: #115E59; }
 .tool-favicon { --tool-color: #4A1E7C; }
 .tool-bulk { --tool-color: #14532D; }
+.tool-screenshot { --tool-color: #7C3AED; }
 .tool-qr { --tool-color: #0E7490; }
 .tool-qr-generate { --tool-color: #1E4A7C; }
 .tool-qr-scan { --tool-color: #7C1E4A; }
@@ -427,6 +428,12 @@
 .tool-audio-fade { --tool-color: #166534; }
 .tool-audio-reverse { --tool-color: #7C1E4A; }
 .tool-audio-waveform { --tool-color: #0E7490; }
+.tool-audio-convert { --tool-color: #0891B2; }
+.tool-audio-extract { --tool-color: #B45309; }
+.tool-audio-denoise { --tool-color: #047857; }
+.tool-audio-normalize { --tool-color: #1D4ED8; }
+.tool-audio-silence { --tool-color: #BE185D; }
+.tool-audio-merge { --tool-color: #B91C1C; }
 
 /* Category tag */
 .category-tag {

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages, PageGridLoading } from "@/components/pdf/pdf-page-preview";
 import { addWatermark, downloadBlob } from "@/lib/pdf-utils";
-import { ArrowLeftIcon, WatermarkIcon, DownloadIcon, LoaderIcon } from "@/components/icons";
+import { WatermarkIcon, LoaderIcon } from "@/components/icons";
+import { PdfPageHeader, ErrorBox, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 
 interface WatermarkResult {
   data: Uint8Array;
@@ -153,54 +153,25 @@ export default function WatermarkPage() {
 
   return (
     <div className="page-enter max-w-6xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to tools
-        </Link>
+      <PdfPageHeader
+        icon={<WatermarkIcon className="w-7 h-7" />}
+        iconClass="tool-watermark"
+        title="Add Watermark"
+        description="Drag to position your watermark anywhere"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-watermark">
-            <WatermarkIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Add Watermark</h1>
-            <p className="text-muted-foreground mt-1">
-              Drag to position your watermark anywhere
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up max-w-2xl mx-auto">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Complete</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-2 mb-8">
-              <h2 className="text-3xl font-display">Watermark Added!</h2>
-              <p className="text-muted-foreground">
-                Your watermarked PDF is ready
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button type="button" onClick={handleDownload} className="btn-success flex-1">
-                <DownloadIcon className="w-5 h-5" />
-                Download PDF
-              </button>
-              <button type="button" onClick={handleStartOver} className="btn-secondary flex-1">
-                Add Another Watermark
-              </button>
-            </div>
-          </div>
+        <div className="max-w-2xl mx-auto">
+          <SuccessCard
+            stampText="Complete"
+            title="Watermark Added!"
+            downloadLabel="Download PDF"
+            onDownload={handleDownload}
+            onStartOver={handleStartOver}
+            startOverLabel="Add Another Watermark"
+          >
+            <p className="text-muted-foreground">Your watermarked PDF is ready</p>
+          </SuccessCard>
         </div>
       ) : !file ? (
         <div className="max-w-2xl mx-auto">
@@ -396,28 +367,8 @@ export default function WatermarkPage() {
               </span>
             </div>
 
-            {error && (
-              <div className="error-box animate-shake">
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span className="font-medium">{error}</span>
-              </div>
-            )}
-
-            {isProcessing && (
-              <div className="space-y-3">
-                <div className="progress-bar">
-                  <div className="progress-bar-fill" style={{ width: "50%" }} />
-                </div>
-                <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                  <LoaderIcon className="w-4 h-4" />
-                  <span>Adding watermark...</span>
-                </div>
-              </div>
-            )}
+            {error && <ErrorBox message={error} />}
+            {isProcessing && <ProgressBar progress={50} label="Adding watermark..." />}
 
             {/* Action Button */}
             <button

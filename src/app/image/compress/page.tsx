@@ -1,21 +1,19 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { compressImage, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { ImageCompressIcon, ImageIcon } from "@/components/icons";
 import {
-  compressImage,
-  downloadImage,
-  formatFileSize,
-  getOutputFilename,
-} from "@/lib/image-utils";
-import {
-  ArrowLeftIcon,
-  ImageCompressIcon,
-  DownloadIcon,
-  LoaderIcon,
-  ImageIcon,
-} from "@/components/icons";
+  ImagePageHeader,
+  ErrorBox,
+  ProgressBar,
+  ProcessButton,
+  SuccessCard,
+  ImageFileInfo,
+  ComparisonDisplay,
+  SavingsBadge,
+} from "@/components/image/shared";
 
 interface CompressResult {
   blob: Blob;
@@ -39,8 +37,6 @@ export default function ImageCompressPage() {
       setFile(selectedFile);
       setError(null);
       setResult(null);
-
-      // Create preview
       const url = URL.createObjectURL(selectedFile);
       setPreview(url);
     }
@@ -54,16 +50,30 @@ export default function ImageCompressPage() {
     setResult(null);
   }, [preview]);
 
-  // Cleanup preview URL on unmount
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
 
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFileSelected([file]);
+          break;
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [handleFileSelected]);
+
   const handleCompress = async () => {
     if (!file) return;
-
     setIsProcessing(true);
     setProgress(0);
     setError(null);
@@ -73,19 +83,15 @@ export default function ImageCompressPage() {
       setProgress(30);
       const compressed = await compressImage(file, quality / 100);
       setProgress(90);
-
       setResult({
         blob: compressed,
         filename: getOutputFilename(file.name, "jpeg", "_compressed"),
         originalSize: file.size,
         compressedSize: compressed.size,
       });
-
       setProgress(100);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to compress image"
-      );
+      setError(err instanceof Error ? err.message : "Failed to compress image");
     } finally {
       setIsProcessing(false);
     }
@@ -94,9 +100,7 @@ export default function ImageCompressPage() {
   const handleDownload = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (result) {
-      downloadImage(result.blob, result.filename);
-    }
+    if (result) downloadImage(result.blob, result.filename);
   };
 
   const handleStartOver = () => {
@@ -108,127 +112,34 @@ export default function ImageCompressPage() {
     setProgress(0);
   };
 
-  const savings = result
-    ? Math.round((1 - result.compressedSize / result.originalSize) * 100)
-    : 0;
+  const savings = result ? Math.round((1 - result.compressedSize / result.originalSize) * 100) : 0;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/image" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Image Tools
-        </Link>
+      <ImagePageHeader
+        icon={<ImageCompressIcon className="w-7 h-7" />}
+        iconClass="tool-image-compress"
+        title="Compress Image"
+        description="Reduce file size while keeping quality"
+      />
 
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-image-compress">
-            <ImageCompressIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">Compress Image</h1>
-            <p className="text-muted-foreground mt-1">
-              Reduce file size while keeping quality
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            {/* Stamp */}
-            <div className="success-stamp">
-              <span className="success-stamp-text">Optimized</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            {/* Success Message */}
-            <div className="space-y-4 mb-8">
-              <h2 className="text-3xl font-display">Image Compressed!</h2>
-
-              {/* Savings Display */}
-              <div className="flex items-center justify-center gap-6">
-                <div className="text-center">
-                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                    Original
-                  </p>
-                  <p className="text-xl font-bold">
-                    {formatFileSize(result.originalSize)}
-                  </p>
-                </div>
-                <div className="w-12 h-12 flex items-center justify-center bg-foreground text-background">
-                  <svg
-                    className="w-5 h-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                    Compressed
-                  </p>
-                  <p className="text-xl font-bold">
-                    {formatFileSize(result.compressedSize)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Savings Badge */}
-              <div
-                className={`inline-flex items-center gap-2 px-4 py-2 border-2 font-bold text-sm ${
-                  savings > 0
-                    ? "bg-[#2D5A3D] text-white border-foreground"
-                    : "bg-muted text-muted-foreground border-border"
-                }`}
-              >
-                {savings > 0 ? (
-                  <>
-                    <svg
-                      className="w-4 h-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                    >
-                      <polyline points="17 11 12 6 7 11" />
-                      <path d="M12 6v12" />
-                    </svg>
-                    {savings}% smaller
-                  </>
-                ) : (
-                  "Already optimized"
-                )}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="btn-success flex-1"
-              >
-                <DownloadIcon className="w-5 h-5" />
-                Download Image
-              </button>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="btn-secondary flex-1"
-              >
-                Compress Another
-              </button>
-            </div>
-          </div>
-        </div>
+        <SuccessCard
+          stampText="Optimized"
+          title="Image Compressed!"
+          downloadLabel="Download Image"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Compress Another"
+        >
+          <ComparisonDisplay
+            originalLabel="Original"
+            originalValue={formatFileSize(result.originalSize)}
+            newLabel="Compressed"
+            newValue={formatFileSize(result.compressedSize)}
+          />
+          <SavingsBadge savings={savings} />
+        </SuccessCard>
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone
@@ -236,66 +147,32 @@ export default function ImageCompressPage() {
             multiple={false}
             onFilesSelected={handleFileSelected}
             title="Drop your image here"
-            subtitle="or click to browse from your device"
+            subtitle="or click to browse · Ctrl+V to paste"
           />
-
           <div className="info-box">
-            <svg
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
+            <svg className="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <path d="M12 16v-4" />
               <path d="M12 8h.01" />
             </svg>
             <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">
-                About compression
-              </p>
+              <p className="font-bold text-foreground mb-1">About compression</p>
               <p className="text-muted-foreground">
-                Compresses images using JPEG encoding. For best results, adjust
-                the quality slider to find the right balance between file size
-                and visual quality.
+                Compresses images using JPEG encoding. For best results, adjust the quality slider to find the right balance between file size and visual quality.
               </p>
             </div>
           </div>
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Preview */}
           {preview && (
             <div className="border-2 border-foreground p-4 bg-muted/30">
-              <img
-                src={preview}
-                alt="Preview"
-                className="max-h-64 mx-auto object-contain"
-              />
+              <img src={preview} alt="Preview" className="max-h-64 mx-auto object-contain" />
             </div>
           )}
 
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatFileSize(file.size)}
-              </p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+          <ImageFileInfo file={file} fileSize={formatFileSize(file.size)} onClear={handleClear} icon={<ImageIcon className="w-5 h-5" />} />
 
-          {/* Quality Slider */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="input-label">Quality</label>
@@ -315,55 +192,16 @@ export default function ImageCompressPage() {
             </div>
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
+          {isProcessing && <ProgressBar progress={progress} label="Compressing..." />}
 
-          {isProcessing && (
-            <div className="space-y-3">
-              <div className="progress-bar">
-                <div
-                  className="progress-bar-fill"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                <LoaderIcon className="w-4 h-4" />
-                <span>Compressing...</span>
-              </div>
-            </div>
-          )}
-
-          <button
+          <ProcessButton
             onClick={handleCompress}
-            disabled={isProcessing}
-            className="btn-primary w-full"
-          >
-            {isProcessing ? (
-              <>
-                <LoaderIcon className="w-5 h-5" />
-                Compressing...
-              </>
-            ) : (
-              <>
-                <ImageCompressIcon className="w-5 h-5" />
-                Compress Image
-              </>
-            )}
-          </button>
+            isProcessing={isProcessing}
+            processingLabel="Compressing..."
+            icon={<ImageCompressIcon className="w-5 h-5" />}
+            label="Compress Image"
+          />
         </div>
       )}
     </div>

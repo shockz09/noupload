@@ -1,4 +1,5 @@
 // Audio processing utilities - all client-side using Web Audio API
+import lamejs from "@breezystack/lamejs";
 
 export interface AudioInfo {
   duration: number;
@@ -328,4 +329,80 @@ export function formatFileSize(bytes: number): string {
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
+// Convert AudioBuffer to MP3 using lamejs
+export function audioBufferToMp3(buffer: AudioBuffer, bitrate: number = 128): Blob {
+  const channels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const mp3encoder = new lamejs.Mp3Encoder(channels === 1 ? 1 : 2, sampleRate, bitrate);
+
+  const mp3Data: Uint8Array[] = [];
+  const sampleBlockSize = 1152;
+
+  // Get channel data
+  const left = buffer.getChannelData(0);
+  const right = channels > 1 ? buffer.getChannelData(1) : null;
+
+  // Convert to Int16
+  const leftInt16 = new Int16Array(left.length);
+  const rightInt16 = right ? new Int16Array(right.length) : null;
+
+  for (let i = 0; i < left.length; i++) {
+    leftInt16[i] = left[i] < 0 ? left[i] * 0x8000 : left[i] * 0x7fff;
+    if (rightInt16 && right) {
+      rightInt16[i] = right[i] < 0 ? right[i] * 0x8000 : right[i] * 0x7fff;
+    }
+  }
+
+  // Encode in chunks
+  for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
+    const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
+    const rightChunk = rightInt16 ? rightInt16.subarray(i, i + sampleBlockSize) : leftChunk;
+
+    const mp3buf = channels === 1
+      ? mp3encoder.encodeBuffer(leftChunk)
+      : mp3encoder.encodeBuffer(leftChunk, rightChunk);
+
+    if (mp3buf.length > 0) {
+      mp3Data.push(new Uint8Array(mp3buf));
+    }
+  }
+
+  // Flush remaining
+  const mp3buf = mp3encoder.flush();
+  if (mp3buf.length > 0) {
+    mp3Data.push(new Uint8Array(mp3buf));
+  }
+
+  // Calculate total length and merge
+  const totalLength = mp3Data.reduce((acc, arr) => acc + arr.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const arr of mp3Data) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+
+  return new Blob([result], { type: "audio/mp3" });
+}
+
+// Convert audio file to specified format
+export type AudioFormat = "wav" | "mp3";
+
+export async function convertAudioFormat(
+  file: File,
+  outputFormat: AudioFormat,
+  options?: { bitrate?: number }
+): Promise<Blob> {
+  const buffer = await loadAudioFile(file);
+
+  switch (outputFormat) {
+    case "wav":
+      return audioBufferToWav(buffer);
+    case "mp3":
+      return audioBufferToMp3(buffer, options?.bitrate || 128);
+    default:
+      throw new Error(`Unsupported format: ${outputFormat}`);
+  }
 }

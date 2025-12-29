@@ -27,6 +27,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-progress": "^1.1.8",
@@ -39,6 +42,7 @@
     "clsx": "^2.1.1",
     "file-saver": "^2.0.5",
     "heic2any": "^0.0.4",
+    "html-to-image": "^1.11.13",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",

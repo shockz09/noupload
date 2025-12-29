@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { pdfToImages, downloadImagesAsZip, downloadImage, ConvertedImage } from "@/lib/pdf-image-utils";
-import { ArrowLeftIcon, ImageIcon, DownloadIcon, LoaderIcon } from "@/components/icons";
+import { ImageIcon, DownloadIcon, LoaderIcon } from "@/components/icons";
+import { PdfPageHeader, ErrorBox, ProgressBar, PdfFileInfo } from "@/components/pdf/shared";
 
 export default function PdfToImagesPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -102,25 +102,12 @@ export default function PdfToImagesPage() {
 
   return (
     <div className="page-enter max-w-5xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="space-y-6">
-        <Link href="/" className="back-link">
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to tools
-        </Link>
-
-        <div className="flex items-center gap-5">
-          <div className="tool-icon tool-pdf-to-images">
-            <ImageIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-display">PDF to Images</h1>
-            <p className="text-muted-foreground mt-1">
-              Convert each page to high-quality images
-            </p>
-          </div>
-        </div>
-      </div>
+      <PdfPageHeader
+        icon={<ImageIcon className="w-7 h-7" />}
+        iconClass="tool-pdf-to-images"
+        title="PDF to Images"
+        description="Convert each page to high-quality images"
+      />
 
       {/* Main Content */}
       {!file ? (
@@ -134,24 +121,17 @@ export default function PdfToImagesPage() {
         </div>
       ) : images.length === 0 ? (
         <div className="space-y-6 max-w-2xl mx-auto">
-          {/* File Info */}
-          <div className="file-item">
-            <div className="pdf-icon-box">
+          <PdfFileInfo
+            file={file}
+            fileSize=""
+            onClear={handleClear}
+            icon={
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <path d="M14 2v6h6" />
               </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">{file.name}</p>
-            </div>
-            <button
-              onClick={handleClear}
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Change file
-            </button>
-          </div>
+            }
+          />
 
           {/* Options */}
           <div className="p-6 bg-card border-2 border-foreground space-y-6">
@@ -202,28 +182,8 @@ export default function PdfToImagesPage() {
             </div>
           </div>
 
-          {error && (
-            <div className="error-box animate-shake">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          )}
-
-          {isProcessing && (
-            <div className="space-y-3">
-              <div className="progress-bar">
-                <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
-              </div>
-              <div className="flex items-center justify-center gap-2 text-sm font-semibold text-muted-foreground">
-                <LoaderIcon className="w-4 h-4" />
-                <span>Converting pages... {progress}%</span>
-              </div>
-            </div>
-          )}
+          {error && <ErrorBox message={error} />}
+          {isProcessing && <ProgressBar progress={progress} label={`Converting pages... ${progress}%`} />}
 
           <button
             onClick={handleConvert}
