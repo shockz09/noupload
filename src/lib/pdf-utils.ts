@@ -265,3 +265,73 @@ export async function addSignature(
 
   return pdf.save();
 }
+
+export async function sanitizePDF(file: File): Promise<{ data: Uint8Array; removedFields: string[] }> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await PDFDocument.load(arrayBuffer);
+  const removedFields: string[] = [];
+
+  // Get current metadata to report what was removed
+  if (pdf.getTitle()) removedFields.push("Title");
+  if (pdf.getAuthor()) removedFields.push("Author");
+  if (pdf.getSubject()) removedFields.push("Subject");
+  if (pdf.getKeywords()) removedFields.push("Keywords");
+  if (pdf.getProducer()) removedFields.push("Producer");
+  if (pdf.getCreator()) removedFields.push("Creator");
+  if (pdf.getCreationDate()) removedFields.push("Creation Date");
+  if (pdf.getModificationDate()) removedFields.push("Modification Date");
+
+  // Remove all metadata
+  pdf.setTitle("");
+  pdf.setAuthor("");
+  pdf.setSubject("");
+  pdf.setKeywords([]);
+  pdf.setProducer("");
+  pdf.setCreator("");
+
+  return {
+    data: await pdf.save(),
+    removedFields,
+  };
+}
+
+export async function reversePDF(file: File): Promise<Uint8Array> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await PDFDocument.load(arrayBuffer);
+  const newPdf = await PDFDocument.create();
+
+  const pageCount = pdf.getPageCount();
+  const reversedIndices = Array.from({ length: pageCount }, (_, i) => pageCount - 1 - i);
+
+  const copiedPages = await newPdf.copyPages(pdf, reversedIndices);
+  copiedPages.forEach((page) => newPdf.addPage(page));
+
+  return newPdf.save();
+}
+
+export async function getPDFMetadata(file: File): Promise<{
+  title: string | undefined;
+  author: string | undefined;
+  subject: string | undefined;
+  keywords: string | undefined;
+  producer: string | undefined;
+  creator: string | undefined;
+  creationDate: Date | undefined;
+  modificationDate: Date | undefined;
+  pageCount: number;
+}> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await PDFDocument.load(arrayBuffer);
+
+  return {
+    title: pdf.getTitle(),
+    author: pdf.getAuthor(),
+    subject: pdf.getSubject(),
+    keywords: pdf.getKeywords(),
+    producer: pdf.getProducer(),
+    creator: pdf.getCreator(),
+    creationDate: pdf.getCreationDate(),
+    modificationDate: pdf.getModificationDate(),
+    pageCount: pdf.getPageCount(),
+  };
+}

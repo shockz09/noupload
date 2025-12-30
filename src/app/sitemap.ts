@@ -17,6 +17,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/pdf-to-images",
     "/images-to-pdf",
     "/ocr",
+    "/sanitize",
+    "/reverse",
+    "/pdf-to-text",
   ];
 
   // Image Tools

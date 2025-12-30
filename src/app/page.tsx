@@ -12,6 +12,9 @@ import {
   SignatureIcon,
   OrganizeIcon,
   ArrowRightIcon,
+  SanitizeIcon,
+  ReversePagesIcon,
+  TextIcon,
 } from "@/components/icons";
 
 const tools = [
@@ -103,6 +106,30 @@ const tools = [
     category: "edit",
     colorClass: "tool-sign",
   },
+  {
+    title: "Sanitize PDF",
+    description: "Remove metadata and hidden data",
+    href: "/sanitize",
+    icon: SanitizeIcon,
+    category: "security",
+    colorClass: "tool-security",
+  },
+  {
+    title: "Reverse Pages",
+    description: "Flip the order of all pages",
+    href: "/reverse",
+    icon: ReversePagesIcon,
+    category: "organize",
+    colorClass: "tool-organize",
+  },
+  {
+    title: "PDF → Text",
+    description: "Extract text content from PDFs",
+    href: "/pdf-to-text",
+    icon: TextIcon,
+    category: "convert",
+    colorClass: "tool-convert",
+  },
 ];
 
 const categoryLabels: Record<string, string> = {
@@ -110,6 +137,7 @@ const categoryLabels: Record<string, string> = {
   optimize: "Optimize",
   convert: "Convert",
   edit: "Edit",
+  security: "Security",
 };
 
 export default function Home() {
