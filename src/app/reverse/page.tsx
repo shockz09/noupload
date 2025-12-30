@@ -38,7 +38,7 @@ export default function ReversePage() {
       const count = await getPDFPageCount(fileToProcess);
       setProgress(90);
 
-      const baseName = fileToProcess.name.replace(".pdf", "");
+      const baseName = fileToProcess.name.replace(/\.pdf$/i, "");
       setResult({
         data,
         filename: `${baseName}_reversed.pdf`,
@@ -65,10 +65,10 @@ export default function ReversePage() {
         setPageCount(count);
       } catch {
         setPageCount(0);
-      }
-
-      if (isInstant) {
-        processFile(selectedFile);
+      } finally {
+        if (isInstant) {
+          processFile(selectedFile);
+        }
       }
     }
   }, [isInstant, processFile]);

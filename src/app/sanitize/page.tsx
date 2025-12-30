@@ -49,7 +49,7 @@ export default function SanitizePage() {
       const { data, removedFields } = await sanitizePDF(fileToProcess);
       setProgress(90);
 
-      const baseName = fileToProcess.name.replace(".pdf", "");
+      const baseName = fileToProcess.name.replace(/\.pdf$/i, "");
       setResult({
         data,
         filename: `${baseName}_sanitized.pdf`,
@@ -77,10 +77,10 @@ export default function SanitizePage() {
         setMetadata(meta);
       } catch {
         setMetadata(null);
-      }
-
-      if (isInstant) {
-        processFile(selectedFile);
+      } finally {
+        if (isInstant) {
+          processFile(selectedFile);
+        }
       }
     }
   }, [isInstant, processFile]);

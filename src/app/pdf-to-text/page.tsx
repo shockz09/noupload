@@ -72,7 +72,7 @@ export default function PdfToTextPage() {
       const { text, pageCount } = await extractTextFromPDF(fileToProcess);
       setProgress(90);
 
-      const baseName = fileToProcess.name.replace(".pdf", "");
+      const baseName = fileToProcess.name.replace(/\.pdf$/i, "");
       const wordCount = text.split(/\s+/).filter(Boolean).length;
 
       setResult({
@@ -124,7 +124,11 @@ export default function PdfToTextPage() {
 
   const handleCopy = async () => {
     if (result) {
-      await navigator.clipboard.writeText(result.text);
+      try {
+        await navigator.clipboard.writeText(result.text);
+      } catch {
+        setError("Failed to copy to clipboard");
+      }
     }
   };
 
