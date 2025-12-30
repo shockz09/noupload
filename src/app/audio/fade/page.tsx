@@ -10,9 +10,11 @@ import {
   SuccessCard,
   AudioFileInfo,
   AudioPageHeader,
+  VideoExtractionProgress,
 } from "@/components/audio/shared";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
-import { useAudioResult } from "@/hooks/useAudioResult";
+import { useAudioResult, useVideoToAudio } from "@/hooks";
+import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 
 export default function FadeAudioPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -25,6 +27,7 @@ export default function FadeAudioPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { result, setResult, clearResult, download } = useAudioResult();
+  const { processFileSelection, extractionState, extractionProgress, isExtracting, videoFilename } = useVideoToAudio();
 
   useEffect(() => {
     return () => {
@@ -32,7 +35,7 @@ export default function FadeAudioPage() {
     };
   }, [audioUrl]);
 
-  const handleFileSelected = useCallback(async (files: File[]) => {
+  const handleAudioReady = useCallback(async (files: File[]) => {
     if (files.length > 0) {
       const selectedFile = files[0];
       setFile(selectedFile);
@@ -50,6 +53,10 @@ export default function FadeAudioPage() {
       }
     }
   }, [audioUrl, clearResult]);
+
+  const handleFileSelected = useCallback((files: File[]) => {
+    processFileSelection(files, handleAudioReady);
+  }, [processFileSelection, handleAudioReady]);
 
   const handleProcess = async () => {
     if (!file) return;
@@ -102,13 +109,15 @@ export default function FadeAudioPage() {
         >
           <AudioPlayer src={result.url} />
         </SuccessCard>
+      ) : isExtracting ? (
+        <VideoExtractionProgress state={extractionState} progress={extractionProgress} filename={videoFilename} />
       ) : !file ? (
         <FileDropzone
-          accept=".mp3,.wav,.ogg,.m4a,.webm"
+          accept={AUDIO_VIDEO_EXTENSIONS}
           multiple={false}
           onFilesSelected={handleFileSelected}
-          title="Drop your audio file here"
-          subtitle="MP3, WAV, OGG, M4A, WebM"
+          title="Drop your audio or video file here"
+          subtitle="MP3, WAV, OGG, M4A, MP4, MOV, etc."
         />
       ) : (
         <div className="space-y-6">

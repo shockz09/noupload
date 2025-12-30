@@ -12,9 +12,11 @@ import {
   ProcessButton,
   SuccessCard,
   AudioPageHeader,
+  VideoExtractionProgress,
 } from "@/components/audio/shared";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
-import { useAudioResult } from "@/hooks/useAudioResult";
+import { useAudioResult, useVideoToAudio } from "@/hooks";
+import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 
 const outputFormats: { value: MergeOutputFormat; label: string; desc: string }[] = [
   { value: "mp3", label: "MP3", desc: "Compressed" },
@@ -30,13 +32,18 @@ export default function MergeAudioPage() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const { result, setResult, clearResult, download } = useAudioResult();
+  const { processFileSelection, extractionState, extractionProgress, isExtracting, videoFilename } = useVideoToAudio();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
-  const handleFilesSelected = useCallback((newFiles: File[]) => {
-    setFiles(prev => [...prev, ...newFiles]);
+  const handleAudioReady = useCallback((audioFiles: File[]) => {
+    setFiles(prev => [...prev, ...audioFiles]);
     setError(null);
     clearResult();
   }, [clearResult]);
+
+  const handleFilesSelected = useCallback((newFiles: File[]) => {
+    processFileSelection(newFiles, handleAudioReady);
+  }, [processFileSelection, handleAudioReady]);
 
   const handleRemoveFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
@@ -121,13 +128,17 @@ export default function MergeAudioPage() {
         </SuccessCard>
       ) : (
         <div className="space-y-4">
-          <FileDropzone
-            accept=".mp3,.wav,.ogg,.m4a,.webm,.aac,.flac"
-            multiple={true}
-            onFilesSelected={handleFilesSelected}
-            title={files.length > 0 ? "Add more audio files" : "Drop your audio files here"}
-            subtitle="MP3, WAV, OGG, M4A, WebM, AAC, FLAC"
-          />
+          {isExtracting ? (
+            <VideoExtractionProgress state={extractionState} progress={extractionProgress} filename={videoFilename} />
+          ) : (
+            <FileDropzone
+              accept={AUDIO_VIDEO_EXTENSIONS}
+              multiple={true}
+              onFilesSelected={handleFilesSelected}
+              title={files.length > 0 ? "Add more audio or video files" : "Drop your audio or video files here"}
+              subtitle="MP3, WAV, OGG, M4A, MP4, MOV, etc."
+            />
+          )}
 
           {files.length > 0 && (
             <div className="border-2 border-foreground bg-card">

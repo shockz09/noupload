@@ -52,29 +52,63 @@ export default function SignPage() {
     setResult(null);
   }, []);
 
+  // Get proper canvas coordinates from mouse/touch event
+  const getCanvasCoords = (canvas: HTMLCanvasElement, e: React.MouseEvent | React.TouchEvent) => {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+    // Scale from CSS coordinates to canvas internal coordinates
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  };
+
   // Initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const initCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
 
-    // Set canvas size
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    ctx.scale(2, 2);
+      // Set canvas internal size (2x for retina)
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
 
-    // Clear with white background
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, rect.width, rect.height);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    // Set drawing style
-    ctx.strokeStyle = "#1A1612";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+      // Clear with white background
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Set drawing style (scale line width for DPR)
+      ctx.strokeStyle = "#1A1612";
+      ctx.lineWidth = 2 * dpr;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+    };
+
+    // Initialize after layout
+    requestAnimationFrame(() => {
+      requestAnimationFrame(initCanvas);
+    });
+
+    // Handle resize
+    const resizeObserver = new ResizeObserver(() => {
+      initCanvas();
+      setHasDrawn(false);
+    });
+    resizeObserver.observe(canvas);
+
+    return () => resizeObserver.disconnect();
   }, [signatureMode]);
 
   // Drawing functions
@@ -82,16 +116,13 @@ export default function SignPage() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    setIsDrawing(true);
-    setHasDrawn(true);
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = ("touches" in e ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = ("touches" in e ? e.touches[0].clientY : e.clientY) - rect.top;
+    setIsDrawing(true);
+    setHasDrawn(true);
 
+    const { x, y } = getCanvasCoords(canvas, e);
     ctx.beginPath();
     ctx.moveTo(x, y);
   };
@@ -105,10 +136,7 @@ export default function SignPage() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = ("touches" in e ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = ("touches" in e ? e.touches[0].clientY : e.clientY) - rect.top;
-
+    const { x, y } = getCanvasCoords(canvas, e);
     ctx.lineTo(x, y);
     ctx.stroke();
   };
@@ -124,9 +152,18 @@ export default function SignPage() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    // Clear entire canvas
     ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Reset drawing style
+    ctx.strokeStyle = "#1A1612";
+    ctx.lineWidth = 2 * dpr;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
     setHasDrawn(false);
     setSignatureDataUrl(null);
   };
@@ -506,7 +543,8 @@ export default function SignPage() {
                 <input
                   type="range"
                   min={50}
-                  max={300}
+                  max={500}
+                  step={10}
                   value={signatureWidth}
                   onChange={(e) => setSignatureWidth(Number(e.target.value))}
                   className="w-full accent-primary"

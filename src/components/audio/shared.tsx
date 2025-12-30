@@ -2,7 +2,8 @@
 
 import { ReactNode } from "react";
 import { PageHeader, FileInfo, ProgressBar as BaseProgressBar } from "@/components/shared";
-import { InfoIcon, AudioIcon } from "@/components/icons";
+import { InfoIcon, AudioIcon, VideoIcon, LoaderIcon } from "@/components/icons";
+import type { ExtractionState } from "@/hooks/useVideoToAudio";
 import { formatFileSize, formatDuration } from "@/lib/audio-utils";
 
 // Re-export common components
@@ -71,5 +72,43 @@ export function AudioFileInfo({ file, duration, onClear, icon }: AudioFileInfoPr
       onClear={onClear}
       icon={icon || <AudioIcon className="w-5 h-5 shrink-0" />}
     />
+  );
+}
+
+// ============ Video Extraction Progress ============
+interface VideoExtractionProgressProps {
+  state: ExtractionState;
+  progress: number;
+  filename?: string | null;
+}
+
+export function VideoExtractionProgress({ state, progress, filename }: VideoExtractionProgressProps) {
+  if (state === "idle") return null;
+
+  const label = state === "loading-ffmpeg"
+    ? "Loading audio engine..."
+    : `Extracting audio${filename ? ` from ${filename}` : ""}...`;
+
+  return (
+    <div className="p-4 border-2 border-foreground bg-card space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 border-2 border-foreground bg-muted flex items-center justify-center">
+          {state === "loading-ffmpeg" ? (
+            <LoaderIcon className="w-5 h-5 animate-spin" />
+          ) : (
+            <VideoIcon className="w-5 h-5" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm">{label}</p>
+          {filename && state === "extracting" && (
+            <p className="text-xs text-muted-foreground truncate">{filename}</p>
+          )}
+        </div>
+      </div>
+      {state === "extracting" && (
+        <BaseProgressBar progress={progress} label={`${Math.round(progress)}%`} />
+      )}
+    </div>
   );
 }

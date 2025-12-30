@@ -1,5 +1,24 @@
 // Shared constants used across the app
 
+// File extension constants for dropzones
+export const VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.avi,.webm,.flv,.wmv,.m4v,.3gp";
+export const AUDIO_EXTENSIONS = ".mp3,.wav,.ogg,.m4a,.aac,.flac";
+export const AUDIO_VIDEO_EXTENSIONS = `${AUDIO_EXTENSIONS},${VIDEO_EXTENSIONS}`;
+
+// Pre-computed arrays for faster lookups
+const VIDEO_EXT_SET = new Set(VIDEO_EXTENSIONS.split(","));
+const AUDIO_EXT_SET = new Set(AUDIO_EXTENSIONS.split(","));
+
+export function isVideoFile(filename: string): boolean {
+  const ext = "." + filename.split(".").pop()?.toLowerCase();
+  return VIDEO_EXT_SET.has(ext);
+}
+
+export function isAudioFile(filename: string): boolean {
+  const ext = "." + filename.split(".").pop()?.toLowerCase();
+  return AUDIO_EXT_SET.has(ext);
+}
+
 // Audio bitrate options
 export const AUDIO_BITRATES = [
   { value: 128, label: "128", desc: "Standard" },

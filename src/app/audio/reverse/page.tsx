@@ -4,10 +4,11 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { reverseAudio, formatDuration, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { ReverseIcon, LoaderIcon } from "@/components/icons";
-import { ErrorBox, SuccessCard, AudioFileInfo, AudioPageHeader } from "@/components/audio/shared";
+import { ErrorBox, SuccessCard, AudioFileInfo, AudioPageHeader, VideoExtractionProgress } from "@/components/audio/shared";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useAudioResult } from "@/hooks/useAudioResult";
+import { useAudioResult, useVideoToAudio } from "@/hooks";
+import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 
 export default function ReverseAudioPage() {
   const { isInstant, isLoaded } = useInstantMode();
@@ -17,6 +18,7 @@ export default function ReverseAudioPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { result, setResult, clearResult, download } = useAudioResult();
+  const { processFileSelection, extractionState, extractionProgress, isExtracting, videoFilename } = useVideoToAudio();
   const processingRef = useRef(false);
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export default function ReverseAudioPage() {
     }
   }, [setResult]);
 
-  const handleFileSelected = useCallback(async (files: File[]) => {
+  const handleAudioReady = useCallback(async (files: File[]) => {
     if (files.length > 0) {
       const selectedFile = files[0];
       setFile(selectedFile);
@@ -68,6 +70,10 @@ export default function ReverseAudioPage() {
       }
     }
   }, [isInstant, processFile, audioUrl, clearResult]);
+
+  const handleFileSelected = useCallback((files: File[]) => {
+    processFileSelection(files, handleAudioReady);
+  }, [processFileSelection, handleAudioReady]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -132,14 +138,16 @@ export default function ReverseAudioPage() {
           <ErrorBox message={error} />
           <button onClick={handleClear} className="btn-secondary w-full">Try Again</button>
         </div>
+      ) : isExtracting ? (
+        <VideoExtractionProgress state={extractionState} progress={extractionProgress} filename={videoFilename} />
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone
-            accept=".mp3,.wav,.ogg,.m4a,.webm"
+            accept={AUDIO_VIDEO_EXTENSIONS}
             multiple={false}
             onFilesSelected={handleFileSelected}
-            title="Drop your audio file here"
-            subtitle="MP3, WAV, OGG, M4A, WebM"
+            title="Drop your audio or video file here"
+            subtitle="MP3, WAV, OGG, M4A, MP4, MOV, etc."
           />
           <div className="info-box">
             <ReverseIcon className="w-5 h-5 mt-0.5" />
