@@ -16,9 +16,7 @@ interface EncryptResult {
 
 export default function EncryptPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [userPassword, setUserPassword] = useState("");
-  const [ownerPassword, setOwnerPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [password, setPassword] = useState("");
   const [result, setResult] = useState<EncryptResult | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const processingRef = useRef(false);
@@ -40,21 +38,16 @@ export default function EncryptPage() {
     setFile(null);
     setLocalError(null);
     setResult(null);
-    setUserPassword("");
-    setOwnerPassword("");
-    setConfirmPassword("");
+    setPassword("");
     clearError();
   }, [clearError]);
 
   const validateForm = (): string | null => {
-    if (!ownerPassword) {
-      return "Owner password is required";
+    if (!password) {
+      return "Password is required";
     }
-    if (ownerPassword.length < 4) {
+    if (password.length < 4) {
       return "Password must be at least 4 characters";
-    }
-    if (ownerPassword !== confirmPassword) {
-      return "Passwords do not match";
     }
     return null;
   };
@@ -72,9 +65,10 @@ export default function EncryptPage() {
     setLocalError(null);
 
     try {
+      // Use the same password for both user and owner
       const data = await encrypt(file, {
-        userPassword,
-        ownerPassword,
+        userPassword: password,
+        ownerPassword: password,
         keyLength: 256,
         permissions: {
           print: true,
@@ -108,9 +102,7 @@ export default function EncryptPage() {
     setFile(null);
     setResult(null);
     setLocalError(null);
-    setUserPassword("");
-    setOwnerPassword("");
-    setConfirmPassword("");
+    setPassword("");
     clearError();
   };
 
@@ -154,8 +146,7 @@ export default function EncryptPage() {
             <div className="text-sm">
               <p className="font-bold text-foreground mb-1">How it works</p>
               <p className="text-muted-foreground">
-                Set a password to protect your PDF. The user password is required to open the file.
-                The owner password grants full editing permissions.
+                Set a password to protect your PDF. Anyone who wants to open the file will need this password.
               </p>
             </div>
           </div>
@@ -169,60 +160,29 @@ export default function EncryptPage() {
             icon={<PdfIcon className="w-5 h-5" />}
           />
 
-          <div className="border-2 border-foreground/20 rounded-lg p-6 space-y-5">
+          <div className="border-2 border-foreground/20 rounded-lg p-6">
             <PasswordInput
-              id="userPassword"
-              label="User Password (to open)"
-              value={userPassword}
-              onChange={setUserPassword}
-              placeholder="Leave empty if no password to open"
-              hint="Optional. Password required to open the PDF."
-              disabled={isProcessing}
-            />
-
-            <PasswordInput
-              id="ownerPassword"
-              label="Owner Password"
-              value={ownerPassword}
-              onChange={setOwnerPassword}
-              placeholder="Enter owner password"
-              hint="Required. Grants full permissions to edit/print."
+              id="password"
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              placeholder="Enter password"
               required
               disabled={isProcessing}
-            />
-
-            <PasswordInput
-              id="confirmPassword"
-              label="Confirm Owner Password"
-              value={confirmPassword}
-              onChange={setConfirmPassword}
-              placeholder="Confirm owner password"
-              required
-              disabled={isProcessing}
+              autoFocus
             />
           </div>
 
-          <div className="warning-box">
-            <svg className="w-5 h-5 mt-0.5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">Remember your password</p>
-              <p className="text-muted-foreground">
-                If you forget your password, we cannot help you recover it.
-                There is no backdoor—your password only exists in your browser.
-              </p>
-            </div>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Forgot your password? We literally can&apos;t help—no servers, no backdoors, no recovery. That&apos;s the point.
+          </p>
 
           {error && <ErrorBox message={error} />}
           {isProcessing && <ProgressBar progress={progress} label="Encrypting..." />}
 
           <button
             onClick={handleEncrypt}
-            disabled={isProcessing || !ownerPassword || ownerPassword !== confirmPassword}
+            disabled={isProcessing || !password}
             className="btn-primary w-full"
           >
             {isProcessing ? (

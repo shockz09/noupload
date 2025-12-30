@@ -28,7 +28,7 @@ export interface AdjustmentOptions {
 }
 
 export type ImageFormat = "png" | "jpeg" | "webp";
-export type FilterType = "grayscale" | "sepia" | "invert";
+export type FilterType = "grayscale" | "sepia" | "invert" | "90s" | "glitch" | "cyber" | "thermal" | "noir" | "sunset" | "frost";
 export type FlipDirection = "horizontal" | "vertical";
 
 // Helper: Load image from file
@@ -341,7 +341,7 @@ export async function adjustImage(
   }
 }
 
-// Apply filter (grayscale, sepia, invert)
+// Apply filter (grayscale, sepia, invert, 90s, duotone)
 export async function applyFilter(
   file: File,
   filter: FilterType
@@ -355,19 +355,180 @@ export async function applyFilter(
 
     const ctx = canvas.getContext("2d")!;
 
-    switch (filter) {
-      case "grayscale":
-        ctx.filter = "grayscale(100%)";
-        break;
-      case "sepia":
-        ctx.filter = "sepia(100%)";
-        break;
-      case "invert":
-        ctx.filter = "invert(100%)";
-        break;
-    }
+    // Pixel-based filters
+    if (filter === "cyber") {
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
 
-    ctx.drawImage(img, 0, 0);
+      for (let i = 0; i < data.length; i += 4) {
+        let r = data[i];
+        let g = data[i + 1];
+        let b = data[i + 2];
+
+        // Boost contrast
+        r = Math.min(255, Math.max(0, (r - 128) * 1.4 + 128));
+        g = Math.min(255, Math.max(0, (g - 128) * 1.4 + 128));
+        b = Math.min(255, Math.max(0, (b - 128) * 1.4 + 128));
+
+        // Shift to neon purple/cyan
+        const lum = (r * 0.299 + g * 0.587 + b * 0.114);
+
+        // Dark areas -> deep purple, bright areas -> electric cyan
+        if (lum < 128) {
+          r = Math.min(255, r * 0.6 + 80);
+          g = Math.min(255, g * 0.3);
+          b = Math.min(255, b * 0.8 + 120);
+        } else {
+          r = Math.min(255, r * 0.4);
+          g = Math.min(255, g * 0.9 + 60);
+          b = Math.min(255, b * 0.9 + 80);
+        }
+
+        data[i] = r;
+        data[i + 1] = g;
+        data[i + 2] = b;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    } else if (filter === "thermal") {
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      // Thermal gradient: black -> blue -> purple -> red -> orange -> yellow -> white
+      const thermalGradient = [
+        { pos: 0, r: 0, g: 0, b: 0 },
+        { pos: 0.15, r: 20, g: 0, b: 80 },
+        { pos: 0.3, r: 80, g: 0, b: 120 },
+        { pos: 0.45, r: 180, g: 0, b: 60 },
+        { pos: 0.6, r: 255, g: 80, b: 0 },
+        { pos: 0.75, r: 255, g: 180, b: 0 },
+        { pos: 0.9, r: 255, g: 255, b: 100 },
+        { pos: 1, r: 255, g: 255, b: 255 },
+      ];
+
+      const getThermalColor = (t: number) => {
+        for (let i = 0; i < thermalGradient.length - 1; i++) {
+          const c1 = thermalGradient[i];
+          const c2 = thermalGradient[i + 1];
+          if (t >= c1.pos && t <= c2.pos) {
+            const f = (t - c1.pos) / (c2.pos - c1.pos);
+            return {
+              r: c1.r + (c2.r - c1.r) * f,
+              g: c1.g + (c2.g - c1.g) * f,
+              b: c1.b + (c2.b - c1.b) * f,
+            };
+          }
+        }
+        return thermalGradient[thermalGradient.length - 1];
+      };
+
+      for (let i = 0; i < data.length; i += 4) {
+        const lum = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+        const c = getThermalColor(lum);
+        data[i] = c.r;
+        data[i + 1] = c.g;
+        data[i + 2] = c.b;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    } else if (filter === "noir") {
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        // Convert to grayscale
+        let lum = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+        // High contrast curve - crush shadows, blow highlights
+        lum = lum < 80 ? lum * 0.3 : lum > 180 ? 255 - (255 - lum) * 0.3 : (lum - 80) * 2.55;
+        lum = Math.min(255, Math.max(0, lum));
+        data[i] = data[i + 1] = data[i + 2] = lum;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    } else if (filter === "sunset") {
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        // Warm orange/pink tones - boost reds, shift greens to yellow, reduce blues
+        data[i] = Math.min(255, data[i] * 1.15 + 20);
+        data[i + 1] = Math.min(255, data[i + 1] * 1.05 + 10);
+        data[i + 2] = Math.max(0, data[i + 2] * 0.7);
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    } else if (filter === "frost") {
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        // Cool blue tones, slightly desaturated
+        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        data[i] = Math.min(255, data[i] * 0.7 + avg * 0.2);
+        data[i + 1] = Math.min(255, data[i + 1] * 0.85 + avg * 0.1 + 10);
+        data[i + 2] = Math.min(255, data[i + 2] * 1.1 + 30);
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    } else if (filter === "glitch") {
+      const w = canvas.width;
+      const h = canvas.height;
+      const offset = Math.max(4, Math.floor(w * 0.012)); // ~1.2% of width
+
+      // Draw shifted red channel
+      ctx.globalCompositeOperation = "source-over";
+      ctx.drawImage(img, 0, 0);
+
+      // Get original image data
+      const original = ctx.getImageData(0, 0, w, h);
+
+      // Create output
+      const output = ctx.createImageData(w, h);
+      const src = original.data;
+      const dst = output.data;
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+
+          // Red from left-shifted position
+          const rx = Math.min(w - 1, x + offset);
+          const ri = (y * w + rx) * 4;
+
+          // Blue from right-shifted position
+          const bx = Math.max(0, x - offset);
+          const bi = (y * w + bx) * 4;
+
+          dst[i] = src[ri];         // Red from right
+          dst[i + 1] = src[i + 1];  // Green stays
+          dst[i + 2] = src[bi + 2]; // Blue from left
+          dst[i + 3] = src[i + 3];  // Alpha
+        }
+      }
+
+      ctx.putImageData(output, 0, 0);
+    } else {
+      switch (filter) {
+        case "grayscale":
+          ctx.filter = "grayscale(100%)";
+          break;
+        case "sepia":
+          ctx.filter = "sepia(100%)";
+          break;
+        case "invert":
+          ctx.filter = "invert(100%)";
+          break;
+        case "90s":
+          ctx.filter = "brightness(118%) contrast(72%) saturate(85%) hue-rotate(18deg)";
+          break;
+      }
+      ctx.drawImage(img, 0, 0);
+    }
 
     const format = getFormatFromFilename(file.name);
     return await canvasToBlob(canvas, format);

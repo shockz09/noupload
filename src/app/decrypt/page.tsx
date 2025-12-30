@@ -115,20 +115,9 @@ export default function DecryptPage() {
             title="Drop your protected PDF here"
           />
 
-          <div className="info-box">
-            <svg className="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">How it works</p>
-              <p className="text-muted-foreground">
-                Enter the password for your protected PDF to remove the encryption.
-                You need to know the password—we cannot crack or bypass it.
-              </p>
-            </div>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Got the password? Unlock it. Don&apos;t have it? Neither do we.
+          </p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -142,11 +131,10 @@ export default function DecryptPage() {
           <div className="border-2 border-foreground/20 rounded-lg p-6">
             <PasswordInput
               id="password"
-              label="PDF Password"
+              label="Password"
               value={password}
               onChange={setPassword}
-              placeholder="Enter the PDF password"
-              hint="Enter the user or owner password for this PDF"
+              placeholder="Enter password"
               required
               disabled={isProcessing}
               autoFocus
