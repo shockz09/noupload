@@ -20,6 +20,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/sanitize",
     "/reverse",
     "/pdf-to-text",
+    "/duplicate",
+    "/delete",
   ];
 
   // Image Tools

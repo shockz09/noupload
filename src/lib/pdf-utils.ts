@@ -309,6 +309,54 @@ export async function reversePDF(file: File): Promise<Uint8Array> {
   return newPdf.save();
 }
 
+export async function duplicatePages(
+  file: File,
+  pageNumbers: number[] // 1-indexed pages to duplicate
+): Promise<Uint8Array> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await PDFDocument.load(arrayBuffer);
+  const totalPages = pdf.getPageCount();
+
+  // Validate page numbers
+  const validPages = pageNumbers.filter((n) => n >= 1 && n <= totalPages);
+  if (validPages.length === 0) {
+    throw new Error("No valid pages to duplicate");
+  }
+
+  // Copy and append each page
+  const indicesToCopy = validPages.map((n) => n - 1);
+  const copiedPages = await pdf.copyPages(pdf, indicesToCopy);
+  copiedPages.forEach((page) => pdf.addPage(page));
+
+  return pdf.save();
+}
+
+export async function deletePages(
+  file: File,
+  pageNumbers: number[] // 1-indexed pages to delete
+): Promise<Uint8Array> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await PDFDocument.load(arrayBuffer);
+  const totalPages = pdf.getPageCount();
+
+  // Get pages to keep (inverse of pages to delete)
+  const pagesToDelete = new Set(pageNumbers.map((n) => n - 1));
+  const pagesToKeep = Array.from({ length: totalPages }, (_, i) => i).filter(
+    (i) => !pagesToDelete.has(i)
+  );
+
+  if (pagesToKeep.length === 0) {
+    throw new Error("Cannot delete all pages");
+  }
+
+  // Create new PDF with remaining pages
+  const newPdf = await PDFDocument.create();
+  const copiedPages = await newPdf.copyPages(pdf, pagesToKeep);
+  copiedPages.forEach((page) => newPdf.addPage(page));
+
+  return newPdf.save();
+}
+
 export async function getPDFMetadata(file: File): Promise<{
   title: string | undefined;
   author: string | undefined;

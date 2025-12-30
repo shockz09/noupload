@@ -15,6 +15,8 @@ import {
   SanitizeIcon,
   ReversePagesIcon,
   TextIcon,
+  DuplicateIcon,
+  DeletePagesIcon,
 } from "@/components/icons";
 
 const tools = [
@@ -129,6 +131,22 @@ const tools = [
     icon: TextIcon,
     category: "convert",
     colorClass: "tool-convert",
+  },
+  {
+    title: "Duplicate Pages",
+    description: "Copy and append pages to your PDF",
+    href: "/duplicate",
+    icon: DuplicateIcon,
+    category: "organize",
+    colorClass: "tool-organize",
+  },
+  {
+    title: "Delete Pages",
+    description: "Remove unwanted pages from PDF",
+    href: "/delete",
+    icon: DeletePagesIcon,
+    category: "organize",
+    colorClass: "tool-organize",
   },
 ];
 
