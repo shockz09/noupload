@@ -17,6 +17,8 @@ import {
   TextIcon,
   DuplicateIcon,
   DeletePagesIcon,
+  LockIcon,
+  UnlockIcon,
 } from "@/components/icons";
 
 const tools = [
@@ -113,6 +115,22 @@ const tools = [
     description: "Remove metadata and hidden data",
     href: "/sanitize",
     icon: SanitizeIcon,
+    category: "security",
+    colorClass: "tool-security",
+  },
+  {
+    title: "Encrypt PDF",
+    description: "Add password protection to your PDF",
+    href: "/encrypt",
+    icon: LockIcon,
+    category: "security",
+    colorClass: "tool-security",
+  },
+  {
+    title: "Decrypt PDF",
+    description: "Remove password from protected PDFs",
+    href: "/decrypt",
+    icon: UnlockIcon,
     category: "security",
     colorClass: "tool-security",
   },

@@ -18,6 +18,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/images-to-pdf",
     "/ocr",
     "/sanitize",
+    "/encrypt",
+    "/decrypt",
     "/reverse",
     "/pdf-to-text",
     "/duplicate",

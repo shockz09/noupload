@@ -1,0 +1,180 @@
+"use client";
+
+import { useState, useCallback, useRef } from "react";
+import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { PasswordInput } from "@/components/pdf/PasswordInput";
+import { useQpdf } from "@/lib/qpdf";
+import { downloadBlob } from "@/lib/pdf-utils";
+import { formatFileSize } from "@/lib/utils";
+import { UnlockIcon, PdfIcon } from "@/components/icons";
+import { PdfPageHeader, ErrorBox, ProgressBar, SuccessCard, PdfFileInfo } from "@/components/pdf/shared";
+
+interface DecryptResult {
+  data: Uint8Array;
+  filename: string;
+}
+
+export default function DecryptPage() {
+  const [file, setFile] = useState<File | null>(null);
+  const [password, setPassword] = useState("");
+  const [result, setResult] = useState<DecryptResult | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const processingRef = useRef(false);
+
+  const { decrypt, isProcessing, progress, error: qpdfError, clearError } = useQpdf();
+
+  const error = localError || qpdfError;
+
+  const handleFileSelected = useCallback((files: File[]) => {
+    if (files.length > 0) {
+      setFile(files[0]);
+      setLocalError(null);
+      setResult(null);
+      clearError();
+    }
+  }, [clearError]);
+
+  const handleClear = useCallback(() => {
+    setFile(null);
+    setLocalError(null);
+    setResult(null);
+    setPassword("");
+    clearError();
+  }, [clearError]);
+
+  const handleDecrypt = async () => {
+    if (!file || processingRef.current) return;
+
+    if (!password) {
+      setLocalError("Please enter the password");
+      return;
+    }
+
+    processingRef.current = true;
+    setLocalError(null);
+
+    try {
+      const data = await decrypt(file, password);
+
+      const baseName = file.name.replace(/\.pdf$/i, "");
+      setResult({
+        data,
+        filename: `${baseName}_unlocked.pdf`,
+      });
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Failed to decrypt PDF");
+    } finally {
+      processingRef.current = false;
+    }
+  };
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (result) {
+      downloadBlob(result.data, result.filename);
+    }
+  };
+
+  const handleStartOver = () => {
+    setFile(null);
+    setResult(null);
+    setLocalError(null);
+    setPassword("");
+    clearError();
+  };
+
+  return (
+    <div className="page-enter max-w-2xl mx-auto space-y-8">
+      <PdfPageHeader
+        icon={<UnlockIcon className="w-7 h-7" />}
+        iconClass="tool-security"
+        title="Decrypt PDF"
+        description="Remove password protection from your PDF"
+      />
+
+      {result ? (
+        <SuccessCard
+          stampText="Unlocked"
+          title="PDF Decrypted!"
+          downloadLabel="Download Unlocked PDF"
+          onDownload={handleDownload}
+          onStartOver={handleStartOver}
+          startOverLabel="Decrypt Another"
+        >
+          <div className="text-center text-sm text-muted-foreground">
+            Password protection has been removed
+          </div>
+        </SuccessCard>
+      ) : !file ? (
+        <div className="space-y-6">
+          <FileDropzone
+            accept=".pdf"
+            multiple={false}
+            onFilesSelected={handleFileSelected}
+            title="Drop your protected PDF here"
+          />
+
+          <div className="info-box">
+            <svg className="w-5 h-5 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+            <div className="text-sm">
+              <p className="font-bold text-foreground mb-1">How it works</p>
+              <p className="text-muted-foreground">
+                Enter the password for your protected PDF to remove the encryption.
+                You need to know the password—we cannot crack or bypass it.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <PdfFileInfo
+            file={file}
+            fileSize={formatFileSize(file.size)}
+            onClear={handleClear}
+            icon={<PdfIcon className="w-5 h-5" />}
+          />
+
+          <div className="border-2 border-foreground/20 rounded-lg p-6">
+            <PasswordInput
+              id="password"
+              label="PDF Password"
+              value={password}
+              onChange={setPassword}
+              placeholder="Enter the PDF password"
+              hint="Enter the user or owner password for this PDF"
+              required
+              disabled={isProcessing}
+              autoFocus
+            />
+          </div>
+
+          {error && <ErrorBox message={error} />}
+          {isProcessing && <ProgressBar progress={progress} label="Decrypting..." />}
+
+          <button
+            onClick={handleDecrypt}
+            disabled={isProcessing || !password}
+            className="btn-primary w-full"
+          >
+            {isProcessing ? (
+              <>
+                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Decrypting...
+              </>
+            ) : (
+              <>
+                <UnlockIcon className="w-5 h-5" />
+                Unlock PDF
+              </>
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
