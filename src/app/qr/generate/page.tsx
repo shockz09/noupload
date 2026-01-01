@@ -16,11 +16,10 @@ import {
   QRDataType,
   WifiData,
   UpiData,
-  QR_COLOR_PRESETS,
 } from "@/lib/qr-utils";
 import { ArrowLeftIcon, DownloadIcon, CopyIcon } from "@/components/icons";
 import { copyImageToClipboard } from "@/lib/image-utils";
-import { useRef } from "react";
+import { QRCustomizePanel } from "@/components/qr/customize-panel";
 
 function QRIcon({ className }: { className?: string }) {
   return (
@@ -104,23 +103,6 @@ function UpiIcon({ className }: { className?: string }) {
   );
 }
 
-function ChevronDownIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  );
-}
-
-function ImageIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <path d="M21 15l-5-5L5 21" />
-    </svg>
-  );
-}
 
 const dataTypes: { value: QRDataType; label: string; icon: React.FC<{ className?: string }> }[] = [
   { value: "text", label: "Text", icon: TextIcon },
@@ -162,7 +144,6 @@ export default function QRGeneratePage() {
   const [logo, setLogo] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoPadding, setLogoPadding] = useState(true);
-  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const getDataString = useCallback((): string => {
     switch (dataType) {
@@ -234,28 +215,6 @@ export default function QRGeneratePage() {
     } catch {
       // Copy failure is non-critical
     }
-  };
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setLogo(file);
-      setLogoPreview(URL.createObjectURL(file));
-      setQrImage(null); // Reset QR when logo changes
-    }
-  };
-
-  const handleRemoveLogo = () => {
-    setLogo(null);
-    if (logoPreview) URL.revokeObjectURL(logoPreview);
-    setLogoPreview(null);
-    if (logoInputRef.current) logoInputRef.current.value = "";
-    setQrImage(null);
-  };
-
-  const applyPreset = (preset: typeof QR_COLOR_PRESETS[0]) => {
-    setDarkColor(preset.dark);
-    setLightColor(preset.light);
   };
 
   // Auto-generate QR on input change (debounced)
@@ -564,102 +523,20 @@ export default function QRGeneratePage() {
             )}
           </div>
 
-          {/* Customization Section */}
-          <div className="border-2 border-foreground">
-            <button
-              onClick={() => setShowCustomize(!showCustomize)}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-muted transition-colors"
-            >
-              <span className="font-bold">Customize</span>
-              <ChevronDownIcon className={`w-5 h-5 transition-transform ${showCustomize ? "rotate-180" : ""}`} />
-            </button>
-
-            {showCustomize && (
-              <div className="p-4 pt-0 space-y-4 border-t-2 border-foreground">
-                {/* Colors */}
-                <div className="space-y-3">
-                  <label className="input-label">Colors</label>
-                  <div className="flex flex-wrap gap-2">
-                    {QR_COLOR_PRESETS.map((preset) => (
-                      <button
-                        key={preset.name}
-                        onClick={() => applyPreset(preset)}
-                        className={`px-3 py-2 text-xs font-bold border-2 border-foreground transition-colors ${
-                          darkColor === preset.dark && lightColor === preset.light
-                            ? "bg-foreground text-background"
-                            : "hover:bg-muted"
-                        }`}
-                      >
-                        {preset.name}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={darkColor}
-                        onChange={(e) => { setDarkColor(e.target.value); setQrImage(null); }}
-                        className="w-8 h-8 border-2 border-foreground cursor-pointer"
-                      />
-                      <span className="text-sm font-medium">Foreground</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={lightColor}
-                        onChange={(e) => { setLightColor(e.target.value); setQrImage(null); }}
-                        className="w-8 h-8 border-2 border-foreground cursor-pointer"
-                      />
-                      <span className="text-sm font-medium">Background</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Logo */}
-                <div className="space-y-3">
-                  <label className="input-label">Logo (optional)</label>
-                  <input
-                    ref={logoInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                  />
-                  {logoPreview ? (
-                    <div className="flex items-center gap-4">
-                      <img src={logoPreview} alt="Logo preview" className="w-12 h-12 object-contain border-2 border-foreground" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium truncate">{logo?.name}</p>
-                        <label className="flex items-center gap-2 mt-1 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={logoPadding}
-                            onChange={(e) => { setLogoPadding(e.target.checked); setQrImage(null); }}
-                            className="w-4 h-4 border-2 border-foreground"
-                          />
-                          <span className="text-xs">Add padding</span>
-                        </label>
-                      </div>
-                      <button onClick={handleRemoveLogo} className="text-sm font-semibold text-muted-foreground hover:text-foreground">
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => logoInputRef.current?.click()}
-                      className="btn-secondary w-full"
-                    >
-                      <ImageIcon className="w-5 h-5" />Upload Logo
-                    </button>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Logo will be placed in the center of the QR code. Uses high error correction for scanability.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          <QRCustomizePanel
+            showCustomize={showCustomize}
+            setShowCustomize={setShowCustomize}
+            darkColor={darkColor}
+            setDarkColor={setDarkColor}
+            lightColor={lightColor}
+            setLightColor={setLightColor}
+            logo={logo}
+            setLogo={setLogo}
+            logoPreview={logoPreview}
+            setLogoPreview={setLogoPreview}
+            logoPadding={logoPadding}
+            setLogoPadding={setLogoPadding}
+          />
 
           {error && (
               <div className="error-box animate-shake">

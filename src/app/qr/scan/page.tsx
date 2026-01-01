@@ -193,7 +193,7 @@ export default function QRScanPage() {
   };
 
   return (
-    <div className="page-enter space-y-8">
+    <div className="page-enter max-w-3xl mx-auto space-y-8">
       <Link
         href="/qr"
         className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -222,121 +222,187 @@ export default function QRScanPage() {
         className="hidden"
       />
 
-      <div className="border-2 border-foreground bg-card">
-        <div className="p-6 space-y-6">
-          {/* Camera View - container managed outside React */}
-          <div className={scanResult ? "hidden" : ""}>
+      {!scanResult ? (
+        <div className="space-y-6">
+          {/* Camera View */}
+          <div className="border-2 border-foreground bg-card overflow-hidden">
             <div
               ref={containerRef}
-              className="relative bg-[#1A1612] border-2 border-foreground overflow-hidden"
-              style={{ minHeight: 320 }}
+              className="relative bg-[#0A0A0A] overflow-hidden"
+              style={{ minHeight: 340 }}
             >
-              {!isScanning && !scanResult && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground pointer-events-none z-10">
-                  <ScanIcon className="w-16 h-16 mb-4 opacity-30" />
-                  <p className="text-sm">Camera preview will appear here</p>
+              {!isScanning && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ zIndex: 20 }}>
+                  <ScanIcon className="w-16 h-16 text-foreground/20 mb-4" />
+                  <p className="text-sm text-muted-foreground font-medium">Camera preview will appear here</p>
                 </div>
               )}
+              {isScanning && (
+                <div className="absolute inset-3 pointer-events-none" style={{ zIndex: 20 }}>
+                  {/* Corner brackets - covers almost full area */}
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary animate-pulse" />
+                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary animate-pulse" />
+                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary animate-pulse" />
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary animate-pulse" />
+                  {/* Scan line */}
+                  <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line" />
+                </div>
+              )}
+            </div>
+
+            {/* Action bar */}
+            <div className="p-4 border-t-2 border-foreground bg-card">
+              <div className="flex gap-3">
+                <button
+                  onClick={isScanning ? stopScanning : startScanning}
+                  disabled={isProcessingFile}
+                  className={`flex-1 ${isScanning ? "btn-secondary" : "btn-primary"}`}
+                >
+                  {isScanning ? (
+                    <><LoaderIcon className="w-5 h-5" />Stop</>
+                  ) : (
+                    <><ScanIcon className="w-5 h-5" />Start Camera</>
+                  )}
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isScanning || isProcessingFile}
+                  className="btn-secondary"
+                >
+                  {isProcessingFile ? (
+                    <LoaderIcon className="w-5 h-5" />
+                  ) : (
+                    <UploadIcon className="w-5 h-5" />
+                  )}
+                  <span className="hidden sm:inline">Upload</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {!scanResult ? (
-            <>
-              {error && (
-                <div className="error-box animate-shake">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <span className="font-medium">{error}</span>
-                </div>
-              )}
-
-              <button
-                onClick={isScanning ? stopScanning : startScanning}
-                disabled={isProcessingFile}
-                className={isScanning ? "btn-secondary w-full" : "btn-primary w-full"}
-              >
-                {isScanning ? (
-                  <><LoaderIcon className="w-5 h-5" />Stop Camera</>
-                ) : (
-                  <><ScanIcon className="w-5 h-5" />Start Camera</>
-                )}
-              </button>
-
-              <div className="flex items-center gap-4">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-sm text-muted-foreground font-medium">or</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isScanning || isProcessingFile}
-                className="btn-secondary w-full"
-              >
-                {isProcessingFile ? (
-                  <><LoaderIcon className="w-5 h-5" />Processing...</>
-                ) : (
-                  <><UploadIcon className="w-5 h-5" />Upload QR Image</>
-                )}
-              </button>
-
-              <div className="info-box">
-                <svg className="w-5 h-5 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
-                </svg>
-                <div className="text-sm">
-                  <p className="font-bold text-foreground mb-1">Tips for scanning</p>
-                  <p className="text-muted-foreground">
-                    Use your camera, upload an image, or paste from clipboard (Ctrl+V). Ensure the QR code is clearly visible.
-                  </p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="space-y-6 animate-fade-up">
-              <div className="success-card">
-                <div className="success-stamp">
-                  <span className="success-stamp-text">Found</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12" /></svg>
-                </div>
-                <h2 className="text-3xl font-display mb-6">QR Code Decoded!</h2>
-
-                <div className="bg-muted border-2 border-foreground p-4 mb-6 text-left">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Content</p>
-                  <p className="font-mono text-sm break-all">{scanResult}</p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {isUrl(scanResult) && (
-                    <a
-                      href={scanResult}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-success flex-1 text-center"
-                    >
-                      Open Link
-                    </a>
-                  )}
-                  <button
-                    onClick={handleCopy}
-                    className={`${isUrl(scanResult) ? "btn-secondary" : "btn-success"} flex-1`}
-                  >
-                    {copied ? <><CheckIcon className="w-5 h-5" />Copied!</> : <><CopyIcon className="w-5 h-5" />Copy</>}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                onClick={handleScanAnother}
-                className="btn-secondary w-full"
-              >
-                Scan Another Code
-              </button>
+          {error && (
+            <div className="error-box animate-shake">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span className="font-medium">{error}</span>
             </div>
           )}
+
+          {/* Tips */}
+          <div className="border-2 border-foreground/30 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1.5 h-4 bg-foreground" />
+              <span className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Tips</span>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4 text-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 border-2 border-foreground/50 flex items-center justify-center shrink-0 mt-0.5">
+                  <ScanIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-bold">Camera</p>
+                  <p className="text-muted-foreground text-xs">Point at any QR code</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 border-2 border-foreground/50 flex items-center justify-center shrink-0 mt-0.5">
+                  <UploadIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-bold">Upload</p>
+                  <p className="text-muted-foreground text-xs">Select image file</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 border-2 border-foreground/50 flex items-center justify-center shrink-0 mt-0.5">
+                  <svg className="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-bold">Paste</p>
+                  <p className="text-muted-foreground text-xs">Ctrl+V from clipboard</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-6 animate-fade-up">
+          {/* Result Card */}
+          <div className="border-2 border-foreground bg-card overflow-hidden">
+            {/* Success header */}
+            <div className="p-4 border-b-2 border-foreground bg-[#2D5A3D] text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 border-2 border-white/30 flex items-center justify-center">
+                  <CheckIcon className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold tracking-wider uppercase opacity-80">Success</p>
+                  <p className="text-lg font-display">QR Code Decoded</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-4 bg-foreground" />
+                  <span className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Content</span>
+                </div>
+                <div className="p-4 bg-muted border-2 border-foreground/30 font-mono text-sm break-all">
+                  {scanResult}
+                </div>
+              </div>
+
+              {/* Type indicator */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold tracking-wider uppercase text-muted-foreground">Type:</span>
+                <span className={`px-2 py-1 text-xs font-bold border-2 ${isUrl(scanResult) ? "border-primary bg-primary/10 text-primary" : "border-foreground/30"}`}>
+                  {isUrl(scanResult) ? "URL" : "TEXT"}
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                {isUrl(scanResult) && (
+                  <a
+                    href={scanResult}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-success flex-1 text-center"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                    Open Link
+                  </a>
+                )}
+                <button
+                  onClick={handleCopy}
+                  className={`flex-1 ${isUrl(scanResult) ? "btn-secondary" : "btn-success"}`}
+                  style={copied ? { background: "#2D5A3D", color: "white" } : undefined}
+                >
+                  {copied ? <><CheckIcon className="w-5 h-5" />Copied!</> : <><CopyIcon className="w-5 h-5" />Copy</>}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleScanAnother}
+            className="btn-secondary w-full"
+          >
+            <ScanIcon className="w-5 h-5" />
+            Scan Another Code
+          </button>
+        </div>
+      )}
     </div>
   );
 }
