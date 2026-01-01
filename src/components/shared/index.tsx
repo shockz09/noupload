@@ -122,9 +122,9 @@ export function SuccessCard({ stampText, title, subtitle, children, downloadLabe
           {children}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
           <div className="flex gap-2">
-            <button type="button" onClick={onDownload} className="btn-success flex-1 sm:flex-none">
+            <button type="button" onClick={onDownload} className="btn-success">
               <DownloadIcon className="w-5 h-5 shrink-0" />
               {downloadLabel}
             </button>

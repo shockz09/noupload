@@ -50,6 +50,8 @@ export async function pdfToImages(
     format?: "png" | "jpeg";
     quality?: number;
     scale?: number;
+    pageNumbers?: number[]; // Specific pages to convert (1-indexed)
+    rotations?: Record<number, 0 | 90 | 180 | 270>; // Page number -> rotation
     onProgress?: (current: number, total: number) => void;
   } = {}
 ): Promise<ConvertedImage[]> {
@@ -57,7 +59,7 @@ export async function pdfToImages(
 
   // Auto-adjust scale for low-end devices
   const defaultScale = isLowEnd ? 1.5 : 2;
-  const { format = "png", quality = 0.92, scale = defaultScale, onProgress } = options;
+  const { format = "png", quality = 0.92, scale = defaultScale, pageNumbers: selectedPages, rotations = {}, onProgress } = options;
 
   // Concurrency: 2 for low-end, 4 for high-end
   const concurrency = isLowEnd ? 2 : 4;
@@ -68,7 +70,11 @@ export async function pdfToImages(
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const totalPages = pdf.numPages;
-  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  // Use selected pages or all pages
+  const pageNumbers = selectedPages
+    ? selectedPages.filter(p => p >= 1 && p <= totalPages)
+    : Array.from({ length: totalPages }, (_, i) => i + 1);
 
   const mimeType = format === "png" ? "image/png" : "image/jpeg";
 
@@ -76,14 +82,17 @@ export async function pdfToImages(
     pageNumbers,
     async (pageNum) => {
       const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale });
+      const rotation = rotations[pageNum] || 0;
+
+      // Include rotation in viewport
+      const viewport = page.getViewport({ scale, rotation });
 
       const canvas = document.createElement("canvas");
       canvas.width = viewport.width;
       canvas.height = viewport.height;
 
       const context = canvas.getContext("2d")!;
-      await page.render({ canvasContext: context, viewport, canvas }).promise;
+      await page.render({ canvasContext: context, viewport }).promise;
 
       // Create blob first (needed for download)
       const blob = await new Promise<Blob>((resolve) => {

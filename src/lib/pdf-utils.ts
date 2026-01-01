@@ -53,6 +53,30 @@ export async function extractPages(
   return newPdf.save();
 }
 
+export async function extractPagesWithRotation(
+  file: File,
+  pageSpecs: { pageNumber: number; rotation: 0 | 90 | 180 | 270 }[]
+): Promise<Uint8Array> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await PDFDocument.load(arrayBuffer);
+  const newPdf = await PDFDocument.create();
+  const totalPages = pdf.getPageCount();
+
+  for (const spec of pageSpecs) {
+    const index = spec.pageNumber - 1;
+    if (index < 0 || index >= totalPages) continue;
+
+    const [copiedPage] = await newPdf.copyPages(pdf, [index]);
+    if (spec.rotation !== 0) {
+      const currentRotation = copiedPage.getRotation().angle;
+      copiedPage.setRotation(degrees((currentRotation + spec.rotation) % 360));
+    }
+    newPdf.addPage(copiedPage);
+  }
+
+  return newPdf.save();
+}
+
 export async function organizePDF(
   file: File,
   pageOrder: number[] // 1-indexed page numbers in desired order
