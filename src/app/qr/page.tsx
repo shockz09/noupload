@@ -27,6 +27,17 @@ function ScanIcon({ className }: { className?: string }) {
   );
 }
 
+function BulkIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="6" height="6" />
+      <rect x="15" y="3" width="6" height="6" />
+      <rect x="3" y="15" width="6" height="6" />
+      <rect x="15" y="15" width="6" height="6" />
+    </svg>
+  );
+}
+
 export default function QRPage() {
   return (
     <div className="page-enter space-y-12">
@@ -72,7 +83,7 @@ export default function QRPage() {
           <div className="flex-1 h-0.5 bg-foreground" />
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4">
           {/* Generate Card */}
           <Link
             href="/qr/generate"
@@ -86,7 +97,7 @@ export default function QRPage() {
               <div className="space-y-2 pr-12">
                 <h3 className="text-xl font-bold text-foreground">Generate QR</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Create QR codes for text, URLs, WiFi, email, phone, and SMS
+                  Create QR codes for text, URLs, WiFi, UPI, and more
                 </p>
               </div>
               <div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
@@ -113,6 +124,32 @@ export default function QRPage() {
                 <h3 className="text-xl font-bold text-foreground">Scan QR</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   Use your camera to read any QR code instantly
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
+                <span>Open</span>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </Link>
+
+          {/* Bulk Generate Card */}
+          <Link
+            href="/qr/bulk"
+            className="tool-card tool-qr-generate group text-left transition-all hover:ring-4 hover:ring-[#4A1E7C] hover:ring-offset-2"
+          >
+            <span className="category-tag">Batch</span>
+            <div className="space-y-4">
+              <div className="tool-icon tool-qr-generate">
+                <BulkIcon className="w-6 h-6" />
+              </div>
+              <div className="space-y-2 pr-12">
+                <h3 className="text-xl font-bold text-foreground">Bulk Generate</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Create multiple QR codes at once
                 </p>
               </div>
               <div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
@@ -161,7 +198,7 @@ export default function QRPage() {
             </div>
             <h3 className="text-lg font-bold mb-2">Multiple Formats</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Text, URLs, WiFi credentials, email, phone, and SMS supported.
+              Text, URLs, WiFi, UPI payments, email, phone, and SMS supported.
             </p>
           </div>
         </div>

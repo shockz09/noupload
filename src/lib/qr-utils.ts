@@ -2,7 +2,7 @@
 
 import QRCode from "qrcode";
 
-export type QRDataType = "text" | "url" | "wifi" | "email" | "phone" | "sms";
+export type QRDataType = "text" | "url" | "wifi" | "email" | "phone" | "sms" | "upi";
 
 export interface WifiData {
   ssid: string;
@@ -20,6 +20,13 @@ export interface EmailData {
 export interface SmsData {
   phone: string;
   message?: string;
+}
+
+export interface UpiData {
+  vpa: string;       // UPI ID e.g. username@bankname
+  name: string;      // Payee name
+  amount?: string;   // Optional fixed amount
+  note?: string;     // Transaction note
 }
 
 // Escape special characters for WiFi QR string
@@ -58,6 +65,17 @@ export function generateSmsString(data: SmsData): string {
 // Generate Phone QR string
 export function generatePhoneString(phone: string): string {
   return `tel:${phone}`;
+}
+
+// Generate UPI QR string
+export function generateUpiString(data: UpiData): string {
+  const params = new URLSearchParams();
+  params.set("pa", data.vpa);
+  params.set("pn", data.name);
+  if (data.amount) params.set("am", data.amount);
+  if (data.note) params.set("tn", data.note);
+  params.set("cu", "INR");
+  return `upi://pay?${params.toString()}`;
 }
 
 // Generate QR code as data URL
@@ -109,3 +127,91 @@ export function downloadQR(blob: Blob, filename: string = "qrcode.png"): void {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// Helper to load image from URL
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+// Generate QR code with logo overlay
+export async function generateQRWithLogo(
+  data: string,
+  logo: File,
+  options?: {
+    width?: number;
+    margin?: number;
+    color?: { dark?: string; light?: string };
+    logoPadding?: boolean;
+  }
+): Promise<string> {
+  // Use error correction "H" (30%) for logo tolerance
+  const qrDataUrl = await generateQRDataURL(data, {
+    ...options,
+    errorCorrectionLevel: "H",
+  });
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+
+  // Draw QR
+  const qrImg = await loadImage(qrDataUrl);
+  canvas.width = qrImg.width;
+  canvas.height = qrImg.height;
+  ctx.drawImage(qrImg, 0, 0);
+
+  // Draw logo in center (22% of QR size)
+  const logoUrl = URL.createObjectURL(logo);
+  try {
+    const logoImg = await loadImage(logoUrl);
+    const size = qrImg.width * 0.22;
+    const x = (qrImg.width - size) / 2;
+    const y = (qrImg.height - size) / 2;
+
+    if (options?.logoPadding) {
+      ctx.fillStyle = options?.color?.light || "#FFFFFF";
+      const pad = 8;
+      ctx.fillRect(x - pad, y - pad, size + pad * 2, size + pad * 2);
+    }
+
+    ctx.drawImage(logoImg, x, y, size, size);
+  } finally {
+    URL.revokeObjectURL(logoUrl);
+  }
+
+  return canvas.toDataURL("image/png");
+}
+
+// Generate QR with logo as Blob
+export async function generateQRBlobWithLogo(
+  data: string,
+  logo: File,
+  options?: {
+    width?: number;
+    margin?: number;
+    color?: { dark?: string; light?: string };
+    logoPadding?: boolean;
+  }
+): Promise<Blob> {
+  const dataUrl = await generateQRWithLogo(data, logo, options);
+  const response = await fetch(dataUrl);
+  return response.blob();
+}
+
+// Color presets for QR customization
+export const QR_COLOR_PRESETS = [
+  { name: "Classic", dark: "#000000", light: "#FFFFFF" },
+  { name: "Noir", dark: "#FFFFFF", light: "#1A1A1A" },
+  { name: "Cherry", dark: "#FF1744", light: "#000000" },
+  { name: "Sakura", dark: "#FF4081", light: "#0D0D0D" },
+  { name: "Amber", dark: "#FFB300", light: "#1A1A1A" },
+  { name: "Mint", dark: "#00E676", light: "#0A0A0A" },
+  { name: "Electric", dark: "#536DFE", light: "#0D0D0D" },
+  { name: "Lavender", dark: "#E040FB", light: "#0F0F0F" },
+  { name: "Coral", dark: "#FF6D00", light: "#FFFFFF" },
+  { name: "Navy", dark: "#1A237E", light: "#E8EAF6" },
+];
