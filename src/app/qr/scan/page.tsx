@@ -34,6 +34,16 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
+function UploadIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
 const SCANNER_ID = "qr-scanner-element";
 
 export default function QRScanPage() {
@@ -41,8 +51,10 @@ export default function QRScanPage() {
   const [scanResult, setScanResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Create scanner element outside React's control
   useEffect(() => {
@@ -126,6 +138,28 @@ export default function QRScanPage() {
     setError(null);
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError(null);
+    setIsProcessingFile(true);
+
+    try {
+      const html5QrCode = new Html5Qrcode("qr-file-scanner");
+      const result = await html5QrCode.scanFile(file, true);
+      setScanResult(result);
+      html5QrCode.clear();
+    } catch {
+      setError("No QR code found in image. Try another image.");
+    } finally {
+      setIsProcessingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   return (
     <div className="page-enter space-y-8">
       <Link
@@ -142,9 +176,19 @@ export default function QRScanPage() {
         </div>
         <div>
           <h1 className="text-3xl sm:text-4xl font-display">Scan QR Code</h1>
-          <p className="text-muted-foreground mt-2">Use your camera to read any QR code</p>
+          <p className="text-muted-foreground mt-2">Use your camera or upload an image</p>
         </div>
       </div>
+
+      {/* Hidden elements */}
+      <div id="qr-file-scanner" className="hidden" />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
 
       <div className="border-2 border-foreground bg-card">
         <div className="p-6 space-y-6">
@@ -177,12 +221,31 @@ export default function QRScanPage() {
 
               <button
                 onClick={isScanning ? stopScanning : startScanning}
+                disabled={isProcessingFile}
                 className={isScanning ? "btn-secondary w-full" : "btn-primary w-full"}
               >
                 {isScanning ? (
                   <><LoaderIcon className="w-5 h-5" />Stop Camera</>
                 ) : (
                   <><ScanIcon className="w-5 h-5" />Start Camera</>
+                )}
+              </button>
+
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-sm text-muted-foreground font-medium">or</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isScanning || isProcessingFile}
+                className="btn-secondary w-full"
+              >
+                {isProcessingFile ? (
+                  <><LoaderIcon className="w-5 h-5" />Processing...</>
+                ) : (
+                  <><UploadIcon className="w-5 h-5" />Upload QR Image</>
                 )}
               </button>
 
