@@ -22,6 +22,27 @@ let initPromise: Promise<void> | null = null;
 // Workers need absolute URLs
 const QPDF_BASE = `${self.location.origin}/wasm`;
 const QPDF_JS_URL = `${QPDF_BASE}/qpdf.js`;
+const CACHE_NAME = 'qpdf-wasm-v1';
+
+// Cached fetch - persists across browser sessions
+async function cachedFetch(url: string): Promise<Response> {
+  if (typeof caches === 'undefined') {
+    return fetch(url);
+  }
+
+  const cache = await caches.open(CACHE_NAME);
+  let response = await cache.match(url);
+
+  if (!response) {
+    console.log('[qpdf worker] Cache miss, fetching:', url);
+    response = await fetch(url);
+    await cache.put(url, response.clone());
+  } else {
+    console.log('[qpdf worker] Cache hit:', url);
+  }
+
+  return response;
+}
 
 // Initialize WASM module (singleton pattern)
 async function initQpdf(): Promise<void> {
@@ -30,8 +51,8 @@ async function initQpdf(): Promise<void> {
 
   initPromise = (async () => {
     try {
-      // Fetch the script from public folder
-      const response = await fetch(QPDF_JS_URL);
+      // Fetch the script from cache or public folder
+      const response = await cachedFetch(QPDF_JS_URL);
       if (!response.ok) {
         throw new Error(`Failed to fetch qpdf.js: ${response.status}`);
       }
