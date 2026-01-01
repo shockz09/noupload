@@ -1,2 +1,2 @@
 export { useAudioResult, useAudioResultWithOptions } from "./useAudioResult";
-export { useVideoToAudio, type ExtractionState } from "./useVideoToAudio";
+export { type ExtractionState, useVideoToAudio } from "./useVideoToAudio";

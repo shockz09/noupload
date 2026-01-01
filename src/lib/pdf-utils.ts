@@ -1,409 +1,426 @@
-import { PDFDocument, degrees } from "pdf-lib";
+import { degrees, PDFDocument, type PDFImage } from "pdf-lib";
 
 export async function mergePDFs(files: File[]): Promise<Uint8Array> {
-  const mergedPdf = await PDFDocument.create();
+	const mergedPdf = await PDFDocument.create();
 
-  for (const file of files) {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await PDFDocument.load(arrayBuffer);
-    const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-    copiedPages.forEach((page) => mergedPdf.addPage(page));
-  }
+	for (const file of files) {
+		const arrayBuffer = await file.arrayBuffer();
+		const pdf = await PDFDocument.load(arrayBuffer);
+		const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+		copiedPages.forEach((page) => mergedPdf.addPage(page));
+	}
 
-  return mergedPdf.save();
+	return mergedPdf.save();
 }
 
 export async function splitPDF(
-  file: File,
-  ranges: { start: number; end: number }[]
+	file: File,
+	ranges: { start: number; end: number }[],
 ): Promise<Uint8Array[]> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const results: Uint8Array[] = [];
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const results: Uint8Array[] = [];
 
-  for (const range of ranges) {
-    const newPdf = await PDFDocument.create();
-    const pageIndices = [];
-    for (let i = range.start; i <= range.end && i < pdf.getPageCount(); i++) {
-      pageIndices.push(i);
-    }
-    const copiedPages = await newPdf.copyPages(pdf, pageIndices);
-    copiedPages.forEach((page) => newPdf.addPage(page));
-    results.push(await newPdf.save());
-  }
+	for (const range of ranges) {
+		const newPdf = await PDFDocument.create();
+		const pageIndices = [];
+		for (let i = range.start; i <= range.end && i < pdf.getPageCount(); i++) {
+			pageIndices.push(i);
+		}
+		const copiedPages = await newPdf.copyPages(pdf, pageIndices);
+		copiedPages.forEach((page) => newPdf.addPage(page));
+		results.push(await newPdf.save());
+	}
 
-  return results;
+	return results;
 }
 
 export async function extractPages(
-  file: File,
-  pageNumbers: number[]
+	file: File,
+	pageNumbers: number[],
 ): Promise<Uint8Array> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const newPdf = await PDFDocument.create();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const newPdf = await PDFDocument.create();
 
-  const validIndices = pageNumbers
-    .map((n) => n - 1) // Convert to 0-indexed
-    .filter((i) => i >= 0 && i < pdf.getPageCount());
+	const validIndices = pageNumbers
+		.map((n) => n - 1) // Convert to 0-indexed
+		.filter((i) => i >= 0 && i < pdf.getPageCount());
 
-  const copiedPages = await newPdf.copyPages(pdf, validIndices);
-  copiedPages.forEach((page) => newPdf.addPage(page));
+	const copiedPages = await newPdf.copyPages(pdf, validIndices);
+	copiedPages.forEach((page) => newPdf.addPage(page));
 
-  return newPdf.save();
+	return newPdf.save();
 }
 
 export async function extractPagesWithRotation(
-  file: File,
-  pageSpecs: { pageNumber: number; rotation: 0 | 90 | 180 | 270 }[]
+	file: File,
+	pageSpecs: { pageNumber: number; rotation: 0 | 90 | 180 | 270 }[],
 ): Promise<Uint8Array> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const newPdf = await PDFDocument.create();
-  const totalPages = pdf.getPageCount();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const newPdf = await PDFDocument.create();
+	const totalPages = pdf.getPageCount();
 
-  for (const spec of pageSpecs) {
-    const index = spec.pageNumber - 1;
-    if (index < 0 || index >= totalPages) continue;
+	for (const spec of pageSpecs) {
+		const index = spec.pageNumber - 1;
+		if (index < 0 || index >= totalPages) continue;
 
-    const [copiedPage] = await newPdf.copyPages(pdf, [index]);
-    if (spec.rotation !== 0) {
-      const currentRotation = copiedPage.getRotation().angle;
-      copiedPage.setRotation(degrees((currentRotation + spec.rotation) % 360));
-    }
-    newPdf.addPage(copiedPage);
-  }
+		const [copiedPage] = await newPdf.copyPages(pdf, [index]);
+		if (spec.rotation !== 0) {
+			const currentRotation = copiedPage.getRotation().angle;
+			copiedPage.setRotation(degrees((currentRotation + spec.rotation) % 360));
+		}
+		newPdf.addPage(copiedPage);
+	}
 
-  return newPdf.save();
+	return newPdf.save();
 }
 
 export async function organizePDF(
-  file: File,
-  pageOrder: number[] // 1-indexed page numbers in desired order
+	file: File,
+	pageOrder: number[], // 1-indexed page numbers in desired order
 ): Promise<Uint8Array> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const newPdf = await PDFDocument.create();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const newPdf = await PDFDocument.create();
 
-  // Convert to 0-indexed and filter valid indices
-  const validIndices = pageOrder
-    .map((n) => n - 1)
-    .filter((i) => i >= 0 && i < pdf.getPageCount());
+	// Convert to 0-indexed and filter valid indices
+	const validIndices = pageOrder
+		.map((n) => n - 1)
+		.filter((i) => i >= 0 && i < pdf.getPageCount());
 
-  const copiedPages = await newPdf.copyPages(pdf, validIndices);
-  copiedPages.forEach((page) => newPdf.addPage(page));
+	const copiedPages = await newPdf.copyPages(pdf, validIndices);
+	copiedPages.forEach((page) => newPdf.addPage(page));
 
-  return newPdf.save();
+	return newPdf.save();
 }
 
 export async function rotatePDF(
-  file: File,
-  rotation: 0 | 90 | 180 | 270,
-  pageNumbers?: number[] // If undefined, rotate all pages
+	file: File,
+	rotation: 0 | 90 | 180 | 270,
+	pageNumbers?: number[], // If undefined, rotate all pages
 ): Promise<Uint8Array> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const pages = pdf.getPages();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const pages = pdf.getPages();
 
-  const indicesToRotate = pageNumbers
-    ? pageNumbers.map((n) => n - 1).filter((i) => i >= 0 && i < pages.length)
-    : pages.map((_, i) => i);
+	const indicesToRotate = pageNumbers
+		? pageNumbers.map((n) => n - 1).filter((i) => i >= 0 && i < pages.length)
+		: pages.map((_, i) => i);
 
-  indicesToRotate.forEach((index) => {
-    const page = pages[index];
-    const currentRotation = page.getRotation().angle;
-    page.setRotation(degrees((currentRotation + rotation) % 360));
-  });
+	indicesToRotate.forEach((index) => {
+		const page = pages[index];
+		const currentRotation = page.getRotation().angle;
+		page.setRotation(degrees((currentRotation + rotation) % 360));
+	});
 
-  return pdf.save();
+	return pdf.save();
 }
 
 export async function addWatermark(
-  file: File,
-  text: string,
-  options: {
-    fontSize?: number;
-    opacity?: number;
-    rotation?: number;
-    x?: number; // 0-100 percentage from left
-    y?: number; // 0-100 percentage from bottom
-  } = {}
+	file: File,
+	text: string,
+	options: {
+		fontSize?: number;
+		opacity?: number;
+		rotation?: number;
+		x?: number; // 0-100 percentage from left
+		y?: number; // 0-100 percentage from bottom
+	} = {},
 ): Promise<Uint8Array> {
-  const { fontSize = 50, opacity = 0.3, rotation = -45, x = 50, y = 50 } = options;
+	const {
+		fontSize = 50,
+		opacity = 0.3,
+		rotation = -45,
+		x = 50,
+		y = 50,
+	} = options;
 
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const pages = pdf.getPages();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const pages = pdf.getPages();
 
-  for (const page of pages) {
-    const { width, height } = page.getSize();
-    // Convert percentage to actual coordinates
-    const actualX = (x / 100) * width - (text.length * fontSize) / 4;
-    const actualY = (y / 100) * height;
-    page.drawText(text, {
-      x: actualX,
-      y: actualY,
-      size: fontSize,
-      opacity,
-      rotate: degrees(rotation),
-    });
-  }
+	for (const page of pages) {
+		const { width, height } = page.getSize();
+		// Convert percentage to actual coordinates
+		const actualX = (x / 100) * width - (text.length * fontSize) / 4;
+		const actualY = (y / 100) * height;
+		page.drawText(text, {
+			x: actualX,
+			y: actualY,
+			size: fontSize,
+			opacity,
+			rotate: degrees(rotation),
+		});
+	}
 
-  return pdf.save();
+	return pdf.save();
 }
 
 export async function addPageNumbers(
-  file: File,
-  options: {
-    fontSize?: number;
-    startFrom?: number;
-    format?: string; // e.g., "Page {n} of {total}"
-    x?: number; // 0-100 percentage from left
-    y?: number; // 0-100 percentage from bottom
-  } = {}
+	file: File,
+	options: {
+		fontSize?: number;
+		startFrom?: number;
+		format?: string; // e.g., "Page {n} of {total}"
+		x?: number; // 0-100 percentage from left
+		y?: number; // 0-100 percentage from bottom
+	} = {},
 ): Promise<Uint8Array> {
-  const {
-    fontSize = 12,
-    startFrom = 1,
-    format = "{n}",
-    x = 50,
-    y = 5,
-  } = options;
+	const {
+		fontSize = 12,
+		startFrom = 1,
+		format = "{n}",
+		x = 50,
+		y = 5,
+	} = options;
 
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const pages = pdf.getPages();
-  const totalPages = pages.length;
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const pages = pdf.getPages();
+	const totalPages = pages.length;
 
-  pages.forEach((page, index) => {
-    const { width, height } = page.getSize();
-    const pageNum = index + startFrom;
-    const text = format.replace("{n}", pageNum.toString()).replace("{total}", totalPages.toString());
+	pages.forEach((page, index) => {
+		const { width, height } = page.getSize();
+		const pageNum = index + startFrom;
+		const text = format
+			.replace("{n}", pageNum.toString())
+			.replace("{total}", totalPages.toString());
 
-    // Convert percentage to actual coordinates
-    const actualX = (x / 100) * width - (text.length * fontSize) / 4;
-    const actualY = (y / 100) * height;
+		// Convert percentage to actual coordinates
+		const actualX = (x / 100) * width - (text.length * fontSize) / 4;
+		const actualY = (y / 100) * height;
 
-    page.drawText(text, { x: actualX, y: actualY, size: fontSize });
-  });
+		page.drawText(text, { x: actualX, y: actualY, size: fontSize });
+	});
 
-  return pdf.save();
+	return pdf.save();
 }
 
 export async function getPDFPageCount(file: File): Promise<number> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  return pdf.getPageCount();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	return pdf.getPageCount();
 }
 
 export async function compressPDF(file: File): Promise<Uint8Array> {
-  // Note: pdf-lib has limited compression capabilities
-  // For better compression, you'd need a server-side solution
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
+	// Note: pdf-lib has limited compression capabilities
+	// For better compression, you'd need a server-side solution
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
 
-  // Remove metadata to reduce size slightly
-  pdf.setTitle("");
-  pdf.setAuthor("");
-  pdf.setSubject("");
-  pdf.setKeywords([]);
-  pdf.setProducer("");
-  pdf.setCreator("");
+	// Remove metadata to reduce size slightly
+	pdf.setTitle("");
+	pdf.setAuthor("");
+	pdf.setSubject("");
+	pdf.setKeywords([]);
+	pdf.setProducer("");
+	pdf.setCreator("");
 
-  return pdf.save({
-    useObjectStreams: true, // Better compression
-  });
+	return pdf.save({
+		useObjectStreams: true, // Better compression
+	});
 }
 
 export function downloadBlob(data: Uint8Array, filename: string) {
-  const blob = new Blob([new Uint8Array(data)], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+	const blob = new Blob([new Uint8Array(data)], { type: "application/pdf" });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = filename;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
 }
 
-export function downloadMultiple(files: { data: Uint8Array; filename: string }[]) {
-  files.forEach(({ data, filename }, index) => {
-    setTimeout(() => downloadBlob(data, filename), index * 100);
-  });
+export function downloadMultiple(
+	files: { data: Uint8Array; filename: string }[],
+) {
+	files.forEach(({ data, filename }, index) => {
+		setTimeout(() => downloadBlob(data, filename), index * 100);
+	});
 }
 
 export async function addSignature(
-  file: File,
-  signatureDataUrl: string,
-  options: {
-    x?: number; // 0-100 percentage from left
-    y?: number; // 0-100 percentage from bottom
-    width?: number; // width in points
-    height?: number; // height in points
-    pageNumbers?: number[]; // pages to sign (1-indexed), if undefined signs all
-  } = {}
+	file: File,
+	signatureDataUrl: string,
+	options: {
+		x?: number; // 0-100 percentage from left
+		y?: number; // 0-100 percentage from bottom
+		width?: number; // width in points
+		height?: number; // height in points
+		pageNumbers?: number[]; // pages to sign (1-indexed), if undefined signs all
+	} = {},
 ): Promise<Uint8Array> {
-  const { x = 70, y = 10, width = 150, height = 50, pageNumbers } = options;
+	const { x = 70, y = 10, width = 150, pageNumbers } = options;
 
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const pages = pdf.getPages();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const pages = pdf.getPages();
 
-  // Convert data URL to image
-  const signatureBytes = await fetch(signatureDataUrl).then(res => res.arrayBuffer());
+	// Convert data URL to image
+	const signatureBytes = await fetch(signatureDataUrl).then((res) =>
+		res.arrayBuffer(),
+	);
 
-  // Determine image type and embed
-  let signatureImage;
-  if (signatureDataUrl.includes('image/png')) {
-    signatureImage = await pdf.embedPng(signatureBytes);
-  } else {
-    signatureImage = await pdf.embedJpg(signatureBytes);
-  }
+	// Determine image type and embed
+	let signatureImage: PDFImage;
+	if (signatureDataUrl.includes("image/png")) {
+		signatureImage = await pdf.embedPng(signatureBytes);
+	} else {
+		signatureImage = await pdf.embedJpg(signatureBytes);
+	}
 
-  // Calculate aspect ratio
-  const aspectRatio = signatureImage.width / signatureImage.height;
-  const finalWidth = width;
-  const finalHeight = width / aspectRatio;
+	// Calculate aspect ratio
+	const aspectRatio = signatureImage.width / signatureImage.height;
+	const finalWidth = width;
+	const finalHeight = width / aspectRatio;
 
-  // Determine which pages to sign
-  const pagesToSign = pageNumbers
-    ? pageNumbers.map(n => n - 1).filter(i => i >= 0 && i < pages.length)
-    : pages.map((_, i) => i);
+	// Determine which pages to sign
+	const pagesToSign = pageNumbers
+		? pageNumbers.map((n) => n - 1).filter((i) => i >= 0 && i < pages.length)
+		: pages.map((_, i) => i);
 
-  for (const pageIndex of pagesToSign) {
-    const page = pages[pageIndex];
-    const { width: pageWidth, height: pageHeight } = page.getSize();
+	for (const pageIndex of pagesToSign) {
+		const page = pages[pageIndex];
+		const { width: pageWidth, height: pageHeight } = page.getSize();
 
-    // Convert percentage to actual coordinates
-    const actualX = (x / 100) * pageWidth - finalWidth / 2;
-    const actualY = (y / 100) * pageHeight - finalHeight / 2;
+		// Convert percentage to actual coordinates
+		const actualX = (x / 100) * pageWidth - finalWidth / 2;
+		const actualY = (y / 100) * pageHeight - finalHeight / 2;
 
-    page.drawImage(signatureImage, {
-      x: actualX,
-      y: actualY,
-      width: finalWidth,
-      height: finalHeight,
-    });
-  }
+		page.drawImage(signatureImage, {
+			x: actualX,
+			y: actualY,
+			width: finalWidth,
+			height: finalHeight,
+		});
+	}
 
-  return pdf.save();
+	return pdf.save();
 }
 
-export async function sanitizePDF(file: File): Promise<{ data: Uint8Array; removedFields: string[] }> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const removedFields: string[] = [];
+export async function sanitizePDF(
+	file: File,
+): Promise<{ data: Uint8Array; removedFields: string[] }> {
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const removedFields: string[] = [];
 
-  // Get current metadata to report what was removed
-  if (pdf.getTitle()) removedFields.push("Title");
-  if (pdf.getAuthor()) removedFields.push("Author");
-  if (pdf.getSubject()) removedFields.push("Subject");
-  if (pdf.getKeywords()) removedFields.push("Keywords");
-  if (pdf.getProducer()) removedFields.push("Producer");
-  if (pdf.getCreator()) removedFields.push("Creator");
-  if (pdf.getCreationDate()) removedFields.push("Creation Date");
-  if (pdf.getModificationDate()) removedFields.push("Modification Date");
+	// Get current metadata to report what was removed
+	if (pdf.getTitle()) removedFields.push("Title");
+	if (pdf.getAuthor()) removedFields.push("Author");
+	if (pdf.getSubject()) removedFields.push("Subject");
+	if (pdf.getKeywords()) removedFields.push("Keywords");
+	if (pdf.getProducer()) removedFields.push("Producer");
+	if (pdf.getCreator()) removedFields.push("Creator");
+	if (pdf.getCreationDate()) removedFields.push("Creation Date");
+	if (pdf.getModificationDate()) removedFields.push("Modification Date");
 
-  // Remove all metadata
-  pdf.setTitle("");
-  pdf.setAuthor("");
-  pdf.setSubject("");
-  pdf.setKeywords([]);
-  pdf.setProducer("");
-  pdf.setCreator("");
+	// Remove all metadata
+	pdf.setTitle("");
+	pdf.setAuthor("");
+	pdf.setSubject("");
+	pdf.setKeywords([]);
+	pdf.setProducer("");
+	pdf.setCreator("");
 
-  return {
-    data: await pdf.save(),
-    removedFields,
-  };
+	return {
+		data: await pdf.save(),
+		removedFields,
+	};
 }
 
 export async function reversePDF(file: File): Promise<Uint8Array> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const newPdf = await PDFDocument.create();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const newPdf = await PDFDocument.create();
 
-  const pageCount = pdf.getPageCount();
-  const reversedIndices = Array.from({ length: pageCount }, (_, i) => pageCount - 1 - i);
+	const pageCount = pdf.getPageCount();
+	const reversedIndices = Array.from(
+		{ length: pageCount },
+		(_, i) => pageCount - 1 - i,
+	);
 
-  const copiedPages = await newPdf.copyPages(pdf, reversedIndices);
-  copiedPages.forEach((page) => newPdf.addPage(page));
+	const copiedPages = await newPdf.copyPages(pdf, reversedIndices);
+	copiedPages.forEach((page) => newPdf.addPage(page));
 
-  return newPdf.save();
+	return newPdf.save();
 }
 
 export async function duplicatePages(
-  file: File,
-  pageNumbers: number[] // 1-indexed pages to duplicate
+	file: File,
+	pageNumbers: number[], // 1-indexed pages to duplicate
 ): Promise<Uint8Array> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const totalPages = pdf.getPageCount();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const totalPages = pdf.getPageCount();
 
-  // Validate page numbers
-  const validPages = pageNumbers.filter((n) => n >= 1 && n <= totalPages);
-  if (validPages.length === 0) {
-    throw new Error("No valid pages to duplicate");
-  }
+	// Validate page numbers
+	const validPages = pageNumbers.filter((n) => n >= 1 && n <= totalPages);
+	if (validPages.length === 0) {
+		throw new Error("No valid pages to duplicate");
+	}
 
-  // Copy and append each page
-  const indicesToCopy = validPages.map((n) => n - 1);
-  const copiedPages = await pdf.copyPages(pdf, indicesToCopy);
-  copiedPages.forEach((page) => pdf.addPage(page));
+	// Copy and append each page
+	const indicesToCopy = validPages.map((n) => n - 1);
+	const copiedPages = await pdf.copyPages(pdf, indicesToCopy);
+	copiedPages.forEach((page) => pdf.addPage(page));
 
-  return pdf.save();
+	return pdf.save();
 }
 
 export async function deletePages(
-  file: File,
-  pageNumbers: number[] // 1-indexed pages to delete
+	file: File,
+	pageNumbers: number[], // 1-indexed pages to delete
 ): Promise<Uint8Array> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
-  const totalPages = pdf.getPageCount();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+	const totalPages = pdf.getPageCount();
 
-  // Get pages to keep (inverse of pages to delete)
-  const pagesToDelete = new Set(pageNumbers.map((n) => n - 1));
-  const pagesToKeep = Array.from({ length: totalPages }, (_, i) => i).filter(
-    (i) => !pagesToDelete.has(i)
-  );
+	// Get pages to keep (inverse of pages to delete)
+	const pagesToDelete = new Set(pageNumbers.map((n) => n - 1));
+	const pagesToKeep = Array.from({ length: totalPages }, (_, i) => i).filter(
+		(i) => !pagesToDelete.has(i),
+	);
 
-  if (pagesToKeep.length === 0) {
-    throw new Error("Cannot delete all pages");
-  }
+	if (pagesToKeep.length === 0) {
+		throw new Error("Cannot delete all pages");
+	}
 
-  // Create new PDF with remaining pages
-  const newPdf = await PDFDocument.create();
-  const copiedPages = await newPdf.copyPages(pdf, pagesToKeep);
-  copiedPages.forEach((page) => newPdf.addPage(page));
+	// Create new PDF with remaining pages
+	const newPdf = await PDFDocument.create();
+	const copiedPages = await newPdf.copyPages(pdf, pagesToKeep);
+	copiedPages.forEach((page) => newPdf.addPage(page));
 
-  return newPdf.save();
+	return newPdf.save();
 }
 
 export async function getPDFMetadata(file: File): Promise<{
-  title: string | undefined;
-  author: string | undefined;
-  subject: string | undefined;
-  keywords: string | undefined;
-  producer: string | undefined;
-  creator: string | undefined;
-  creationDate: Date | undefined;
-  modificationDate: Date | undefined;
-  pageCount: number;
+	title: string | undefined;
+	author: string | undefined;
+	subject: string | undefined;
+	keywords: string | undefined;
+	producer: string | undefined;
+	creator: string | undefined;
+	creationDate: Date | undefined;
+	modificationDate: Date | undefined;
+	pageCount: number;
 }> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
 
-  return {
-    title: pdf.getTitle(),
-    author: pdf.getAuthor(),
-    subject: pdf.getSubject(),
-    keywords: pdf.getKeywords(),
-    producer: pdf.getProducer(),
-    creator: pdf.getCreator(),
-    creationDate: pdf.getCreationDate(),
-    modificationDate: pdf.getModificationDate(),
-    pageCount: pdf.getPageCount(),
-  };
+	return {
+		title: pdf.getTitle(),
+		author: pdf.getAuthor(),
+		subject: pdf.getSubject(),
+		keywords: pdf.getKeywords(),
+		producer: pdf.getProducer(),
+		creator: pdf.getCreator(),
+		creationDate: pdf.getCreationDate(),
+		modificationDate: pdf.getModificationDate(),
+		pageCount: pdf.getPageCount(),
+	};
 }

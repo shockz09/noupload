@@ -1,0 +1,62 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.3.10/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": ["src/**/*.ts", "src/**/*.tsx", "*.json", "*.mjs"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "useExhaustiveDependencies": "off",
+        "noUnusedImports": "warn"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "off", // needed for drag-drop lists without stable IDs
+        "useIterableCallbackReturn": "off" // forEach with implicit return is common
+      },
+      "style": {
+        "noNonNullAssertion": "off"
+      },
+      "performance": {
+        "noImgElement": "off" // blob URLs from user uploads don't work with Next.js Image
+      },
+      "a11y": {
+        "useMediaCaption": "off", // captions for dynamically generated audio is impractical
+        "noAutofocus": "off", // intentional UX for tool input forms
+        // TODO: These require UX redesign to fix properly:
+        // - noStaticElementInteractions: drag-drop needs "move up/down" buttons, canvas/crop handles need keyboard controls
+        // - useSemanticElements: dropzones can't be buttons, complex page previews need div layouts
+        "noStaticElementInteractions": "off",
+        "useSemanticElements": "off"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}

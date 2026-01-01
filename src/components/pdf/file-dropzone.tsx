@@ -1,165 +1,193 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { cn } from "@/lib/utils";
 import { UploadIcon } from "@/components/icons";
+import { cn } from "@/lib/utils";
 
 interface FileDropzoneProps {
-  accept?: string;
-  multiple?: boolean;
-  onFilesSelected: (files: File[]) => void;
-  maxFiles?: number;
-  maxSize?: number;
-  className?: string;
-  title?: string;
-  subtitle?: string;
+	accept?: string;
+	multiple?: boolean;
+	onFilesSelected: (files: File[]) => void;
+	maxFiles?: number;
+	maxSize?: number;
+	className?: string;
+	title?: string;
+	subtitle?: string;
 }
 
 export function FileDropzone({
-  accept = ".pdf",
-  multiple = true,
-  onFilesSelected,
-  maxFiles = 50,
-  maxSize = 100 * 1024 * 1024,
-  className,
-  title,
-  subtitle,
+	accept = ".pdf",
+	multiple = true,
+	onFilesSelected,
+	maxFiles = 50,
+	maxSize = 100 * 1024 * 1024,
+	className,
+	title,
+	subtitle,
 }: FileDropzoneProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+	const [isDragging, setIsDragging] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-  const handleFiles = useCallback(
-    (files: FileList | null) => {
-      if (!files) return;
+	const handleFiles = useCallback(
+		(files: FileList | null) => {
+			if (!files) return;
 
-      setError(null);
-      const fileArray = Array.from(files);
+			setError(null);
+			const fileArray = Array.from(files);
 
-      if (fileArray.length > maxFiles) {
-        setError(`Maximum ${maxFiles} files allowed`);
-        return;
-      }
+			if (fileArray.length > maxFiles) {
+				setError(`Maximum ${maxFiles} files allowed`);
+				return;
+			}
 
-      const oversized = fileArray.find((f) => f.size > maxSize);
-      if (oversized) {
-        setError(`File "${oversized.name}" exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit`);
-        return;
-      }
+			const oversized = fileArray.find((f) => f.size > maxSize);
+			if (oversized) {
+				setError(
+					`File "${oversized.name}" exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit`,
+				);
+				return;
+			}
 
-      const acceptedExtensions = accept.split(",").map((a) => a.trim().toLowerCase());
-      const validFiles = fileArray.filter((f) => {
-        const ext = "." + f.name.split(".").pop()?.toLowerCase();
-        return acceptedExtensions.some((a) => a === ext || a === f.type);
-      });
+			const acceptedExtensions = accept
+				.split(",")
+				.map((a) => a.trim().toLowerCase());
+			const validFiles = fileArray.filter((f) => {
+				const ext = `.${f.name.split(".").pop()?.toLowerCase()}`;
+				return acceptedExtensions.some((a) => a === ext || a === f.type);
+			});
 
-      if (validFiles.length !== fileArray.length) {
-        setError(`Some files were skipped. Only ${accept} files are accepted.`);
-      }
+			if (validFiles.length !== fileArray.length) {
+				setError(`Some files were skipped. Only ${accept} files are accepted.`);
+			}
 
-      if (validFiles.length > 0) {
-        onFilesSelected(validFiles);
-      }
-    },
-    [accept, maxFiles, maxSize, onFilesSelected]
-  );
+			if (validFiles.length > 0) {
+				onFilesSelected(validFiles);
+			}
+		},
+		[accept, maxFiles, maxSize, onFilesSelected],
+	);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
+	const handleDragOver = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		setIsDragging(true);
+	}, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
+	const handleDragLeave = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		setIsDragging(false);
+	}, []);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      handleFiles(e.dataTransfer.files);
-    },
-    [handleFiles]
-  );
+	const handleDrop = useCallback(
+		(e: React.DragEvent) => {
+			e.preventDefault();
+			setIsDragging(false);
+			handleFiles(e.dataTransfer.files);
+		},
+		[handleFiles],
+	);
 
-  const handleClick = useCallback(() => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = accept;
-    input.multiple = multiple;
-    input.onchange = (e) => {
-      const target = e.target as HTMLInputElement;
-      handleFiles(target.files);
-    };
-    input.click();
-  }, [accept, multiple, handleFiles]);
+	const handleClick = useCallback(() => {
+		const input = document.createElement("input");
+		input.type = "file";
+		input.accept = accept;
+		input.multiple = multiple;
+		input.onchange = (e) => {
+			const target = e.target as HTMLInputElement;
+			handleFiles(target.files);
+		};
+		input.click();
+	}, [accept, multiple, handleFiles]);
 
-  const acceptLabel = accept
-    .split(",")
-    .map((a) => a.trim().toUpperCase().replace(".", ""))
-    .join(", ");
+	const acceptLabel = accept
+		.split(",")
+		.map((a) => a.trim().toUpperCase().replace(".", ""))
+		.join(", ");
 
-  return (
-    <div
-      className={cn(
-        "dropzone relative cursor-pointer",
-        isDragging && "dragging dropzone-active",
-        className
-      )}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      onClick={handleClick}
-    >
-      <div className="relative z-10 space-y-5">
-        {/* Upload Icon */}
-        <div className="upload-icon">
-          <UploadIcon className="w-8 h-8" />
-        </div>
+	return (
+		<div
+			role="button"
+			tabIndex={0}
+			className={cn(
+				"dropzone relative cursor-pointer",
+				isDragging && "dragging dropzone-active",
+				className,
+			)}
+			onDragOver={handleDragOver}
+			onDragLeave={handleDragLeave}
+			onDrop={handleDrop}
+			onClick={handleClick}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					handleClick();
+				}
+			}}
+		>
+			<div className="relative z-10 space-y-5">
+				{/* Upload Icon */}
+				<div className="upload-icon">
+					<UploadIcon className="w-8 h-8" />
+				</div>
 
-        {/* Text */}
-        <div className="space-y-2">
-          <p className="text-xl font-bold text-foreground">
-            {isDragging
-              ? "Drop it like it's hot"
-              : title || "Drop your files here"}
-          </p>
-          <p className="text-muted-foreground">
-            {subtitle || "or click to browse from your device"}
-          </p>
-        </div>
+				{/* Text */}
+				<div className="space-y-2">
+					<p className="text-xl font-bold text-foreground">
+						{isDragging
+							? "Drop it like it's hot"
+							: title || "Drop your files here"}
+					</p>
+					<p className="text-muted-foreground">
+						{subtitle || "or click to browse from your device"}
+					</p>
+				</div>
 
-        {/* CTA Button */}
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 px-5 py-3 bg-foreground text-background font-bold text-sm border-2 border-foreground hover:bg-primary hover:border-primary transition-colors"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          Select Files
-        </button>
+				{/* CTA Button */}
+				<button
+					type="button"
+					className="inline-flex items-center gap-2 px-5 py-3 bg-foreground text-background font-bold text-sm border-2 border-foreground hover:bg-primary hover:border-primary transition-colors"
+				>
+					<svg
+						aria-hidden="true"
+						className="w-4 h-4"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
+						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+						<polyline points="17 8 12 3 7 8" />
+						<line x1="12" y1="3" x2="12" y2="15" />
+					</svg>
+					Select Files
+				</button>
 
-        {/* File info */}
-        <p className="text-xs text-muted-foreground font-medium pt-2">
-          {acceptLabel} files • Max {Math.round(maxSize / 1024 / 1024)}MB
-          {multiple && ` • Up to ${maxFiles} files`}
-        </p>
+				{/* File info */}
+				<p className="text-xs text-muted-foreground font-medium pt-2">
+					{acceptLabel} files • Max {Math.round(maxSize / 1024 / 1024)}MB
+					{multiple && ` • Up to ${maxFiles} files`}
+				</p>
 
-        {/* Error */}
-        {error && (
-          <div className="error-box mt-4 justify-center">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span className="text-sm font-medium">{error}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+				{/* Error */}
+				{error && (
+					<div className="error-box mt-4 justify-center">
+						<svg
+							aria-hidden="true"
+							className="w-4 h-4"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+						>
+							<circle cx="12" cy="12" r="10" />
+							<line x1="12" y1="8" x2="12" y2="12" />
+							<line x1="12" y1="16" x2="12.01" y2="16" />
+						</svg>
+						<span className="text-sm font-medium">{error}</span>
+					</div>
+				)}
+			</div>
+		</div>
+	);
 }
