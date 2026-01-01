@@ -80,6 +80,51 @@ export default function QRScanPage() {
     };
   }, []);
 
+  // Shared function to process a QR image file
+  const processQRFile = useCallback(async (file: File) => {
+    // Stop camera if running
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+      } catch {}
+      scannerRef.current = null;
+      setIsScanning(false);
+    }
+
+    setError(null);
+    setIsProcessingFile(true);
+
+    try {
+      const html5QrCode = new Html5Qrcode("qr-file-scanner");
+      const result = await html5QrCode.scanFile(file, true);
+      setScanResult(result);
+      html5QrCode.clear();
+    } catch {
+      setError("No QR code found in image. Try another image.");
+    } finally {
+      setIsProcessingFile(false);
+    }
+  }, []);
+
+  // Handle paste from clipboard
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items || scanResult) return;
+
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) processQRFile(file);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [scanResult, processQRFile]);
+
   const startScanning = async () => {
     setError(null);
 
@@ -138,25 +183,12 @@ export default function QRScanPage() {
     setError(null);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    setError(null);
-    setIsProcessingFile(true);
-
-    try {
-      const html5QrCode = new Html5Qrcode("qr-file-scanner");
-      const result = await html5QrCode.scanFile(file, true);
-      setScanResult(result);
-      html5QrCode.clear();
-    } catch {
-      setError("No QR code found in image. Try another image.");
-    } finally {
-      setIsProcessingFile(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+    processQRFile(file);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -256,7 +288,7 @@ export default function QRScanPage() {
                 <div className="text-sm">
                   <p className="font-bold text-foreground mb-1">Tips for scanning</p>
                   <p className="text-muted-foreground">
-                    Hold your device steady and ensure good lighting. The QR code should be clearly visible within the frame.
+                    Use your camera, upload an image, or paste from clipboard (Ctrl+V). Ensure the QR code is clearly visible.
                   </p>
                 </div>
               </div>

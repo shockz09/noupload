@@ -13,7 +13,8 @@ import {
   QRDataType,
   WifiData,
 } from "@/lib/qr-utils";
-import { ArrowLeftIcon, DownloadIcon, LoaderIcon } from "@/components/icons";
+import { ArrowLeftIcon, DownloadIcon, LoaderIcon, CopyIcon } from "@/components/icons";
+import { copyImageToClipboard } from "@/lib/image-utils";
 
 function QRIcon({ className }: { className?: string }) {
   return (
@@ -167,6 +168,17 @@ export default function QRGeneratePage() {
       downloadQR(blob, "qrcode.png");
     } catch {
       // Download failure is non-critical
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!qrImage) return;
+    try {
+      const data = getDataString();
+      const blob = await generateQRBlob(data, { width: 800 });
+      await copyImageToClipboard(blob);
+    } catch {
+      // Copy failure is non-critical
     }
   };
 
@@ -388,9 +400,18 @@ export default function QRGeneratePage() {
                   <img src={qrImage} alt="Generated QR Code" className="w-48 h-48 sm:w-64 sm:h-64" />
                 </div>
               </div>
-              <button onClick={handleDownload} className="btn-success w-full">
-                <DownloadIcon className="w-5 h-5" />Download PNG (High Resolution)
-              </button>
+              <div className="flex gap-2">
+                <button onClick={handleDownload} className="btn-success flex-1">
+                  <DownloadIcon className="w-5 h-5" />Download PNG (High Resolution)
+                </button>
+                <button
+                  onClick={handleCopy}
+                  className="btn-success px-3"
+                  title="Copy to clipboard"
+                >
+                  <CopyIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           )}
         </div>
