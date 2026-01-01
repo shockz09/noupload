@@ -124,12 +124,12 @@ export default function ReverseAudioPage() {
           <AudioPlayer src={result.url} />
         </SuccessCard>
       ) : isProcessing ? (
-        <div className="border-2 border-foreground p-12 bg-card">
-          <div className="flex flex-col items-center justify-center gap-4">
+        <div className="border-2 border-foreground p-12 bg-card overflow-hidden">
+          <div className="flex flex-col items-center justify-center gap-4 max-w-full">
             <LoaderIcon className="w-8 h-8 animate-spin" />
-            <div className="text-center">
+            <div className="text-center w-full min-w-0">
               <p className="font-bold">Reversing audio...</p>
-              <p className="text-sm text-muted-foreground">{file?.name}</p>
+              <p className="text-sm text-muted-foreground truncate">{file?.name}</p>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { cropImage, downloadImage, formatFileSize, getOutputFilename, getImageDimensions, CropArea } from "@/lib/image-utils";
+import { cropImage, downloadImage, copyImageToClipboard, formatFileSize, getOutputFilename, getImageDimensions, CropArea } from "@/lib/image-utils";
 import { CropIcon, ImageIcon, LoaderIcon } from "@/components/icons";
 import { ImagePageHeader, ErrorBox, SuccessCard } from "@/components/image/shared";
 
@@ -253,6 +253,7 @@ export default function ImageCropPage() {
           title="Image Cropped!"
           downloadLabel="Download Image"
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Crop Another"
         >

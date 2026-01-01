@@ -183,12 +183,12 @@ export default function SanitizePage() {
           {metadata && (
             <div className="border-2 border-foreground/20 p-4 space-y-3">
               <p className="font-bold text-sm">Current Metadata</p>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                {metadata.title && <div><span className="text-muted-foreground">Title:</span> {metadata.title}</div>}
-                {metadata.author && <div><span className="text-muted-foreground">Author:</span> {metadata.author}</div>}
-                {metadata.creator && <div><span className="text-muted-foreground">Creator:</span> {metadata.creator}</div>}
-                {metadata.producer && <div><span className="text-muted-foreground">Producer:</span> {metadata.producer}</div>}
-                {metadata.subject && <div><span className="text-muted-foreground">Subject:</span> {metadata.subject}</div>}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                {metadata.title && <div className="break-words"><span className="text-muted-foreground">Title:</span> {metadata.title}</div>}
+                {metadata.author && <div className="break-words"><span className="text-muted-foreground">Author:</span> {metadata.author}</div>}
+                {metadata.creator && <div className="break-words"><span className="text-muted-foreground">Creator:</span> {metadata.creator}</div>}
+                {metadata.producer && <div className="break-all"><span className="text-muted-foreground">Producer:</span> {metadata.producer}</div>}
+                {metadata.subject && <div className="break-words"><span className="text-muted-foreground">Subject:</span> {metadata.subject}</div>}
                 {metadata.creationDate && <div><span className="text-muted-foreground">Created:</span> {metadata.creationDate.toLocaleDateString()}</div>}
                 {!metadata.title && !metadata.author && !metadata.creator && !metadata.producer && !metadata.subject && !metadata.creationDate && (
                   <div className="col-span-2 text-muted-foreground">No metadata found</div>

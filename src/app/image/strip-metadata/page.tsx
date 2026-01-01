@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { stripMetadata, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { stripMetadata, downloadImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 import { MetadataIcon, ShieldIcon, LoaderIcon, ImageIcon } from "@/components/icons";
 import { ImagePageHeader, ErrorBox, SuccessCard, ImageFileInfo } from "@/components/image/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
@@ -118,6 +118,7 @@ export default function StripMetadataPage() {
           title="Metadata Removed!"
           downloadLabel="Download Clean Image"
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Clean Another"
         >

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { rotateImage, flipImage, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { rotateImage, flipImage, downloadImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 import { RotateIcon, LoaderIcon, FlipHorizontalIcon, FlipVerticalIcon } from "@/components/icons";
 import { ImagePageHeader, ErrorBox, SuccessCard } from "@/components/image/shared";
 
@@ -115,6 +115,7 @@ export default function ImageRotatePage() {
           title="Image Transformed!"
           downloadLabel="Download Image"
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Transform Another"
         >

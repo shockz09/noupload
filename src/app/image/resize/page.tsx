@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { resizeImage, downloadImage, formatFileSize, getOutputFilename, getImageDimensions } from "@/lib/image-utils";
+import { resizeImage, downloadImage, copyImageToClipboard, formatFileSize, getOutputFilename, getImageDimensions } from "@/lib/image-utils";
 import { ResizeIcon, ImageIcon, LoaderIcon } from "@/components/icons";
 import { ImagePageHeader, ErrorBox, SuccessCard, ComparisonDisplay } from "@/components/image/shared";
 
@@ -144,6 +144,7 @@ export default function ImageResizePage() {
           title="Image Resized!"
           downloadLabel="Download Image"
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Resize Another"
         >

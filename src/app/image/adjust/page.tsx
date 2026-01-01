@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { adjustImage, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { adjustImage, downloadImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 import { BrightnessIcon, LoaderIcon } from "@/components/icons";
 import { ImagePageHeader, ErrorBox, SuccessCard } from "@/components/image/shared";
 
@@ -112,6 +112,7 @@ export default function ImageAdjustPage() {
           title="Image Adjusted!"
           downloadLabel="Download Image"
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Adjust Another"
         >
@@ -126,28 +127,28 @@ export default function ImageAdjustPage() {
           subtitle="or click to browse · Ctrl+V to paste"
         />
       ) : (
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-6 overflow-hidden">
           {/* Left: Live Preview */}
-          <div className="space-y-3">
+          <div className="space-y-3 min-w-0">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Preview</span>
               <button onClick={handleClear} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
                 Change file
               </button>
             </div>
-            <div className="border-2 border-foreground p-2 bg-muted/30 flex justify-center items-center min-h-[200px]">
+            <div className="border-2 border-foreground p-2 bg-muted/30 flex justify-center items-center min-h-[200px] overflow-hidden">
               <img
                 src={preview!}
                 alt="Preview"
                 style={filterStyle}
-                className="max-h-[180px] object-contain transition-all duration-100"
+                className="max-h-[180px] max-w-full object-contain transition-all duration-100"
               />
             </div>
             <p className="text-xs text-muted-foreground truncate">{file.name} • {formatFileSize(file.size)}</p>
           </div>
 
           {/* Right: Controls */}
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             {/* Brightness */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">

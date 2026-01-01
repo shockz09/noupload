@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { addBorder, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { addBorder, downloadImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 import { BorderIcon, LoaderIcon } from "@/components/icons";
 import { ImagePageHeader, ErrorBox, SuccessCard } from "@/components/image/shared";
 
@@ -105,6 +105,7 @@ export default function ImageBorderPage() {
           title="Border Added!"
           downloadLabel="Download Image"
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Add Border to Another"
         >

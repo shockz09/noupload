@@ -195,7 +195,7 @@ export default function Home() {
         </div>
 
         <p className="text-xl text-muted-foreground max-w-xl leading-relaxed">
-          Everything runs in your browser. Your files never touch our servers—because we don&apos;t have any.
+          Everything runs in your browser. Your files never touch our <span className="whitespace-nowrap">servers—because</span> we don&apos;t have any.
         </p>
 
         <div className="flex flex-wrap items-center gap-4 pt-2 text-sm font-semibold">

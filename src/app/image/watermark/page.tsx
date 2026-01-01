@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { addWatermark, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { addWatermark, downloadImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 import { WatermarkIcon, ImageIcon, LoaderIcon } from "@/components/icons";
 import { ImagePageHeader, ErrorBox, SuccessCard } from "@/components/image/shared";
 
@@ -164,6 +164,7 @@ export default function ImageWatermarkPage() {
           title="Watermark Added!"
           downloadLabel="Download Image"
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Watermark Another"
         >

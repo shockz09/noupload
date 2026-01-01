@@ -125,12 +125,12 @@ export default function SpeedAudioPage() {
 
           <div className="space-y-3">
             <label className="input-label">Speed</label>
-            <div className="grid grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {speedPresets.map((s) => (
                 <button
                   key={s}
                   onClick={() => setSpeed(s)}
-                  className={`px-3 py-2 text-sm font-bold border-2 border-foreground transition-colors ${
+                  className={`px-2 sm:px-3 py-2 text-sm font-bold border-2 border-foreground transition-colors ${
                     speed === s ? "bg-foreground text-background" : "hover:bg-muted"
                   }`}
                 >

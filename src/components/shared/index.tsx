@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftIcon, LoaderIcon, DownloadIcon, AlertIcon } from "@/components/icons";
+import { ArrowLeftIcon, LoaderIcon, DownloadIcon, AlertIcon, CopyIcon } from "@/components/icons";
 import { ReactNode } from "react";
 
 // ============ Page Header ============
@@ -100,11 +100,12 @@ interface SuccessCardProps {
   children?: ReactNode; // Custom content
   downloadLabel: string;
   onDownload: (e: React.MouseEvent) => void;
+  onCopy?: () => void; // Optional copy to clipboard
   onStartOver: () => void;
   startOverLabel: string;
 }
 
-export function SuccessCard({ stampText, title, subtitle, children, downloadLabel, onDownload, onStartOver, startOverLabel }: SuccessCardProps) {
+export function SuccessCard({ stampText, title, subtitle, children, downloadLabel, onDownload, onCopy, onStartOver, startOverLabel }: SuccessCardProps) {
   return (
     <div className="animate-fade-up">
       <div className="success-card">
@@ -121,12 +122,24 @@ export function SuccessCard({ stampText, title, subtitle, children, downloadLabe
           {children}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4">
-          <button type="button" onClick={onDownload} className="btn-success flex-1">
-            <DownloadIcon className="w-5 h-5" />
-            {downloadLabel}
-          </button>
-          <button type="button" onClick={onStartOver} className="btn-secondary flex-1">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex gap-2">
+            <button type="button" onClick={onDownload} className="btn-success flex-1 sm:flex-none">
+              <DownloadIcon className="w-5 h-5 shrink-0" />
+              {downloadLabel}
+            </button>
+            {onCopy && (
+              <button
+                type="button"
+                onClick={onCopy}
+                className="btn-success px-3 shrink-0"
+                title="Copy to clipboard"
+              >
+                <CopyIcon className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+          <button type="button" onClick={onStartOver} className="btn-secondary">
             {startOverLabel}
           </button>
         </div>

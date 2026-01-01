@@ -707,6 +707,30 @@ export function downloadImage(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+// Copy image to clipboard
+export async function copyImageToClipboard(blob: Blob): Promise<boolean> {
+  try {
+    // Clipboard API requires PNG format
+    let pngBlob = blob;
+    if (blob.type !== "image/png") {
+      // Convert to PNG using canvas
+      const img = await createImageBitmap(blob);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      pngBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to convert"))), "image/png");
+      });
+    }
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Download multiple images (with stagger to prevent browser blocking)
 export async function downloadMultipleImages(
   images: Array<{ blob: Blob; filename: string }>

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { convertFormat, downloadImage, formatFileSize, ImageFormat } from "@/lib/image-utils";
+import { convertFormat, downloadImage, copyImageToClipboard, formatFileSize, ImageFormat } from "@/lib/image-utils";
 import { ConvertIcon, ImageIcon } from "@/components/icons";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import {
@@ -164,6 +164,7 @@ export default function ImageConvertPage() {
           title="Image Converted!"
           downloadLabel={`Download ${result.newFormat.toUpperCase()}`}
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Convert Another"
         >

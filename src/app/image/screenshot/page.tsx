@@ -4,8 +4,9 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { toPng } from "html-to-image";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { gradientPresets, solidPresets } from "@/lib/gradient-presets";
-import { ScreenshotIcon, DownloadIcon, LoaderIcon } from "@/components/icons";
+import { ScreenshotIcon, DownloadIcon, LoaderIcon, CopyIcon } from "@/components/icons";
 import { ImagePageHeader } from "@/components/image/shared";
+import { copyImageToClipboard } from "@/lib/image-utils";
 
 export default function ScreenshotBeautifierPage() {
   const [image, setImage] = useState<string | null>(null);
@@ -87,6 +88,18 @@ export default function ScreenshotBeautifierPage() {
     }
   };
 
+  const handleCopy = async () => {
+    if (!canvasRef.current) return;
+    try {
+      const dataUrl = await toPng(canvasRef.current, { cacheBust: true, pixelRatio: 2 });
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      await copyImageToClipboard(blob);
+    } catch {
+      // silently fail
+    }
+  };
+
   const handleStartOver = () => {
     setImage(null);
     setFileName("");
@@ -117,34 +130,55 @@ export default function ScreenshotBeautifierPage() {
               ref={canvasRef}
               style={{ background, padding: `${padding}px`, display: "inline-block" }}
             >
-              {windowChrome && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "12px 16px",
-                    background: "#e8e8e8",
-                    borderTopLeftRadius: `${borderRadius}px`,
-                    borderTopRightRadius: `${borderRadius}px`,
-                  }}
-                >
-                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ff5f57" }} />
-                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#febc2e" }} />
-                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#28c840" }} />
-                </div>
-              )}
-              <img
-                src={image}
-                alt="Screenshot"
+              <div
                 style={{
-                  display: "block",
-                  borderRadius: windowChrome ? `0 0 ${borderRadius}px ${borderRadius}px` : `${borderRadius}px`,
+                  borderRadius: `${borderRadius}px`,
+                  overflow: "hidden",
                   boxShadow: shadow
                     ? "0 4px 6px -1px rgba(0,0,0,0.1), 0 20px 25px -5px rgba(0,0,0,0.15), 0 45px 60px -15px rgba(0,0,0,0.2)"
                     : "none",
                 }}
-              />
+              >
+                {windowChrome && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "11px 13px",
+                      background: "linear-gradient(180deg, #e9e9e9 0%, #d4d4d4 100%)",
+                      borderBottom: "1px solid #c0c0c0",
+                    }}
+                  >
+                    <div style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: "linear-gradient(180deg, #ff6058 0%, #ea4640 100%)",
+                      boxShadow: "inset 0 0 0 0.5px rgba(0,0,0,0.12), inset 0 -0.5px 0.5px rgba(0,0,0,0.1), 0 0.5px 0.5px rgba(255,255,255,0.4)"
+                    }} />
+                    <div style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: "linear-gradient(180deg, #ffbe2f 0%, #e6a620 100%)",
+                      boxShadow: "inset 0 0 0 0.5px rgba(0,0,0,0.12), inset 0 -0.5px 0.5px rgba(0,0,0,0.1), 0 0.5px 0.5px rgba(255,255,255,0.4)"
+                    }} />
+                    <div style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: "linear-gradient(180deg, #2aca44 0%, #1db934 100%)",
+                      boxShadow: "inset 0 0 0 0.5px rgba(0,0,0,0.12), inset 0 -0.5px 0.5px rgba(0,0,0,0.1), 0 0.5px 0.5px rgba(255,255,255,0.4)"
+                    }} />
+                  </div>
+                )}
+                <img
+                  src={image}
+                  alt="Screenshot"
+                  style={{ display: "block" }}
+                />
+              </div>
             </div>
           </div>
 
@@ -246,19 +280,28 @@ export default function ScreenshotBeautifierPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleExport}
-            disabled={isExporting}
-            className={exported ? "btn-success w-full" : "btn-primary w-full"}
-          >
-            {isExporting ? (
-              <><LoaderIcon className="w-5 h-5" />Exporting...</>
-            ) : exported ? (
-              <><DownloadIcon className="w-5 h-5" />Download Again</>
-            ) : (
-              <><DownloadIcon className="w-5 h-5" />Download PNG</>
-            )}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExport}
+              disabled={isExporting}
+              className={exported ? "btn-success flex-1" : "btn-primary flex-1"}
+            >
+              {isExporting ? (
+                <><LoaderIcon className="w-5 h-5" />Exporting...</>
+              ) : exported ? (
+                <><DownloadIcon className="w-5 h-5" />Download Again</>
+              ) : (
+                <><DownloadIcon className="w-5 h-5" />Download PNG</>
+              )}
+            </button>
+            <button
+              onClick={handleCopy}
+              className={exported ? "btn-success px-3" : "btn-primary px-3"}
+              title="Copy to clipboard"
+            >
+              <CopyIcon className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       )}
     </div>

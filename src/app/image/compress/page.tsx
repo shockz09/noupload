@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { compressImage, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { compressImage, downloadImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 import { ImageCompressIcon, ImageIcon } from "@/components/icons";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import {
@@ -145,6 +145,7 @@ export default function ImageCompressPage() {
           title="Image Compressed!"
           downloadLabel="Download Image"
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Compress Another"
         >

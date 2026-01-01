@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { applyFilter, downloadImage, formatFileSize, getOutputFilename, FilterType } from "@/lib/image-utils";
+import { applyFilter, downloadImage, copyImageToClipboard, formatFileSize, getOutputFilename, FilterType } from "@/lib/image-utils";
 import { FiltersIcon, LoaderIcon } from "@/components/icons";
 import { ImagePageHeader, ErrorBox, SuccessCard } from "@/components/image/shared";
 
@@ -374,6 +374,7 @@ export default function ImageFiltersPage() {
           title="Filter Applied!"
           downloadLabel="Download Image"
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Apply to Another"
         >
@@ -390,32 +391,32 @@ export default function ImageFiltersPage() {
           subtitle="or click to browse · Ctrl+V to paste"
         />
       ) : (
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-6 overflow-hidden">
           {/* Left: Live Preview */}
-          <div className="space-y-3">
+          <div className="space-y-3 min-w-0">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Preview</span>
               <button onClick={handleClear} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
                 Change file
               </button>
             </div>
-            <div className="border-2 border-foreground p-2 bg-muted/30 flex justify-center items-center min-h-[200px]">
+            <div className="border-2 border-foreground p-2 bg-muted/30 flex justify-center items-center min-h-[200px] overflow-hidden">
               <img
                 src={getPreviewSrc()}
                 alt="Preview"
                 style={currentFilterStyle}
-                className="max-h-[180px] object-contain transition-all duration-200"
+                className="max-h-[180px] max-w-full object-contain transition-all duration-200"
               />
             </div>
             <p className="text-xs text-muted-foreground truncate">{file.name} • {formatFileSize(file.size)}</p>
           </div>
 
           {/* Right: Controls */}
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             {/* Filter Selection */}
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Select Filter</label>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                 {filters.map((filter) => (
                   <button
                     key={filter.value}

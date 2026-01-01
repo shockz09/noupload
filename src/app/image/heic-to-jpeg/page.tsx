@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { convertHeicToJpeg, downloadImage, formatFileSize } from "@/lib/image-utils";
+import { convertHeicToJpeg, downloadImage, copyImageToClipboard, formatFileSize } from "@/lib/image-utils";
 import { HeicIcon, LoaderIcon, ImageIcon } from "@/components/icons";
 import { ImagePageHeader, ErrorBox, SuccessCard, ComparisonDisplay, ImageFileInfo } from "@/components/image/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
@@ -91,6 +91,7 @@ export default function HeicToJpegPage() {
           title="HEIC Converted!"
           downloadLabel="Download JPEG"
           onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleClear}
           startOverLabel="Convert Another"
         >

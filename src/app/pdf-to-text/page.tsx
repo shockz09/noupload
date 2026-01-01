@@ -153,13 +153,13 @@ export default function PdfToTextPage() {
       {result ? (
         <div className="space-y-6">
           <div className="card-base p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h3 className="font-bold text-lg">Text Extracted!</h3>
               <div className="flex gap-2">
-                <button onClick={handleCopy} className="btn-secondary text-sm px-3 py-1.5">
+                <button onClick={handleCopy} className="btn-secondary text-sm px-3 py-1.5 flex-1 sm:flex-none">
                   Copy
                 </button>
-                <button onClick={handleDownload} className="btn-primary text-sm px-3 py-1.5">
+                <button onClick={handleDownload} className="btn-primary text-sm px-3 py-1.5 flex-1 sm:flex-none">
                   <DownloadIcon className="w-4 h-4" />
                   Download .txt
                 </button>
