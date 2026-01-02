@@ -140,7 +140,7 @@ const tools = [
 		href: "/reverse",
 		icon: ReversePagesIcon,
 		category: "organize",
-		colorClass: "tool-organize",
+		colorClass: "tool-reverse",
 	},
 	{
 		title: "PDF → Text",
@@ -156,7 +156,7 @@ const tools = [
 		href: "/duplicate",
 		icon: DuplicateIcon,
 		category: "organize",
-		colorClass: "tool-organize",
+		colorClass: "tool-duplicate",
 	},
 	{
 		title: "Delete Pages",
@@ -164,7 +164,7 @@ const tools = [
 		href: "/delete",
 		icon: DeletePagesIcon,
 		category: "organize",
-		colorClass: "tool-organize",
+		colorClass: "tool-delete",
 	},
 ];
 

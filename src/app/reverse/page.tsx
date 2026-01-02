@@ -116,7 +116,7 @@ export default function ReversePage() {
 		<div className="page-enter max-w-2xl mx-auto space-y-8">
 			<PdfPageHeader
 				icon={<ReversePagesIcon className="w-7 h-7" />}
-				iconClass="tool-organize"
+				iconClass="tool-reverse"
 				title="Reverse Pages"
 				description="Flip the order of all pages in your PDF"
 			/>

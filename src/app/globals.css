@@ -419,6 +419,9 @@
 .tool-sanitize { --tool-color: #6B21A8; }
 .tool-encrypt { --tool-color: #1E3A5F; }
 .tool-decrypt { --tool-color: #047857; }
+.tool-reverse { --tool-color: #0F766E; }
+.tool-duplicate { --tool-color: #A16207; }
+.tool-delete { --tool-color: #B91C1C; }
 
 /* Image tool colors - deep, muted, earthy tones */
 .tool-image-compress { --tool-color: #166534; }

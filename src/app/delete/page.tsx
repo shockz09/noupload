@@ -237,7 +237,7 @@ export default function DeletePage() {
 		<div className="page-enter max-w-4xl mx-auto space-y-8">
 			<PdfPageHeader
 				icon={<DeletePagesIcon className="w-7 h-7" />}
-				iconClass="tool-organize"
+				iconClass="tool-delete"
 				title="Delete Pages"
 				description="Remove unwanted pages from your PDF"
 			/>

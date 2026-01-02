@@ -247,7 +247,7 @@ export default function DuplicatePage() {
 		<div className="page-enter max-w-4xl mx-auto space-y-8">
 			<PdfPageHeader
 				icon={<DuplicateIcon className="w-7 h-7" />}
-				iconClass="tool-organize"
+				iconClass="tool-duplicate"
 				title="Duplicate Pages"
 				description="Duplicate and reorder pages in your PDF"
 			/>
