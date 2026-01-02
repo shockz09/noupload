@@ -438,6 +438,9 @@
 .tool-base64 { --tool-color: #115E59; }
 .tool-favicon { --tool-color: #4A1E7C; }
 .tool-bulk { --tool-color: #14532D; }
+.tool-bulk-compress { --tool-color: #166534; }
+.tool-bulk-resize { --tool-color: #1E40AF; }
+.tool-bulk-convert { --tool-color: #9D174D; }
 .tool-screenshot { --tool-color: #7C3AED; }
 .tool-qr { --tool-color: #0E7490; }
 .tool-qr-generate { --tool-color: #1E4A7C; }

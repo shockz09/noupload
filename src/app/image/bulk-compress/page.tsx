@@ -132,7 +132,7 @@ export default function BulkCompressPage() {
 		<div className="page-enter max-w-2xl mx-auto space-y-8">
 			<ImagePageHeader
 				icon={<BulkIcon className="w-7 h-7" />}
-				iconClass="tool-bulk"
+				iconClass="tool-bulk-compress"
 				title="Bulk Compress"
 				description="Compress multiple images at once"
 			/>

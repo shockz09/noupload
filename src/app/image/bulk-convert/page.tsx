@@ -115,7 +115,7 @@ export default function BulkConvertPage() {
 		<div className="page-enter max-w-2xl mx-auto space-y-8">
 			<ImagePageHeader
 				icon={<BulkIcon className="w-7 h-7" />}
-				iconClass="tool-bulk"
+				iconClass="tool-bulk-convert"
 				title="Bulk Convert"
 				description="Convert multiple images to a new format"
 			/>

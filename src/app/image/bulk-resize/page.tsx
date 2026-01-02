@@ -122,7 +122,7 @@ export default function BulkResizePage() {
 		<div className="page-enter max-w-2xl mx-auto space-y-8">
 			<ImagePageHeader
 				icon={<BulkIcon className="w-7 h-7" />}
-				iconClass="tool-bulk"
+				iconClass="tool-bulk-resize"
 				title="Bulk Resize"
 				description="Resize multiple images at once"
 			/>

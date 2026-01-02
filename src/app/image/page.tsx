@@ -144,7 +144,7 @@ const tools = [
 		href: "/image/bulk-compress",
 		icon: BulkIcon,
 		category: "bulk",
-		colorClass: "tool-bulk",
+		colorClass: "tool-bulk-compress",
 	},
 	{
 		title: "Bulk Resize",
@@ -152,7 +152,7 @@ const tools = [
 		href: "/image/bulk-resize",
 		icon: BulkIcon,
 		category: "bulk",
-		colorClass: "tool-bulk",
+		colorClass: "tool-bulk-resize",
 	},
 	{
 		title: "Bulk Convert",
@@ -160,7 +160,7 @@ const tools = [
 		href: "/image/bulk-convert",
 		icon: BulkIcon,
 		category: "bulk",
-		colorClass: "tool-bulk",
+		colorClass: "tool-bulk-convert",
 	},
 ];
 
