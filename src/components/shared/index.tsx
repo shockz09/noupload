@@ -168,17 +168,17 @@ export function SuccessCard({
 				<div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
 					<div className="flex gap-2">
 						<button type="button" onClick={onDownload} className="btn-success">
-							<DownloadIcon className="w-5 h-5 shrink-0" />
+							<DownloadIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
 							{downloadLabel}
 						</button>
 						{onCopy && (
 							<button
 								type="button"
 								onClick={onCopy}
-								className="btn-success px-3 shrink-0"
+								className="btn-success px-2 sm:px-3 shrink-0"
 								title="Copy to clipboard"
 							>
-								<CopyIcon className="w-5 h-5" />
+								<CopyIcon className="w-4 h-4 sm:w-5 sm:h-5" />
 							</button>
 						)}
 					</div>

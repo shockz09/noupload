@@ -629,16 +629,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 16px 32px;
+  gap: 8px;
+  padding: 12px 20px;
   background: #C84C1C;
   color: #FFFEFA;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.875rem;
   letter-spacing: 0.02em;
   border: 2px solid #1A1612;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .btn-primary {
+    gap: 10px;
+    padding: 16px 32px;
+    font-size: 1rem;
+  }
 }
 
 .btn-primary:hover {
@@ -663,15 +671,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 16px 32px;
+  gap: 8px;
+  padding: 12px 20px;
   background: #FFFEFA;
   color: #1A1612;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.875rem;
   border: 2px solid #1A1612;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .btn-secondary {
+    gap: 10px;
+    padding: 16px 32px;
+    font-size: 1rem;
+  }
 }
 
 .btn-secondary:hover {
@@ -685,16 +701,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 16px 32px;
+  gap: 8px;
+  padding: 12px 20px;
   background: #2D5A3D;
   color: #FFFEFA;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.875rem;
   letter-spacing: 0.02em;
   border: 2px solid #1A1612;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .btn-success {
+    gap: 10px;
+    padding: 16px 32px;
+    font-size: 1rem;
+  }
 }
 
 .btn-success:hover {
