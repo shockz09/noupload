@@ -115,7 +115,8 @@ I would love if people would contribute and use this.
 - [html5-qrcode](https://github.com/mebjas/html5-qrcode) — QR code scanning
 - [heic2any](https://github.com/nicolo-ribaudo/heic2any) — HEIC conversion
 - [html-to-image](https://github.com/bubkoo/html-to-image) — Screenshot capture
-- [qpdf-wasm](https://github.com/nicolo-ribaudo/qpdf-wasm) — PDF encryption/decryption
+- [qpdf-wasm](https://github.com/neslinesli93/qpdf-wasm) — PDF encryption/decryption
+- [@bentopdf/gs-wasm](https://www.npmjs.com/package/@bentopdf/gs-wasm) — PDF compression (Ghostscript WASM)
 
 ---
 
@@ -176,3 +177,4 @@ Built with these amazing open source libraries:
 - [heic2any](https://github.com/alexcorvi/heic2any) — HEIC to JPEG conversion
 - [html-to-image](https://github.com/bubkoo/html-to-image) — DOM to image conversion
 - [qpdf-wasm](https://github.com/neslinesli93/qpdf-wasm) — PDF encryption/decryption
+- [@bentopdf/gs-wasm](https://www.npmjs.com/package/@bentopdf/gs-wasm) — PDF compression (Ghostscript WASM)
