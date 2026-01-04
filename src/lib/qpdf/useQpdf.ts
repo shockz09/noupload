@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ERROR_MESSAGES, MAX_FILE_SIZE } from "./constants";
 import type {
+	QpdfCompressOptions,
 	QpdfDecryptOptions,
 	QpdfEncryptOptions,
 	QpdfState,
@@ -93,7 +94,7 @@ export function useQpdf() {
 		async (
 			operation: QpdfWorkerMessage["operation"],
 			file: File,
-			options?: QpdfEncryptOptions | QpdfDecryptOptions,
+			options?: QpdfEncryptOptions | QpdfDecryptOptions | QpdfCompressOptions,
 		): Promise<Uint8Array> => {
 			// Validate file size
 			if (file.size > MAX_FILE_SIZE) {
@@ -192,6 +193,13 @@ export function useQpdf() {
 		[sendOperation],
 	);
 
+	const compress = useCallback(
+		async (file: File, options?: QpdfCompressOptions): Promise<Uint8Array> => {
+			return sendOperation("compress", file, options);
+		},
+		[sendOperation],
+	);
+
 	const clearError = useCallback(() => {
 		setState((s) => ({ ...s, error: null }));
 	}, []);
@@ -202,6 +210,7 @@ export function useQpdf() {
 		decrypt,
 		repair,
 		linearize,
+		compress,
 		clearError,
 	};
 }

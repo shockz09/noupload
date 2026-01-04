@@ -3,7 +3,8 @@ export type QpdfOperation =
 	| "decrypt"
 	| "repair"
 	| "linearize"
-	| "check";
+	| "check"
+	| "compress";
 
 export interface QpdfEncryptOptions {
 	userPassword: string; // Password to open PDF (can be empty for owner-only)
@@ -21,11 +22,15 @@ export interface QpdfDecryptOptions {
 	password: string; // User or owner password
 }
 
+export interface QpdfCompressOptions {
+	level?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9; // Compression level (default: 9)
+}
+
 export interface QpdfWorkerMessage {
 	id: string; // Unique operation ID for correlation
 	operation: QpdfOperation;
 	inputData: Uint8Array;
-	options?: QpdfEncryptOptions | QpdfDecryptOptions;
+	options?: QpdfEncryptOptions | QpdfDecryptOptions | QpdfCompressOptions;
 }
 
 export interface QpdfWorkerResponse {

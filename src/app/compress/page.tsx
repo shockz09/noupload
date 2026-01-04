@@ -13,7 +13,12 @@ import {
 	SuccessCard,
 } from "@/components/pdf/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { compressPDF, downloadBlob } from "@/lib/pdf-utils";
+import {
+	COMPRESSION_DESCRIPTIONS,
+	useGhostscript,
+	type CompressionLevel,
+} from "@/lib/ghostscript/useGhostscript";
+import { downloadBlob } from "@/lib/pdf-utils";
 import { formatFileSize } from "@/lib/utils";
 
 interface CompressResult {
@@ -25,41 +30,42 @@ interface CompressResult {
 
 export default function CompressPage() {
 	const { isInstant, isLoaded } = useInstantMode();
+	const { compress: gsCompress, progress: gsProgress } = useGhostscript();
 	const [file, setFile] = useState<File | null>(null);
+	const [compressionLevel, setCompressionLevel] =
+		useState<CompressionLevel>("balanced");
 	const [isProcessing, setIsProcessing] = useState(false);
-	const [progress, setProgress] = useState(0);
 	const [error, setError] = useState<string | null>(null);
 	const [result, setResult] = useState<CompressResult | null>(null);
 	const processingRef = useRef(false);
 
-	const processFile = useCallback(async (fileToProcess: File) => {
-		if (processingRef.current) return;
-		processingRef.current = true;
-		setIsProcessing(true);
-		setProgress(0);
-		setError(null);
-		setResult(null);
+	const processFile = useCallback(
+		async (fileToProcess: File, level: CompressionLevel = "balanced") => {
+			if (processingRef.current) return;
+			processingRef.current = true;
+			setIsProcessing(true);
+			setError(null);
+			setResult(null);
 
-		try {
-			setProgress(30);
-			const compressed = await compressPDF(fileToProcess);
-			setProgress(90);
+			try {
+				const compressed = await gsCompress(fileToProcess, level);
 
-			const baseName = fileToProcess.name.replace(".pdf", "");
-			setResult({
-				data: compressed,
-				filename: `${baseName}_compressed.pdf`,
-				originalSize: fileToProcess.size,
-				compressedSize: compressed.length,
-			});
-			setProgress(100);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to compress PDF");
-		} finally {
-			setIsProcessing(false);
-			processingRef.current = false;
-		}
-	}, []);
+				const baseName = fileToProcess.name.replace(".pdf", "");
+				setResult({
+					data: compressed,
+					filename: `${baseName}_compressed.pdf`,
+					originalSize: fileToProcess.size,
+					compressedSize: compressed.length,
+				});
+			} catch (err) {
+				setError(err instanceof Error ? err.message : "Failed to compress PDF");
+			} finally {
+				setIsProcessing(false);
+				processingRef.current = false;
+			}
+		},
+		[gsCompress],
+	);
 
 	const handleFileSelected = useCallback(
 		(files: File[]) => {
@@ -69,11 +75,11 @@ export default function CompressPage() {
 				setResult(null);
 
 				if (isInstant) {
-					processFile(files[0]);
+					processFile(files[0], compressionLevel);
 				}
 			}
 		},
-		[isInstant, processFile],
+		[isInstant, processFile, compressionLevel],
 	);
 
 	const handleClear = useCallback(() => {
@@ -84,7 +90,7 @@ export default function CompressPage() {
 
 	const handleCompress = async () => {
 		if (!file) return;
-		processFile(file);
+		processFile(file, compressionLevel);
 	};
 
 	const handleDownload = (e: React.MouseEvent) => {
@@ -99,7 +105,6 @@ export default function CompressPage() {
 		setFile(null);
 		setResult(null);
 		setError(null);
-		setProgress(0);
 	};
 
 	const savings = result
@@ -114,7 +119,7 @@ export default function CompressPage() {
 				icon={<CompressIcon className="w-7 h-7" />}
 				iconClass="tool-compress"
 				title="Compress PDF"
-				description="Reduce file size while preserving quality"
+				description="Reduce file size with Ghostscript-powered compression"
 			/>
 
 			{result ? (
@@ -143,6 +148,41 @@ export default function CompressPage() {
 						title="Drop your PDF file here"
 					/>
 
+					{/* Compression Level Selector */}
+					<div className="space-y-3">
+						<label className="text-sm font-medium text-foreground">
+							Compression Level
+						</label>
+						<div className="grid grid-cols-3 gap-3">
+							{(["light", "balanced", "maximum"] as CompressionLevel[]).map(
+								(level) => (
+									<button
+										key={level}
+										type="button"
+										onClick={() => setCompressionLevel(level)}
+										className={`p-3 rounded-lg border-2 transition-all text-left ${
+											compressionLevel === level
+												? "border-primary bg-primary/5"
+												: "border-border hover:border-muted-foreground/50"
+										}`}
+									>
+										<div className="font-medium capitalize text-sm">
+											{level}
+										</div>
+										<div className="text-xs text-muted-foreground mt-1">
+											{level === "light" && "Best quality"}
+											{level === "balanced" && "Recommended"}
+											{level === "maximum" && "Smallest size"}
+										</div>
+									</button>
+								),
+							)}
+						</div>
+						<p className="text-xs text-muted-foreground">
+							{COMPRESSION_DESCRIPTIONS[compressionLevel]}
+						</p>
+					</div>
+
 					<div className="info-box">
 						<svg
 							aria-hidden="true"
@@ -158,12 +198,12 @@ export default function CompressPage() {
 						</svg>
 						<div className="text-sm">
 							<p className="font-bold text-foreground mb-1">
-								{isInstant ? "Instant compression" : "About compression"}
+								{isInstant ? "Instant compression" : "Powered by Ghostscript"}
 							</p>
 							<p className="text-muted-foreground">
 								{isInstant
 									? "Drop a PDF and it will be compressed automatically."
-									: "Client-side compression removes metadata and optimizes streams."}
+									: "Real image recompression for major file size reduction. First use downloads ~16MB engine (cached)."}
 							</p>
 						</div>
 					</div>
@@ -177,9 +217,43 @@ export default function CompressPage() {
 						icon={<PdfIcon className="w-5 h-5" />}
 					/>
 
+					{/* Compression Level Selector (when file selected) */}
+					{!isProcessing && (
+						<div className="space-y-3">
+							<label className="text-sm font-medium text-foreground">
+								Compression Level
+							</label>
+							<div className="grid grid-cols-3 gap-3">
+								{(["light", "balanced", "maximum"] as CompressionLevel[]).map(
+									(level) => (
+										<button
+											key={level}
+											type="button"
+											onClick={() => setCompressionLevel(level)}
+											className={`p-3 rounded-lg border-2 transition-all text-left ${
+												compressionLevel === level
+													? "border-primary bg-primary/5"
+													: "border-border hover:border-muted-foreground/50"
+											}`}
+										>
+											<div className="font-medium capitalize text-sm">
+												{level}
+											</div>
+											<div className="text-xs text-muted-foreground mt-1">
+												{level === "light" && "Best quality"}
+												{level === "balanced" && "Recommended"}
+												{level === "maximum" && "Smallest size"}
+											</div>
+										</button>
+									),
+								)}
+							</div>
+						</div>
+					)}
+
 					{error && <ErrorBox message={error} />}
 					{isProcessing && (
-						<ProgressBar progress={progress} label="Compressing..." />
+						<ProgressBar progress={-1} label={gsProgress || "Processing..."} />
 					)}
 
 					<button
@@ -191,7 +265,7 @@ export default function CompressPage() {
 						{isProcessing ? (
 							<>
 								<span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-								Compressing...
+								{gsProgress || "Compressing..."}
 							</>
 						) : (
 							<>

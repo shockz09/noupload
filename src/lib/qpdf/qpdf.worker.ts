@@ -2,6 +2,7 @@
 
 import { INPUT_PATH, OUTPUT_PATH } from "./constants";
 import type {
+	QpdfCompressOptions,
 	QpdfEncryptOptions,
 	QpdfWorkerMessage,
 	QpdfWorkerResponse,
@@ -206,6 +207,21 @@ async function executeOperation(
 				args = ["--check", INPUT_PATH];
 				needsOutput = false;
 				break;
+
+			case "compress": {
+				const compressOpts = options as QpdfCompressOptions;
+				const level = compressOpts?.level ?? 9;
+				args = [
+					"--compress-streams=y",
+					"--recompress-flate",
+					`--compression-level=${level}`,
+					"--object-streams=generate",
+					"--decode-level=generalized",
+					INPUT_PATH,
+					OUTPUT_PATH,
+				];
+				break;
+			}
 
 			default:
 				return {
