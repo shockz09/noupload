@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import type { GsCompressionPreset, GsWorkerMessage, GsWorkerResponse } from "./types";
+import type { GsCompressionPreset, GsWorkerMessage, GsWorkerResponse, PdfALevel } from "./types";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -51,7 +51,7 @@ async function initGs(id: string): Promise<void> {
 
   initPromise = (async () => {
     try {
-      sendProgress(id, "Downloading compression engine...");
+      sendProgress(id, "Loading Ghostscript...");
 
       // Fetch gs.js from CDN
       const jsUrl = `${CDN_BASE}/gs.js`;
@@ -100,7 +100,7 @@ async function initGs(id: string): Promise<void> {
         throw new Error("Failed to load Ghostscript module");
       }
 
-      sendProgress(id, "Initializing compression engine...");
+      sendProgress(id, "Initializing...");
 
       // Initialize module with WASM location
       gsModule = await createModule({
@@ -135,11 +135,12 @@ const QUALITY_SETTINGS: Record<GsCompressionPreset, {
   prepress: { imageQuality: 95, resolution: 300 }, // Unused but defined
 };
 
-// Compress PDF with Ghostscript
-async function compressPdf(
+// Execute Ghostscript with given arguments
+async function executeGs(
   id: string,
   inputData: Uint8Array,
-  preset: GsCompressionPreset,
+  args: string[],
+  progressMessage: string,
 ): Promise<Uint8Array> {
   await initGs(id);
 
@@ -147,15 +148,40 @@ async function compressPdf(
     throw new Error("Ghostscript module not initialized");
   }
 
-  sendProgress(id, "Compressing PDF...");
+  sendProgress(id, progressMessage);
 
   // Write input file to virtual filesystem
   gsModule.FS.writeFile("/input.pdf", inputData);
 
+  // Execute Ghostscript
+  const exitCode = gsModule.callMain(args);
+
+  if (exitCode !== 0) {
+    throw new Error(`Ghostscript exited with code ${exitCode}`);
+  }
+
+  // Read output
+  const result = gsModule.FS.readFile("/output.pdf", { encoding: "binary" });
+
+  // Cleanup
+  try {
+    gsModule.FS.unlink("/input.pdf");
+    gsModule.FS.unlink("/output.pdf");
+  } catch {
+    // Files may not exist
+  }
+
+  return new Uint8Array(result);
+}
+
+// Compress PDF
+async function compressPdf(
+  id: string,
+  inputData: Uint8Array,
+  preset: GsCompressionPreset,
+): Promise<Uint8Array> {
   const settings = QUALITY_SETTINGS[preset];
 
-  // Build Ghostscript command with explicit quality settings
-  // This forces recompression regardless of source image DPI
   const args = [
     "-sDEVICE=pdfwrite",
     "-dCompatibilityLevel=1.4",
@@ -183,33 +209,84 @@ async function compressPdf(
     "/input.pdf",
   ];
 
-  // Execute Ghostscript
-  const exitCode = gsModule.callMain(args);
+  return executeGs(id, inputData, args, "Compressing PDF...");
+}
 
-  if (exitCode !== 0) {
-    throw new Error(`Ghostscript exited with code ${exitCode}`);
-  }
+// Convert PDF to Grayscale
+async function toGrayscale(
+  id: string,
+  inputData: Uint8Array,
+): Promise<Uint8Array> {
+  const args = [
+    "-sDEVICE=pdfwrite",
+    "-sColorConversionStrategy=Gray",
+    "-dProcessColorModel=/DeviceGray",
+    "-dCompatibilityLevel=1.4",
+    "-dNOPAUSE",
+    "-dQUIET",
+    "-dBATCH",
+    "-sOutputFile=/output.pdf",
+    "/input.pdf",
+  ];
 
-  // Read output
-  const result = gsModule.FS.readFile("/output.pdf", { encoding: "binary" });
+  return executeGs(id, inputData, args, "Converting to grayscale...");
+}
 
-  // Cleanup
-  try {
-    gsModule.FS.unlink("/input.pdf");
-    gsModule.FS.unlink("/output.pdf");
-  } catch {
-    // Files may not exist
-  }
+// Convert PDF to PDF/A
+async function toPdfA(
+  id: string,
+  inputData: Uint8Array,
+  level: PdfALevel,
+): Promise<Uint8Array> {
+  const levelNum = level === "2b" ? 2 : level === "3b" ? 3 : 1;
 
-  return new Uint8Array(result);
+  const args = [
+    `-dPDFA=${levelNum}`,
+    "-dNOOUTERSAVE",
+    "-sProcessColorModel=DeviceRGB",
+    "-sDEVICE=pdfwrite",
+    "-dPDFACompatibilityPolicy=1",
+    "-dNOPAUSE",
+    "-dQUIET",
+    "-dBATCH",
+    "-sOutputFile=/output.pdf",
+    "/input.pdf",
+  ];
+
+  return executeGs(id, inputData, args, `Converting to PDF/A-${level}...`);
 }
 
 // Message handler
 self.onmessage = async (event: MessageEvent<GsWorkerMessage>) => {
-  const { id, inputData, preset } = event.data;
+  const { id, operation, inputData, options } = event.data;
 
   try {
-    const result = await compressPdf(id, new Uint8Array(inputData), preset);
+    let result: Uint8Array;
+
+    switch (operation) {
+      case "compress":
+        result = await compressPdf(
+          id,
+          new Uint8Array(inputData),
+          options?.preset ?? "ebook",
+        );
+        break;
+
+      case "grayscale":
+        result = await toGrayscale(id, new Uint8Array(inputData));
+        break;
+
+      case "pdfa":
+        result = await toPdfA(
+          id,
+          new Uint8Array(inputData),
+          options?.pdfaLevel ?? "1b",
+        );
+        break;
+
+      default:
+        throw new Error(`Unknown operation: ${operation}`);
+    }
 
     self.postMessage(
       {

@@ -4,16 +4,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   CompressionLevel,
   GsCompressionPreset,
+  GsOperation,
   GsWorkerMessage,
   GsWorkerResponse,
+  PdfALevel,
 } from "./types";
 import { COMPRESSION_PRESET_MAP } from "./types";
 
-export type { CompressionLevel };
-export { COMPRESSION_DESCRIPTIONS } from "./types";
+export type { CompressionLevel, PdfALevel };
+export { COMPRESSION_DESCRIPTIONS, PDFA_DESCRIPTIONS } from "./types";
 
 export interface UseGhostscriptResult {
   compress: (file: File, level?: CompressionLevel) => Promise<Uint8Array>;
+  toGrayscale: (file: File) => Promise<Uint8Array>;
+  toPdfA: (file: File, level?: PdfALevel) => Promise<Uint8Array>;
   isLoading: boolean;
   progress: string;
   error: string | null;
@@ -53,7 +57,7 @@ export function useGhostscript(): UseGhostscriptResult {
       if (success && data) {
         pending.resolve(data);
       } else {
-        pending.reject(new Error(errorMsg || "Compression failed"));
+        pending.reject(new Error(errorMsg || "Operation failed"));
       }
     };
 
@@ -67,8 +71,13 @@ export function useGhostscript(): UseGhostscriptResult {
     };
   }, []);
 
-  const compress = useCallback(
-    async (file: File, level: CompressionLevel = "balanced"): Promise<Uint8Array> => {
+  // Generic operation executor
+  const executeOperation = useCallback(
+    async (
+      operation: GsOperation,
+      file: File,
+      options?: { preset?: GsCompressionPreset; pdfaLevel?: PdfALevel },
+    ): Promise<Uint8Array> => {
       if (!workerRef.current) {
         throw new Error("Worker not initialized");
       }
@@ -80,7 +89,6 @@ export function useGhostscript(): UseGhostscriptResult {
       try {
         const id = crypto.randomUUID();
         const inputData = await file.arrayBuffer();
-        const preset: GsCompressionPreset = COMPRESSION_PRESET_MAP[level];
 
         const result = await new Promise<Uint8Array>((resolve, reject) => {
           pendingRef.current.set(id, { resolve, reject });
@@ -88,8 +96,9 @@ export function useGhostscript(): UseGhostscriptResult {
           workerRef.current!.postMessage(
             {
               id,
+              operation,
               inputData,
-              preset,
+              options,
             } as GsWorkerMessage,
             [inputData],
           );
@@ -98,7 +107,7 @@ export function useGhostscript(): UseGhostscriptResult {
         setProgress("Done!");
         return result;
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : "Compression failed";
+        const errorMsg = err instanceof Error ? err.message : "Operation failed";
         setError(errorMsg);
         throw err;
       } finally {
@@ -108,5 +117,27 @@ export function useGhostscript(): UseGhostscriptResult {
     [],
   );
 
-  return { compress, isLoading, progress, error };
+  const compress = useCallback(
+    async (file: File, level: CompressionLevel = "balanced"): Promise<Uint8Array> => {
+      const preset = COMPRESSION_PRESET_MAP[level];
+      return executeOperation("compress", file, { preset });
+    },
+    [executeOperation],
+  );
+
+  const toGrayscale = useCallback(
+    async (file: File): Promise<Uint8Array> => {
+      return executeOperation("grayscale", file);
+    },
+    [executeOperation],
+  );
+
+  const toPdfA = useCallback(
+    async (file: File, level: PdfALevel = "1b"): Promise<Uint8Array> => {
+      return executeOperation("pdfa", file, { pdfaLevel: level });
+    },
+    [executeOperation],
+  );
+
+  return { compress, toGrayscale, toPdfA, isLoading, progress, error };
 }

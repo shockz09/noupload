@@ -1398,3 +1398,48 @@ export function DeletePagesIcon({
 		</svg>
 	);
 }
+
+export function GrayscaleIcon({
+	className = "w-6 h-6",
+}: {
+	className?: string;
+}) {
+	return (
+		<svg
+			aria-hidden="true"
+			className={className}
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.75"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+		>
+			<circle cx="12" cy="12" r="10" />
+			<path d="M12 2a10 10 0 0 1 0 20" fill="currentColor" opacity="0.3" />
+		</svg>
+	);
+}
+
+export function ArchiveIcon({
+	className = "w-6 h-6",
+}: {
+	className?: string;
+}) {
+	return (
+		<svg
+			aria-hidden="true"
+			className={className}
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.75"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+		>
+			<path d="M21 8v13H3V8" />
+			<path d="M1 3h22v5H1z" />
+			<path d="M10 12h4" />
+		</svg>
+	);
+}

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import {
+	ArchiveIcon,
 	ArrowRightIcon,
 	CompressIcon,
 	DeletePagesIcon,
 	DuplicateIcon,
 	FileIcon,
+	GrayscaleIcon,
 	ImageIcon,
 	LockIcon,
 	MergeIcon,
@@ -53,6 +55,22 @@ const tools = [
 		icon: CompressIcon,
 		category: "optimize",
 		colorClass: "tool-compress",
+	},
+	{
+		title: "Grayscale",
+		description: "Convert color PDFs to black and white",
+		href: "/grayscale",
+		icon: GrayscaleIcon,
+		category: "convert",
+		colorClass: "tool-grayscale",
+	},
+	{
+		title: "PDF to PDF/A",
+		description: "Convert to archival format for preservation",
+		href: "/pdf-to-pdfa",
+		icon: ArchiveIcon,
+		category: "convert",
+		colorClass: "tool-pdfa",
 	},
 	{
 		title: "PDF → Images",
