@@ -103,7 +103,7 @@ export default function QRPage() {
 				<div className="flex flex-wrap items-center gap-4 pt-2 text-sm font-semibold">
 					<span>No uploads</span>
 					<span className="text-muted-foreground">·</span>
-					<span>No tracking</span>
+					<span>No servers</span>
 					<span className="text-muted-foreground">·</span>
 					<span>Free forever</span>
 				</div>

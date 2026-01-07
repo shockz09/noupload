@@ -2,7 +2,7 @@
 
 **Free, private file tools that run entirely in your browser.**
 
-No uploads. No servers. No tracking. Your files never leave your device.
+No uploads. No servers. Your files never leave your device.
 
 ---
 
