@@ -42,3 +42,4 @@ next-env.d.ts
 
 # specs (internal dev notes)
 /specs
+specs/

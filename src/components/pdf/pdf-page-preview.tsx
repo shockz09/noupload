@@ -59,6 +59,10 @@ export function usePdfPages(file: File | null, scale: number = 0.5) {
 						height: viewport.height,
 					});
 
+					// Clean up canvas to free memory
+					canvas.width = 0;
+					canvas.height = 0;
+
 					setProgress(Math.round((i / totalPages) * 100));
 				}
 

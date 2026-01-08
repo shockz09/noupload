@@ -338,7 +338,12 @@ export async function generateWaveformImage(
 	}
 
 	return new Promise((resolve) => {
-		canvas.toBlob((blob) => resolve(blob!), "image/png");
+		canvas.toBlob((blob) => {
+			// Clean up canvas to free memory
+			canvas.width = 0;
+			canvas.height = 0;
+			resolve(blob!);
+		}, "image/png");
 	});
 }
 

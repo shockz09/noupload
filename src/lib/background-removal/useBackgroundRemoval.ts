@@ -149,6 +149,9 @@ export async function compositeOnColor(
 
 	return new Promise((resolve, reject) => {
 		canvas.toBlob((blob) => {
+			// Clean up canvas to free memory
+			canvas.width = 0;
+			canvas.height = 0;
 			if (blob) resolve(blob);
 			else reject(new Error("Failed to create blob"));
 		}, "image/png");
@@ -205,6 +208,9 @@ export async function compositeOnImage(
 
 	return new Promise((resolve, reject) => {
 		canvas.toBlob((blob) => {
+			// Clean up canvas to free memory
+			canvas.width = 0;
+			canvas.height = 0;
 			if (blob) resolve(blob);
 			else reject(new Error("Failed to create blob"));
 		}, "image/png");
