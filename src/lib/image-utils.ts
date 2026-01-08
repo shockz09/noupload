@@ -417,6 +417,7 @@ export async function applyFilter(
 			const data = imageData.data;
 
 			// Thermal gradient: black -> blue -> purple -> red -> orange -> yellow -> white
+			// Pre-compute 256-color lookup table (avoids per-pixel object allocation)
 			const thermalGradient = [
 				{ pos: 0, r: 0, g: 0, b: 0 },
 				{ pos: 0.15, r: 20, g: 0, b: 80 },
@@ -427,30 +428,33 @@ export async function applyFilter(
 				{ pos: 0.9, r: 255, g: 255, b: 100 },
 				{ pos: 1, r: 255, g: 255, b: 255 },
 			];
-
-			const getThermalColor = (t: number) => {
-				for (let i = 0; i < thermalGradient.length - 1; i++) {
-					const c1 = thermalGradient[i];
-					const c2 = thermalGradient[i + 1];
+			const thermalLUT = new Uint8Array(256 * 3);
+			for (let i = 0; i < 256; i++) {
+				const t = i / 255;
+				let r = 255, g = 255, b = 255;
+				for (let j = 0; j < thermalGradient.length - 1; j++) {
+					const c1 = thermalGradient[j], c2 = thermalGradient[j + 1];
 					if (t >= c1.pos && t <= c2.pos) {
 						const f = (t - c1.pos) / (c2.pos - c1.pos);
-						return {
-							r: c1.r + (c2.r - c1.r) * f,
-							g: c1.g + (c2.g - c1.g) * f,
-							b: c1.b + (c2.b - c1.b) * f,
-						};
+						r = c1.r + (c2.r - c1.r) * f;
+						g = c1.g + (c2.g - c1.g) * f;
+						b = c1.b + (c2.b - c1.b) * f;
+						break;
 					}
 				}
-				return thermalGradient[thermalGradient.length - 1];
-			};
+				thermalLUT[i * 3] = r;
+				thermalLUT[i * 3 + 1] = g;
+				thermalLUT[i * 3 + 2] = b;
+			}
 
 			for (let i = 0; i < data.length; i += 4) {
-				const lum =
-					(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
-				const c = getThermalColor(lum);
-				data[i] = c.r;
-				data[i + 1] = c.g;
-				data[i + 2] = c.b;
+				const lum = Math.round(
+					data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
+				);
+				const idx = lum * 3;
+				data[i] = thermalLUT[idx];
+				data[i + 1] = thermalLUT[idx + 1];
+				data[i + 2] = thermalLUT[idx + 2];
 			}
 
 			ctx.putImageData(imageData, 0, 0);
