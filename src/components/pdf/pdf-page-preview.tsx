@@ -16,6 +16,13 @@ export function usePdfPages(file: File | null, scale: number = 0.5) {
 	const [progress, setProgress] = useState(0);
 
 	useEffect(() => {
+		// Revoke previous blob URLs to prevent memory leaks
+		pages.forEach((page) => {
+			if (page.dataUrl.startsWith("blob:")) {
+				URL.revokeObjectURL(page.dataUrl);
+			}
+		});
+
 		if (!file) {
 			setPages([]);
 			return;
@@ -52,9 +59,14 @@ export function usePdfPages(file: File | null, scale: number = 0.5) {
 					await page.render({ canvasContext: context, viewport, canvas })
 						.promise;
 
+					// Use toBlob instead of toDataURL (33% smaller, non-blocking)
+					const blob = await new Promise<Blob>((resolve) => {
+						canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.8);
+					});
+
 					loadedPages.push({
 						pageNumber: i,
-						dataUrl: canvas.toDataURL("image/jpeg", 0.8),
+						dataUrl: URL.createObjectURL(blob),
 						width: viewport.width,
 						height: viewport.height,
 					});
