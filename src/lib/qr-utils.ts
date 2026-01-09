@@ -1,6 +1,7 @@
 // QR Code utilities - all client-side
 
-import QRCode from "qrcode";
+// Lazy load QRCode library (~232KB)
+const getQRCode = async () => (await import("qrcode")).default;
 
 export type QRDataType =
 	| "text"
@@ -92,6 +93,7 @@ export async function generateQRDataURL(
 		errorCorrectionLevel?: "L" | "M" | "Q" | "H";
 	},
 ): Promise<string> {
+	const QRCode = await getQRCode();
 	const opts = {
 		width: options?.width || 400,
 		margin: options?.margin ?? 2,

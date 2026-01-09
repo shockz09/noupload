@@ -22,54 +22,60 @@ export interface UseBackgroundRemovalResult {
 	error: string | null;
 }
 
-export function useBackgroundRemoval(): UseBackgroundRemovalResult {
-	const workerRef = useRef<Worker | null>(null);
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [progress, setProgress] = useState("");
-	const [error, setError] = useState<string | null>(null);
-	const pendingRef = useRef<Map<string, {
-		resolve: (result: BackgroundRemovalResult) => void;
-		reject: (error: Error) => void;
-	}>>(new Map());
+// Singleton worker instance - persists across hook instances
+let sharedWorker: Worker | null = null;
+const pendingRequests = new Map<string, {
+	resolve: (result: BackgroundRemovalResult) => void;
+	reject: (error: Error) => void;
+	setProgress: (msg: string) => void;
+}>();
 
-	// Initialize worker
-	useEffect(() => {
-		workerRef.current = new Worker(
+function getOrCreateWorker(): Worker {
+	if (!sharedWorker) {
+		sharedWorker = new Worker(
 			new URL("./background-removal.worker.ts", import.meta.url),
 			{ type: "module" },
 		);
 
-		workerRef.current.onmessage = (event: MessageEvent<BgRemovalResponse>) => {
+		sharedWorker.onmessage = (event: MessageEvent<BgRemovalResponse>) => {
 			const { id, success, data, error: errorMsg, progress: progressMsg } = event.data;
+
+			const pending = pendingRequests.get(id);
+			if (!pending) return;
 
 			// Handle progress updates
 			if (progressMsg && !success) {
-				setProgress(progressMsg);
+				pending.setProgress(progressMsg);
 				return;
 			}
 
-			const pending = pendingRef.current.get(id);
-			if (!pending) return;
-
 			if (success && data) {
-				pendingRef.current.delete(id);
+				pendingRequests.delete(id);
 				const blob = new Blob([data], { type: "image/png" });
 				const url = URL.createObjectURL(blob);
 				pending.resolve({ blob, url });
 			} else if (errorMsg) {
-				pendingRef.current.delete(id);
+				pendingRequests.delete(id);
 				pending.reject(new Error(errorMsg));
 			}
 		};
 
-		workerRef.current.onerror = (event) => {
+		sharedWorker.onerror = (event) => {
 			console.error("[bg-removal] Worker error:", event);
-			setError("Worker error occurred");
 		};
+	}
+	return sharedWorker;
+}
 
-		return () => {
-			workerRef.current?.terminate();
-		};
+export function useBackgroundRemoval(): UseBackgroundRemovalResult {
+	const [isProcessing, setIsProcessing] = useState(false);
+	const [progress, setProgress] = useState("");
+	const [error, setError] = useState<string | null>(null);
+	const workerRef = useRef<Worker | null>(null);
+
+	// Get shared worker on mount
+	useEffect(() => {
+		workerRef.current = getOrCreateWorker();
 	}, []);
 
 	const processImage = useCallback(
@@ -87,7 +93,7 @@ export function useBackgroundRemoval(): UseBackgroundRemovalResult {
 				const imageData = await image.arrayBuffer();
 
 				const result = await new Promise<BackgroundRemovalResult>((resolve, reject) => {
-					pendingRef.current.set(id, { resolve, reject });
+					pendingRequests.set(id, { resolve, reject, setProgress });
 
 					workerRef.current!.postMessage(
 						{

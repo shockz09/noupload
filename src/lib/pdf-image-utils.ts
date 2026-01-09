@@ -1,4 +1,10 @@
-import { PDFDocument } from "pdf-lib";
+import { downloadImage } from "@/lib/image-utils";
+
+// Re-export downloadImage from image-utils for backwards compatibility
+export { downloadImage };
+
+// Lazy load pdf-lib (~23MB)
+const getPdfLib = async () => import("pdf-lib");
 
 export interface ConvertedImage {
 	pageNumber: number;
@@ -145,7 +151,7 @@ async function rotateImageBytes(
 	const blob = new Blob([new Uint8Array(bytes)], { type: mimeType });
 	const url = URL.createObjectURL(blob);
 
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		const img = new Image();
 		img.onload = () => {
 			URL.revokeObjectURL(url);
@@ -169,12 +175,20 @@ async function rotateImageBytes(
 
 			canvas.toBlob(
 				async (rotatedBlob) => {
-					const arrayBuffer = await rotatedBlob!.arrayBuffer();
+					if (!rotatedBlob) {
+						reject(new Error("Failed to create rotated image blob"));
+						return;
+					}
+					const arrayBuffer = await rotatedBlob.arrayBuffer();
 					resolve({ bytes: new Uint8Array(arrayBuffer), type: "jpeg" });
 				},
 				"image/jpeg",
 				0.92,
 			);
+		};
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			reject(new Error("Failed to load image for rotation"));
 		};
 		img.src = url;
 	});
@@ -239,6 +253,7 @@ export async function imagesToPdf(
 	preparedImages.sort((a, b) => a.index - b.index);
 
 	// Step 2: Build PDF sequentially (required for page order)
+	const { PDFDocument } = await getPdfLib();
 	const pdfDoc = await PDFDocument.create();
 
 	for (let i = 0; i < preparedImages.length; i++) {
@@ -304,7 +319,7 @@ function fileToDataUrl(file: File): Promise<string> {
 }
 
 async function dataUrlToJpegBytes(dataUrl: string): Promise<Uint8Array> {
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		const img = new Image();
 		img.onload = () => {
 			const canvas = document.createElement("canvas");
@@ -316,26 +331,20 @@ async function dataUrlToJpegBytes(dataUrl: string): Promise<Uint8Array> {
 			ctx.drawImage(img, 0, 0);
 			canvas.toBlob(
 				async (blob) => {
-					const arrayBuffer = await blob!.arrayBuffer();
+					if (!blob) {
+						reject(new Error("Failed to create JPEG blob"));
+						return;
+					}
+					const arrayBuffer = await blob.arrayBuffer();
 					resolve(new Uint8Array(arrayBuffer));
 				},
 				"image/jpeg",
 				0.92,
 			);
 		};
+		img.onerror = () => reject(new Error("Failed to load image from data URL"));
 		img.src = dataUrl;
 	});
-}
-
-export function downloadImage(blob: Blob, filename: string) {
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = filename;
-	document.body.appendChild(a);
-	a.click();
-	document.body.removeChild(a);
-	URL.revokeObjectURL(url);
 }
 
 export async function downloadImagesAsZip(

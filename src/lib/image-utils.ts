@@ -200,20 +200,8 @@ export async function convertFormat(
 	}
 }
 
-// Convert HEIC to JPEG (requires heic2any library)
-export async function convertHeicToJpeg(file: File): Promise<Blob> {
-	// Dynamic import to avoid loading if not needed
-	const heic2any = (await import("heic2any")).default;
-
-	const result = await heic2any({
-		blob: file,
-		toType: "image/jpeg",
-		quality: 0.92,
-	});
-
-	// heic2any returns Blob or Blob[]
-	return Array.isArray(result) ? result[0] : result;
-}
+// NOTE: convertHeicToJpeg moved to @/lib/heic-utils to avoid bundling heic2any (1.3MB) with this file
+// Import directly from "@/lib/heic-utils" when needed
 
 // Crop image
 export async function cropImage(file: File, crop: CropArea): Promise<Blob> {
@@ -812,4 +800,278 @@ export function getOutputFilename(
 	const name = parts.join(".");
 	const newExt = newFormat || ext || "png";
 	return suffix ? `${name}${suffix}.${newExt}` : `${name}.${newExt}`;
+}
+
+// Blur region types
+export interface BlurRegion {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+export type BlurType = "gaussian" | "pixelate";
+
+// Apply blur/pixelate to regions
+export async function applyBlurRegions(
+	file: File,
+	regions: BlurRegion[],
+	blurType: BlurType = "pixelate",
+	intensity: number = 20,
+): Promise<Blob> {
+	const img = await loadImage(file);
+
+	try {
+		const canvas = document.createElement("canvas");
+		canvas.width = img.width;
+		canvas.height = img.height;
+		const ctx = canvas.getContext("2d")!;
+		ctx.drawImage(img, 0, 0);
+
+		for (const region of regions) {
+			if (blurType === "pixelate") {
+				pixelateRegion(ctx, region, intensity);
+			} else {
+				blurRegion(ctx, img, region, intensity);
+			}
+		}
+
+		const format = getFormatFromFilename(file.name);
+		return await canvasToBlob(canvas, format);
+	} finally {
+		URL.revokeObjectURL(img.src);
+	}
+}
+
+function pixelateRegion(
+	ctx: CanvasRenderingContext2D,
+	region: BlurRegion,
+	blockSize: number,
+): void {
+	const { x, y, width, height } = region;
+	const imageData = ctx.getImageData(x, y, width, height);
+	const data = imageData.data;
+
+	// Process in blocks
+	for (let py = 0; py < height; py += blockSize) {
+		for (let px = 0; px < width; px += blockSize) {
+			// Get center pixel color of block
+			const centerX = Math.min(px + Math.floor(blockSize / 2), width - 1);
+			const centerY = Math.min(py + Math.floor(blockSize / 2), height - 1);
+			const i = (centerY * width + centerX) * 4;
+			const r = data[i];
+			const g = data[i + 1];
+			const b = data[i + 2];
+
+			// Fill block with that color
+			ctx.fillStyle = `rgb(${r},${g},${b})`;
+			ctx.fillRect(
+				x + px,
+				y + py,
+				Math.min(blockSize, width - px),
+				Math.min(blockSize, height - py),
+			);
+		}
+	}
+}
+
+function blurRegion(
+	ctx: CanvasRenderingContext2D,
+	img: HTMLImageElement,
+	region: BlurRegion,
+	radius: number,
+): void {
+	const { x, y, width, height } = region;
+
+	// Use OffscreenCanvas for blur effect
+	const tempCanvas = document.createElement("canvas");
+	tempCanvas.width = width;
+	tempCanvas.height = height;
+	const tempCtx = tempCanvas.getContext("2d")!;
+
+	// Draw the region to temp canvas
+	tempCtx.drawImage(img, x, y, width, height, 0, 0, width, height);
+
+	// Apply CSS blur filter
+	ctx.save();
+	ctx.beginPath();
+	ctx.rect(x, y, width, height);
+	ctx.clip();
+	ctx.filter = `blur(${radius}px)`;
+	ctx.drawImage(tempCanvas, x, y);
+	ctx.restore();
+	ctx.filter = "none";
+}
+
+// Color palette extraction
+export interface ExtractedColor {
+	hex: string;
+	rgb: { r: number; g: number; b: number };
+	percentage: number;
+}
+
+export async function extractColorPalette(
+	file: File,
+	colorCount: number = 6,
+): Promise<ExtractedColor[]> {
+	const img = await loadImage(file);
+
+	try {
+		// Create a smaller canvas for faster processing
+		const maxSize = 100;
+		const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+		const width = Math.floor(img.width * scale);
+		const height = Math.floor(img.height * scale);
+
+		const canvas = document.createElement("canvas");
+		canvas.width = width;
+		canvas.height = height;
+		const ctx = canvas.getContext("2d")!;
+		ctx.drawImage(img, 0, 0, width, height);
+
+		const imageData = ctx.getImageData(0, 0, width, height);
+		const data = imageData.data;
+		const totalPixels = width * height;
+
+		// Simple color quantization using color bucketing
+		const colorMap = new Map<string, number>();
+		const bucketSize = 32; // Reduce color space
+
+		for (let i = 0; i < data.length; i += 4) {
+			const r = Math.floor(data[i] / bucketSize) * bucketSize;
+			const g = Math.floor(data[i + 1] / bucketSize) * bucketSize;
+			const b = Math.floor(data[i + 2] / bucketSize) * bucketSize;
+			const key = `${r},${g},${b}`;
+			colorMap.set(key, (colorMap.get(key) || 0) + 1);
+		}
+
+		// Sort by frequency and take top colors
+		const sortedColors = Array.from(colorMap.entries())
+			.sort((a, b) => b[1] - a[1])
+			.slice(0, colorCount);
+
+		return sortedColors.map(([key, count]) => {
+			const [r, g, b] = key.split(",").map(Number);
+			return {
+				hex: rgbToHex(r, g, b),
+				rgb: { r, g, b },
+				percentage: Math.round((count / totalPixels) * 100),
+			};
+		});
+	} finally {
+		URL.revokeObjectURL(img.src);
+	}
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+	return "#" + [r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+// Collage creation
+export interface CollageLayout {
+	type: "grid" | "horizontal" | "vertical" | "mosaic";
+	columns?: number;
+	rows?: number;
+	gap?: number;
+}
+
+export async function createCollage(
+	files: File[],
+	layout: CollageLayout,
+	outputSize: { width: number; height: number },
+): Promise<Blob> {
+	const images = await Promise.all(files.map(loadImage));
+
+	try {
+		const canvas = document.createElement("canvas");
+		canvas.width = outputSize.width;
+		canvas.height = outputSize.height;
+		const ctx = canvas.getContext("2d")!;
+
+		// Fill background with white
+		ctx.fillStyle = "#FFFFFF";
+		ctx.fillRect(0, 0, outputSize.width, outputSize.height);
+
+		const gap = layout.gap ?? 4;
+		const count = images.length;
+
+		if (layout.type === "grid") {
+			const cols = layout.columns ?? Math.ceil(Math.sqrt(count));
+			const rows = Math.ceil(count / cols);
+			const cellWidth = (outputSize.width - gap * (cols + 1)) / cols;
+			const cellHeight = (outputSize.height - gap * (rows + 1)) / rows;
+
+			images.forEach((img, i) => {
+				const col = i % cols;
+				const row = Math.floor(i / cols);
+				const x = gap + col * (cellWidth + gap);
+				const y = gap + row * (cellHeight + gap);
+				drawImageCover(ctx, img, x, y, cellWidth, cellHeight);
+			});
+		} else if (layout.type === "horizontal") {
+			const cellWidth = (outputSize.width - gap * (count + 1)) / count;
+			images.forEach((img, i) => {
+				const x = gap + i * (cellWidth + gap);
+				drawImageCover(ctx, img, x, gap, cellWidth, outputSize.height - gap * 2);
+			});
+		} else if (layout.type === "vertical") {
+			const cellHeight = (outputSize.height - gap * (count + 1)) / count;
+			images.forEach((img, i) => {
+				const y = gap + i * (cellHeight + gap);
+				drawImageCover(ctx, img, gap, y, outputSize.width - gap * 2, cellHeight);
+			});
+		} else if (layout.type === "mosaic") {
+			// Pinterest-style mosaic
+			const cols = layout.columns ?? 3;
+			const cellWidth = (outputSize.width - gap * (cols + 1)) / cols;
+			const colHeights = new Array(cols).fill(gap);
+
+			images.forEach((img) => {
+				// Find shortest column
+				const minCol = colHeights.indexOf(Math.min(...colHeights));
+				const x = gap + minCol * (cellWidth + gap);
+				const y = colHeights[minCol];
+
+				// Calculate height maintaining aspect ratio
+				const aspectRatio = img.height / img.width;
+				const cellHeight = cellWidth * aspectRatio;
+
+				// Only draw if it fits
+				if (y + cellHeight <= outputSize.height) {
+					drawImageCover(ctx, img, x, y, cellWidth, cellHeight);
+					colHeights[minCol] += cellHeight + gap;
+				}
+			});
+		}
+
+		return await canvasToBlob(canvas, "jpeg", 0.92);
+	} finally {
+		images.forEach((img) => URL.revokeObjectURL(img.src));
+	}
+}
+
+function drawImageCover(
+	ctx: CanvasRenderingContext2D,
+	img: HTMLImageElement,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+): void {
+	const imgAspect = img.width / img.height;
+	const cellAspect = width / height;
+
+	let sx = 0, sy = 0, sw = img.width, sh = img.height;
+
+	if (imgAspect > cellAspect) {
+		// Image is wider - crop sides
+		sw = img.height * cellAspect;
+		sx = (img.width - sw) / 2;
+	} else {
+		// Image is taller - crop top/bottom
+		sh = img.width / cellAspect;
+		sy = (img.height - sh) / 2;
+	}
+
+	ctx.drawImage(img, sx, sy, sw, sh, x, y, width, height);
 }

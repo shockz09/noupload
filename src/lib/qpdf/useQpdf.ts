@@ -85,6 +85,11 @@ export function useQpdf() {
 
 		return () => {
 			workerRef.current?.removeEventListener("message", handleMessage);
+			// Reject any pending promises on unmount to prevent memory leaks
+			for (const [id, { reject }] of pendingRef.current) {
+				reject(new Error("Component unmounted"));
+				pendingRef.current.delete(id);
+			}
 			releaseWorker();
 		};
 	}, []);

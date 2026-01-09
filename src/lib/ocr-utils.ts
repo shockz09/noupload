@@ -1,6 +1,8 @@
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import Tesseract from "tesseract.js";
 import { type ConvertedImage, pdfToImages } from "./pdf-image-utils";
+
+// Lazy load heavy dependencies
+const getPdfLib = async () => import("pdf-lib");
+const getTesseract = async () => import("tesseract.js");
 
 export interface OCRWord {
 	text: string;
@@ -92,6 +94,7 @@ export async function createSearchablePDF(
 	const numWorkers = highEnd ? 2 : 1; // Parallel OCR on high-end devices
 
 	// Create worker pool
+	const Tesseract = await getTesseract();
 	const workers = await Promise.all(
 		Array(numWorkers)
 			.fill(null)
@@ -161,6 +164,7 @@ export async function createSearchablePDF(
 	// Stage 3: Create PDF with invisible text layer (75-100%)
 	onProgress?.(75, "Creating searchable PDF...");
 
+	const { PDFDocument, StandardFonts, rgb } = await getPdfLib();
 	const pdfDoc = await PDFDocument.create();
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
@@ -291,11 +295,12 @@ async function extractOCRWordsWithWorker(
 function getImageDimensions(
 	dataUrl: string,
 ): Promise<{ width: number; height: number }> {
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		const img = new Image();
 		img.onload = () => {
 			resolve({ width: img.width, height: img.height });
 		};
+		img.onerror = () => reject(new Error("Failed to load image for dimensions"));
 		img.src = dataUrl;
 	});
 }

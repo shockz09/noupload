@@ -1,6 +1,16 @@
-import { degrees, PDFDocument, type PDFImage } from "pdf-lib";
+import type { PDFImage } from "pdf-lib";
+
+// Lazy load pdf-lib (~23MB) - cached after first import
+let pdfLibCache: typeof import("pdf-lib") | null = null;
+const getPdfLib = async () => {
+	if (!pdfLibCache) {
+		pdfLibCache = await import("pdf-lib");
+	}
+	return pdfLibCache;
+};
 
 export async function mergePDFs(files: File[]): Promise<Uint8Array> {
+	const { PDFDocument } = await getPdfLib();
 	const mergedPdf = await PDFDocument.create();
 
 	for (const file of files) {
@@ -17,6 +27,7 @@ export async function splitPDF(
 	file: File,
 	ranges: { start: number; end: number }[],
 ): Promise<Uint8Array[]> {
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const results: Uint8Array[] = [];
@@ -39,6 +50,7 @@ export async function extractPages(
 	file: File,
 	pageNumbers: number[],
 ): Promise<Uint8Array> {
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const newPdf = await PDFDocument.create();
@@ -57,6 +69,7 @@ export async function extractPagesWithRotation(
 	file: File,
 	pageSpecs: { pageNumber: number; rotation: 0 | 90 | 180 | 270 }[],
 ): Promise<Uint8Array> {
+	const { PDFDocument, degrees } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const newPdf = await PDFDocument.create();
@@ -81,6 +94,7 @@ export async function organizePDF(
 	file: File,
 	pageOrder: number[], // 1-indexed page numbers in desired order
 ): Promise<Uint8Array> {
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const newPdf = await PDFDocument.create();
@@ -101,6 +115,7 @@ export async function rotatePDF(
 	rotation: 0 | 90 | 180 | 270,
 	pageNumbers?: number[], // If undefined, rotate all pages
 ): Promise<Uint8Array> {
+	const { PDFDocument, degrees } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const pages = pdf.getPages();
@@ -137,6 +152,7 @@ export async function addWatermark(
 		y = 50,
 	} = options;
 
+	const { PDFDocument, degrees } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const pages = pdf.getPages();
@@ -176,6 +192,7 @@ export async function addPageNumbers(
 		y = 5,
 	} = options;
 
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const pages = pdf.getPages();
@@ -199,6 +216,7 @@ export async function addPageNumbers(
 }
 
 export async function getPDFPageCount(file: File): Promise<number> {
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	return pdf.getPageCount();
@@ -207,6 +225,7 @@ export async function getPDFPageCount(file: File): Promise<number> {
 export async function compressPDF(file: File): Promise<Uint8Array> {
 	// Note: pdf-lib has limited compression capabilities
 	// For better compression, you'd need a server-side solution
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 
@@ -256,6 +275,7 @@ export async function addSignature(
 ): Promise<Uint8Array> {
 	const { x = 70, y = 10, width = 150, pageNumbers } = options;
 
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const pages = pdf.getPages();
@@ -305,6 +325,7 @@ export async function addSignature(
 export async function sanitizePDF(
 	file: File,
 ): Promise<{ data: Uint8Array; removedFields: string[] }> {
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const removedFields: string[] = [];
@@ -334,6 +355,7 @@ export async function sanitizePDF(
 }
 
 export async function reversePDF(file: File): Promise<Uint8Array> {
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const newPdf = await PDFDocument.create();
@@ -354,6 +376,7 @@ export async function duplicatePages(
 	file: File,
 	pageNumbers: number[], // 1-indexed pages to duplicate
 ): Promise<Uint8Array> {
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const totalPages = pdf.getPageCount();
@@ -376,6 +399,7 @@ export async function deletePages(
 	file: File,
 	pageNumbers: number[], // 1-indexed pages to delete
 ): Promise<Uint8Array> {
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 	const totalPages = pdf.getPageCount();
@@ -409,6 +433,7 @@ export async function getPDFMetadata(file: File): Promise<{
 	modificationDate: Date | undefined;
 	pageCount: number;
 }> {
+	const { PDFDocument } = await getPdfLib();
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await PDFDocument.load(arrayBuffer);
 
@@ -423,4 +448,107 @@ export async function getPDFMetadata(file: File): Promise<{
 		modificationDate: pdf.getModificationDate(),
 		pageCount: pdf.getPageCount(),
 	};
+}
+
+export async function setPDFMetadata(
+	file: File,
+	metadata: {
+		title?: string;
+		author?: string;
+		subject?: string;
+		keywords?: string;
+		creator?: string;
+	},
+): Promise<Uint8Array> {
+	const { PDFDocument } = await getPdfLib();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+
+	if (metadata.title !== undefined) pdf.setTitle(metadata.title);
+	if (metadata.author !== undefined) pdf.setAuthor(metadata.author);
+	if (metadata.subject !== undefined) pdf.setSubject(metadata.subject);
+	if (metadata.keywords !== undefined) {
+		pdf.setKeywords(metadata.keywords.split(",").map((k) => k.trim()).filter(Boolean));
+	}
+	if (metadata.creator !== undefined) pdf.setCreator(metadata.creator);
+
+	return pdf.save();
+}
+
+export async function extractImagesFromPDF(
+	file: File,
+	onProgress?: (current: number, total: number) => void,
+): Promise<{ images: Blob[]; names: string[] }> {
+	const { PDFDocument } = await getPdfLib();
+	const arrayBuffer = await file.arrayBuffer();
+	const pdf = await PDFDocument.load(arrayBuffer);
+
+	const images: Blob[] = [];
+	const names: string[] = [];
+	const pages = pdf.getPages();
+
+	// Access the internal document structure to find images
+	const pdfDoc = pdf.context;
+	const imageRefs: Set<string> = new Set();
+
+	// Collect all XObject image references
+	for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
+		const page = pages[pageIdx];
+		const resources = page.node.Resources();
+		if (!resources) continue;
+
+		const xObjects = resources.get(pdfDoc.obj("XObject"));
+		if (!xObjects) continue;
+
+		const xObjectDict = pdfDoc.lookup(xObjects);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const dictAny = xObjectDict as any;
+		if (!xObjectDict || typeof dictAny.entries !== "function") continue;
+
+		for (const [, ref] of dictAny.entries()) {
+			const xObject = pdfDoc.lookup(ref);
+			if (!xObject) continue;
+
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const xObjAny = xObject as any;
+			const subtype = xObjAny.get?.(pdfDoc.obj("Subtype"));
+			if (subtype && subtype.toString() === "/Image") {
+				const refStr = ref.toString();
+				if (!imageRefs.has(refStr)) {
+					imageRefs.add(refStr);
+
+					try {
+						// Get image data
+						const filter = xObjAny.get?.(pdfDoc.obj("Filter"));
+
+						// Get stream data
+						const stream = xObjAny.getContents ? xObjAny.getContents() : null;
+						if (!stream) continue;
+
+						// Determine image type and create blob
+						let mimeType = "image/png";
+						if (filter) {
+							const filterStr = filter.toString();
+							if (filterStr.includes("DCTDecode")) {
+								mimeType = "image/jpeg";
+							} else if (filterStr.includes("JPXDecode")) {
+								mimeType = "image/jp2";
+							}
+						}
+
+						const blob = new Blob([stream], { type: mimeType });
+						images.push(blob);
+						const ext = mimeType === "image/jpeg" ? "jpg" : "png";
+						names.push(`image_${images.length}.${ext}`);
+					} catch {
+						// Skip problematic images
+					}
+				}
+			}
+		}
+
+		onProgress?.(pageIdx + 1, pages.length);
+	}
+
+	return { images, names };
 }
