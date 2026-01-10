@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, memo } from "react";
 
 interface PasswordInputProps {
 	id: string;
@@ -15,7 +15,7 @@ interface PasswordInputProps {
 	autoFocus?: boolean;
 }
 
-export function PasswordInput({
+export const PasswordInput = memo(function PasswordInput({
 	id,
 	label,
 	value,
@@ -29,6 +29,17 @@ export function PasswordInput({
 }: PasswordInputProps) {
 	const [showPassword, setShowPassword] = useState(false);
 
+	const toggleShowPassword = useCallback(() => {
+		setShowPassword((prev) => !prev);
+	}, []);
+
+	const handleChange = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			onChange(e.target.value);
+		},
+		[onChange]
+	);
+
 	return (
 		<div className="space-y-1.5">
 			<label htmlFor={id} className="block text-sm font-medium text-foreground">
@@ -40,7 +51,7 @@ export function PasswordInput({
 					type={showPassword ? "text" : "password"}
 					id={id}
 					value={value}
-					onChange={(e) => onChange(e.target.value)}
+					onChange={handleChange}
 					placeholder={placeholder}
 					disabled={disabled}
 					autoFocus={autoFocus}
@@ -52,7 +63,7 @@ export function PasswordInput({
 				/>
 				<button
 					type="button"
-					onClick={() => setShowPassword(!showPassword)}
+					onClick={toggleShowPassword}
 					disabled={disabled}
 					className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
 					tabIndex={-1}
@@ -90,4 +101,4 @@ export function PasswordInput({
 			)}
 		</div>
 	);
-}
+});

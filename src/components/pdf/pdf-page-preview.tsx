@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo, useCallback } from "react";
 
 interface PageThumbnail {
 	pageNumber: number;
@@ -102,7 +102,7 @@ export function usePdfPages(file: File | null, scale: number = 0.5) {
 	return { pages, loading, error, progress };
 }
 
-// Thumbnail component for a single page
+// Thumbnail component for a single page (memoized for list rendering performance)
 interface PageThumbnailCardProps {
 	page: PageThumbnail;
 	selected?: boolean;
@@ -113,7 +113,7 @@ interface PageThumbnailCardProps {
 	className?: string;
 }
 
-export function PageThumbnailCard({
+export const PageThumbnailCard = memo(function PageThumbnailCard({
 	page,
 	selected = false,
 	onClick,
@@ -122,21 +122,19 @@ export function PageThumbnailCard({
 	badge,
 	className = "",
 }: PageThumbnailCardProps) {
+	const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+		if (onClick && (e.key === "Enter" || e.key === " ")) {
+			e.preventDefault();
+			onClick();
+		}
+	}, [onClick]);
+
 	return (
 		<div
 			role={onClick ? "button" : undefined}
 			tabIndex={onClick ? 0 : undefined}
 			onClick={onClick}
-			onKeyDown={
-				onClick
-					? (e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								onClick();
-							}
-						}
-					: undefined
-			}
+			onKeyDown={onClick ? handleKeyDown : undefined}
 			className={`
         relative group cursor-pointer transition-all duration-200
         ${selected ? "ring-4 ring-primary ring-offset-2" : ""}
@@ -164,6 +162,8 @@ export function PageThumbnailCard({
 						alt={`Page ${page.pageNumber}`}
 						className="w-full h-auto block"
 						draggable={false}
+						loading="lazy"
+						decoding="async"
 					/>
 				</div>
 
@@ -197,7 +197,7 @@ export function PageThumbnailCard({
 			)}
 		</div>
 	);
-}
+});
 
 // Grid of page thumbnails
 interface PageGridProps {
@@ -210,7 +210,7 @@ interface PageGridProps {
 	columns?: number;
 }
 
-export function PageGrid({
+export const PageGrid = memo(function PageGrid({
 	pages,
 	selectedPages = [],
 	onPageClick,
@@ -239,10 +239,12 @@ export function PageGrid({
 			))}
 		</div>
 	);
-}
+});
 
 // Loading state component
-export function PageGridLoading({ progress }: { progress: number }) {
+export const PageGridLoading = memo(function PageGridLoading({
+	progress,
+}: { progress: number }) {
 	return (
 		<div className="py-12 text-center space-y-4">
 			<div className="inline-flex items-center justify-center w-16 h-16 bg-primary text-white border-2 border-foreground">
@@ -269,4 +271,4 @@ export function PageGridLoading({ progress }: { progress: number }) {
 			</div>
 		</div>
 	);
-}
+});

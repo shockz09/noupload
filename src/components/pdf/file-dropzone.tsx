@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo, memo } from "react";
 import { UploadIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +13,10 @@ interface FileDropzoneProps {
 	className?: string;
 	title?: string;
 	subtitle?: string;
+	compact?: boolean;
 }
 
-export function FileDropzone({
+export const FileDropzone = memo(function FileDropzone({
 	accept = ".pdf",
 	multiple = true,
 	onFilesSelected,
@@ -24,9 +25,16 @@ export function FileDropzone({
 	className,
 	title,
 	subtitle,
+	compact = false,
 }: FileDropzoneProps) {
 	const [isDragging, setIsDragging] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	// Memoize accepted extensions parsing
+	const acceptedExtensions = useMemo(
+		() => accept.split(",").map((a) => a.trim().toLowerCase()),
+		[accept]
+	);
 
 	const handleFiles = useCallback(
 		(files: FileList | null) => {
@@ -48,9 +56,6 @@ export function FileDropzone({
 				return;
 			}
 
-			const acceptedExtensions = accept
-				.split(",")
-				.map((a) => a.trim().toLowerCase());
 			const validFiles = fileArray.filter((f) => {
 				const ext = `.${f.name.split(".").pop()?.toLowerCase()}`;
 				return acceptedExtensions.some((a) => a === ext || a === f.type);
@@ -64,7 +69,7 @@ export function FileDropzone({
 				onFilesSelected(validFiles);
 			}
 		},
-		[accept, maxFiles, maxSize, onFilesSelected],
+		[accept, acceptedExtensions, maxFiles, maxSize, onFilesSelected],
 	);
 
 	const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -98,10 +103,48 @@ export function FileDropzone({
 		input.click();
 	}, [accept, multiple, handleFiles]);
 
-	const acceptLabel = accept
-		.split(",")
-		.map((a) => a.trim().toUpperCase().replace(".", ""))
-		.join(", ");
+	const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+		if (e.key === "Enter" || e.key === " ") {
+			e.preventDefault();
+			handleClick();
+		}
+	}, [handleClick]);
+
+	// Memoize display label
+	const acceptLabel = useMemo(
+		() => accept.split(",").map((a) => a.trim().toUpperCase().replace(".", "")).join(", "),
+		[accept]
+	);
+
+	if (compact) {
+		return (
+			<div
+				role="button"
+				tabIndex={0}
+				className={cn(
+					"border-2 border-dashed border-muted-foreground/40 p-4 text-center cursor-pointer hover:border-foreground hover:bg-muted/30 transition-colors",
+					isDragging && "border-foreground bg-muted/30",
+					className,
+				)}
+				onDragOver={handleDragOver}
+				onDragLeave={handleDragLeave}
+				onDrop={handleDrop}
+				onClick={handleClick}
+				onKeyDown={handleKeyDown}
+			>
+				<div className="flex items-center justify-center gap-2 text-muted-foreground">
+					<UploadIcon className="w-5 h-5" />
+					<span className="text-sm font-bold">
+						{isDragging ? "Drop here" : title || "Add more files"}
+					</span>
+					{subtitle && <span className="text-xs">({subtitle})</span>}
+				</div>
+				{error && (
+					<p className="text-xs text-red-500 mt-2">{error}</p>
+				)}
+			</div>
+		);
+	}
 
 	return (
 		<div
@@ -116,12 +159,7 @@ export function FileDropzone({
 			onDragLeave={handleDragLeave}
 			onDrop={handleDrop}
 			onClick={handleClick}
-			onKeyDown={(e) => {
-				if (e.key === "Enter" || e.key === " ") {
-					e.preventDefault();
-					handleClick();
-				}
-			}}
+			onKeyDown={handleKeyDown}
 		>
 			<div className="relative z-10 space-y-5">
 				{/* Upload Icon */}
@@ -190,4 +228,4 @@ export function FileDropzone({
 			</div>
 		</div>
 	);
-}
+});

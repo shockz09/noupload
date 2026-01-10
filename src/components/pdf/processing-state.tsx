@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { formatFileSize } from "@/lib/utils";
 
 interface ProcessingStateProps {
@@ -13,7 +14,7 @@ interface ProcessingStateProps {
 	error?: string;
 }
 
-export function ProcessingState({
+export const ProcessingState = memo(function ProcessingState({
 	status,
 	progress = 0,
 	message,
@@ -220,4 +221,4 @@ export function ProcessingState({
 			)}
 		</div>
 	);
-}
+});

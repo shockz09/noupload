@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useRef, memo } from "react";
 import { GripIcon, PdfIcon, XIcon } from "@/components/icons";
 import { cn, formatFileSize } from "@/lib/utils";
 
@@ -16,7 +16,7 @@ interface FileListProps {
 	onClear: () => void;
 }
 
-export function FileList({
+export const FileList = memo(function FileList({
 	files,
 	onRemove,
 	onReorder,
@@ -26,32 +26,35 @@ export function FileList({
 	const [dragOverId, setDragOverId] = useState<string | null>(null);
 	const [settledId, setSettledId] = useState<string | null>(null);
 
-	if (files.length === 0) return null;
+	// Use ref to avoid stale closure in drag handlers
+	const draggingIdRef = useRef<string | null>(null);
 
-	const handleDragStart = (e: React.DragEvent, id: string, index: number) => {
+	const handleDragStart = useCallback((e: React.DragEvent, id: string, index: number) => {
+		draggingIdRef.current = id;
 		setDraggingId(id);
 		e.dataTransfer.setData("text/plain", index.toString());
 		e.dataTransfer.effectAllowed = "move";
-	};
+	}, []);
 
-	const handleDragEnd = () => {
+	const handleDragEnd = useCallback(() => {
+		draggingIdRef.current = null;
 		setDraggingId(null);
 		setDragOverId(null);
-	};
+	}, []);
 
-	const handleDragOver = (e: React.DragEvent, id: string) => {
+	const handleDragOver = useCallback((e: React.DragEvent, id: string) => {
 		e.preventDefault();
 		e.dataTransfer.dropEffect = "move";
-		if (id !== draggingId) {
+		if (id !== draggingIdRef.current) {
 			setDragOverId(id);
 		}
-	};
+	}, []);
 
-	const handleDragLeave = () => {
+	const handleDragLeave = useCallback(() => {
 		setDragOverId(null);
-	};
+	}, []);
 
-	const handleDrop = (
+	const handleDrop = useCallback((
 		e: React.DragEvent,
 		toIndex: number,
 		targetId: string,
@@ -64,9 +67,12 @@ export function FileList({
 			setSettledId(targetId);
 			setTimeout(() => setSettledId(null), 300);
 		}
+		draggingIdRef.current = null;
 		setDraggingId(null);
 		setDragOverId(null);
-	};
+	}, [onReorder]);
+
+	if (files.length === 0) return null;
 
 	return (
 		<div className="space-y-4 animate-fade-in">
@@ -158,4 +164,4 @@ export function FileList({
 			)}
 		</div>
 	);
-}
+});

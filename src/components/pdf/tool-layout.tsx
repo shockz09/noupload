@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 
 interface ToolLayoutProps {
 	title: string;
@@ -11,7 +11,7 @@ interface ToolLayoutProps {
 	children: ReactNode;
 }
 
-export function ToolLayout({
+export const ToolLayout = memo(function ToolLayout({
 	title,
 	description,
 	icon,
@@ -55,4 +55,4 @@ export function ToolLayout({
 			<div className="animate-fade-in">{children}</div>
 		</div>
 	);
-}
+});

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { FileInfo, PageHeader } from "@/components/shared";
 
 // Re-export common components
@@ -19,7 +19,7 @@ interface PdfPageHeaderProps {
 	description: string;
 }
 
-export function PdfPageHeader({
+export const PdfPageHeader = memo(function PdfPageHeader({
 	icon,
 	iconClass,
 	title,
@@ -35,7 +35,7 @@ export function PdfPageHeader({
 			backLabel="Back to tools"
 		/>
 	);
-}
+});
 
 // ============ PDF File Info (alias) ============
 export const PdfFileInfo = FileInfo;
