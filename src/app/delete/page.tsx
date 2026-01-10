@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
 	DeletePagesIcon,
 	DownloadIcon,
@@ -10,8 +10,9 @@ import {
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";
+import { useFileProcessing } from "@/hooks";
 import { downloadBlob, extractPagesWithRotation } from "@/lib/pdf-utils";
-import { formatFileSize } from "@/lib/utils";
+import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 function XIcon({ className }: { className?: string }) {
 	return (
@@ -90,22 +91,22 @@ interface PageItem {
 
 export default function DeletePage() {
 	const [file, setFile] = useState<File | null>(null);
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 	const [pageItems, setPageItems] = useState<PageItem[]>([]);
 	const [draggedId, setDraggedId] = useState<string | null>(null);
 	const [dragOverId, setDragOverId] = useState<string | null>(null);
-	const processingRef = useRef(false);
+
+	// Use custom hook for processing state
+	const { isProcessing, error, startProcessing, stopProcessing, setError, clearError } = useFileProcessing();
 
 	const { pages, loading: pagesLoading } = usePdfPages(file, 0.3);
 
 	const handleFileSelected = useCallback((files: File[]) => {
 		if (files.length > 0) {
 			setFile(files[0]);
-			setError(null);
+			clearError();
 			setPageItems([]);
 		}
-	}, []);
+	}, [clearError]);
 
 	// Initialize page items when pages load
 	if (pages.length > 0 && pageItems.length === 0) {
@@ -121,17 +122,17 @@ export default function DeletePage() {
 
 	const handleClear = useCallback(() => {
 		setFile(null);
-		setError(null);
+		clearError();
 		setPageItems([]);
-	}, []);
+	}, [clearError]);
 
-	const toggleDelete = (id: string) => {
+	const toggleDelete = useCallback((id: string) => {
 		setPageItems((prev) =>
 			prev.map((p) => (p.id === id ? { ...p, deleted: !p.deleted } : p)),
 		);
-	};
+	}, []);
 
-	const rotatePage = (id: string) => {
+	const rotatePage = useCallback((id: string) => {
 		setPageItems((prev) =>
 			prev.map((p) =>
 				p.id === id
@@ -139,57 +140,72 @@ export default function DeletePage() {
 					: p,
 			),
 		);
-	};
+	}, []);
+
+	// Ref for stale closure prevention in drag handlers
+	const draggedIdRef = useRef<string | null>(null);
+
+	// Memoize page items as a Map for O(1) lookup
+	const pageItemsMap = useMemo(() => {
+		return new Map(pageItems.map((p) => [p.id, p]));
+	}, [pageItems]);
 
 	// Drag handlers for reordering
-	const handleDragStart = (e: React.DragEvent, id: string) => {
-		const item = pageItems.find((p) => p.id === id);
+	const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
+		const item = pageItemsMap.get(id);
 		if (item?.deleted) return; // Don't drag deleted items
+		draggedIdRef.current = id;
 		setDraggedId(id);
 		e.dataTransfer.effectAllowed = "move";
-	};
+	}, [pageItemsMap]);
 
-	const handleDragOver = (e: React.DragEvent, id: string) => {
+	const handleDragOver = useCallback((e: React.DragEvent, id: string) => {
 		e.preventDefault();
-		const item = pageItems.find((p) => p.id === id);
-		if (draggedId && draggedId !== id && !item?.deleted) {
+		const item = pageItemsMap.get(id);
+		if (draggedIdRef.current && draggedIdRef.current !== id && !item?.deleted) {
 			setDragOverId(id);
 		}
-	};
+	}, [pageItemsMap]);
 
-	const handleDragLeave = () => {
+	const handleDragLeave = useCallback(() => {
 		setDragOverId(null);
-	};
+	}, []);
 
-	const handleDrop = (e: React.DragEvent, targetId: string) => {
+	const handleDrop = useCallback((e: React.DragEvent, targetId: string) => {
 		e.preventDefault();
-		if (!draggedId || draggedId === targetId) {
+		const currentDraggedId = draggedIdRef.current;
+		if (!currentDraggedId || currentDraggedId === targetId) {
+			draggedIdRef.current = null;
 			setDraggedId(null);
 			setDragOverId(null);
 			return;
 		}
 
-		const dragIndex = pageItems.findIndex((p) => p.id === draggedId);
-		const dropIndex = pageItems.findIndex((p) => p.id === targetId);
+		setPageItems((prev) => {
+			const dragIndex = prev.findIndex((p) => p.id === currentDraggedId);
+			const dropIndex = prev.findIndex((p) => p.id === targetId);
 
-		if (dragIndex === -1 || dropIndex === -1) return;
+			if (dragIndex === -1 || dropIndex === -1) return prev;
 
-		const newItems = [...pageItems];
-		const [removed] = newItems.splice(dragIndex, 1);
-		newItems.splice(dropIndex, 0, removed);
+			const newItems = [...prev];
+			const [removed] = newItems.splice(dragIndex, 1);
+			newItems.splice(dropIndex, 0, removed);
+			return newItems;
+		});
 
-		setPageItems(newItems);
+		draggedIdRef.current = null;
 		setDraggedId(null);
 		setDragOverId(null);
-	};
+	}, []);
 
-	const handleDragEnd = () => {
+	const handleDragEnd = useCallback(() => {
+		draggedIdRef.current = null;
 		setDraggedId(null);
 		setDragOverId(null);
-	};
+	}, []);
 
-	const handleDownload = async () => {
-		if (!file || processingRef.current) return;
+	const handleDownload = useCallback(async () => {
+		if (!file) return;
 
 		const remainingItems = pageItems.filter((p) => !p.deleted);
 		if (remainingItems.length === 0) {
@@ -197,9 +213,7 @@ export default function DeletePage() {
 			return;
 		}
 
-		processingRef.current = true;
-		setIsProcessing(true);
-		setError(null);
+		if (!startProcessing()) return;
 
 		try {
 			const pageSpecs = remainingItems.map((p) => ({
@@ -208,30 +222,49 @@ export default function DeletePage() {
 			}));
 			const data = await extractPagesWithRotation(file, pageSpecs);
 
-			const baseName = file.name.replace(/\.pdf$/i, "");
+			const baseName = getFileBaseName(file.name);
 			downloadBlob(data, `${baseName}_edited.pdf`);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to process PDF");
 		} finally {
-			setIsProcessing(false);
-			processingRef.current = false;
+			stopProcessing();
 		}
-	};
+	}, [file, pageItems, startProcessing, setError, stopProcessing]);
 
-	const deletedCount = pageItems.filter((p) => p.deleted).length;
-	const remainingCount = pageItems.length - deletedCount;
-	const rotatedCount = pageItems.filter(
-		(p) => !p.deleted && p.rotation !== 0,
-	).length;
-	const hasChanges =
-		deletedCount > 0 ||
-		rotatedCount > 0 ||
-		pageItems.some((p, i) => !p.deleted && p.pageNumber !== i + 1);
+	// Memoize expensive calculations
+	const { deletedCount, remainingCount, rotatedCount, hasChanges } = useMemo(() => {
+		const deleted = pageItems.filter((p) => p.deleted).length;
+		const remaining = pageItems.length - deleted;
+		const rotated = pageItems.filter((p) => !p.deleted && p.rotation !== 0).length;
+		const hasReordered = pageItems.some((p, i) => !p.deleted && p.pageNumber !== i + 1);
+		return {
+			deletedCount: deleted,
+			remainingCount: remaining,
+			rotatedCount: rotated,
+			hasChanges: deleted > 0 || rotated > 0 || hasReordered,
+		};
+	}, [pageItems]);
 
-	const getPagePreview = (pageNumber: number) => {
-		const page = pages.find((p) => p.pageNumber === pageNumber);
-		return page?.dataUrl || "";
-	};
+	// Memoize page preview lookup map for O(1) access
+	const pagePreviewMap = useMemo(() => {
+		return new Map(pages.map((p) => [p.pageNumber, p.dataUrl]));
+	}, [pages]);
+
+	const getPagePreview = useCallback((pageNumber: number) => {
+		return pagePreviewMap.get(pageNumber) || "";
+	}, [pagePreviewMap]);
+
+	// Memoize reset handler
+	const handleReset = useCallback(() => {
+		setPageItems(
+			pages.map((p) => ({
+				id: `page-${p.pageNumber}`,
+				pageNumber: p.pageNumber,
+				deleted: false,
+				rotation: 0,
+			})),
+		);
+	}, [pages]);
 
 	return (
 		<div className="page-enter max-w-4xl mx-auto space-y-8">
@@ -337,16 +370,7 @@ export default function DeletePage() {
 								{hasChanges && (
 									<button
 										type="button"
-										onClick={() =>
-											setPageItems(
-												pages.map((p) => ({
-													id: `page-${p.pageNumber}`,
-													pageNumber: p.pageNumber,
-													deleted: false,
-													rotation: 0,
-												})),
-											)
-										}
+										onClick={handleReset}
 										className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
 									>
 										Reset
@@ -398,6 +422,8 @@ export default function DeletePage() {
 														alt={`Page ${item.pageNumber}`}
 														className="w-full h-full object-contain transition-transform"
 														style={{ transform: `rotate(${item.rotation}deg)` }}
+														loading="lazy"
+														decoding="async"
 														draggable={false}
 													/>
 												</div>

@@ -13,7 +13,10 @@ import {
 } from "@/components/pdf/shared";
 import { downloadBlob } from "@/lib/pdf-utils";
 import { useQpdf } from "@/lib/qpdf";
-import { formatFileSize } from "@/lib/utils";
+import { formatFileSize, getFileBaseName } from "@/lib/utils";
+
+// Note: encrypt/page.tsx uses useQpdf which already provides isProcessing, progress, error, clearError
+// so we keep the processingRef for double-click prevention only
 
 interface EncryptResult {
 	data: Uint8Array;
@@ -93,7 +96,7 @@ export default function EncryptPage() {
 				},
 			});
 
-			const baseName = file.name.replace(/\.pdf$/i, "");
+			const baseName = getFileBaseName(file.name);
 			setResult({
 				data,
 				filename: `${baseName}_protected.pdf`,

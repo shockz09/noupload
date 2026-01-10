@@ -13,7 +13,7 @@ import {
 } from "@/components/pdf/shared";
 import { downloadBlob } from "@/lib/pdf-utils";
 import { useQpdf } from "@/lib/qpdf";
-import { formatFileSize } from "@/lib/utils";
+import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface DecryptResult {
 	data: Uint8Array;
@@ -71,7 +71,7 @@ export default function DecryptPage() {
 		try {
 			const data = await decrypt(file, password);
 
-			const baseName = file.name.replace(/\.pdf$/i, "");
+			const baseName = getFileBaseName(file.name);
 			setResult({
 				data,
 				filename: `${baseName}_unlocked.pdf`,

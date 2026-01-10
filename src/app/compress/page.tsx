@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { CompressIcon, PdfIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import {
@@ -13,13 +13,14 @@ import {
 	SuccessCard,
 } from "@/components/pdf/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
+import { useFileProcessing } from "@/hooks";
 import {
 	COMPRESSION_DESCRIPTIONS,
 	useGhostscript,
 	type CompressionLevel,
 } from "@/lib/ghostscript/useGhostscript";
 import { downloadBlob } from "@/lib/pdf-utils";
-import { formatFileSize } from "@/lib/utils";
+import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface CompressResult {
 	data: Uint8Array;
@@ -34,23 +35,20 @@ export default function CompressPage() {
 	const [file, setFile] = useState<File | null>(null);
 	const [compressionLevel, setCompressionLevel] =
 		useState<CompressionLevel>("balanced");
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 	const [result, setResult] = useState<CompressResult | null>(null);
-	const processingRef = useRef(false);
+
+	// Use custom hook for processing state
+	const { isProcessing, error, startProcessing, stopProcessing, setError, clearError } = useFileProcessing();
 
 	const processFile = useCallback(
 		async (fileToProcess: File, level: CompressionLevel = "balanced") => {
-			if (processingRef.current) return;
-			processingRef.current = true;
-			setIsProcessing(true);
-			setError(null);
+			if (!startProcessing()) return;
 			setResult(null);
 
 			try {
 				const compressed = await gsCompress(fileToProcess, level);
 
-				const baseName = fileToProcess.name.replace(".pdf", "");
+				const baseName = getFileBaseName(fileToProcess.name);
 				setResult({
 					data: compressed,
 					filename: `${baseName}_compressed.pdf`,
@@ -60,18 +58,17 @@ export default function CompressPage() {
 			} catch (err) {
 				setError(err instanceof Error ? err.message : "Failed to compress PDF");
 			} finally {
-				setIsProcessing(false);
-				processingRef.current = false;
+				stopProcessing();
 			}
 		},
-		[gsCompress],
+		[gsCompress, startProcessing, setError, stopProcessing],
 	);
 
 	const handleFileSelected = useCallback(
 		(files: File[]) => {
 			if (files.length > 0) {
 				setFile(files[0]);
-				setError(null);
+				clearError();
 				setResult(null);
 
 				if (isInstant) {
@@ -79,37 +76,42 @@ export default function CompressPage() {
 				}
 			}
 		},
-		[isInstant, processFile, compressionLevel],
+		[isInstant, processFile, compressionLevel, clearError],
 	);
 
 	const handleClear = useCallback(() => {
 		setFile(null);
-		setError(null);
+		clearError();
 		setResult(null);
-	}, []);
+	}, [clearError]);
 
-	const handleCompress = async () => {
+	const handleCompress = useCallback(async () => {
 		if (!file) return;
 		processFile(file, compressionLevel);
-	};
+	}, [file, compressionLevel, processFile]);
 
-	const handleDownload = (e: React.MouseEvent) => {
+	const handleDownload = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
 		if (result) {
 			downloadBlob(result.data, result.filename);
 		}
-	};
+	}, [result]);
 
-	const handleStartOver = () => {
+	const handleStartOver = useCallback(() => {
 		setFile(null);
 		setResult(null);
-		setError(null);
-	};
+		clearError();
+	}, [clearError]);
 
-	const savings = result
-		? Math.round((1 - result.compressedSize / result.originalSize) * 100)
-		: 0;
+	// Memoize savings calculation
+	const savings = useMemo(
+		() =>
+			result
+				? Math.round((1 - result.compressedSize / result.originalSize) * 100)
+				: 0,
+		[result]
+	);
 
 	if (!isLoaded) return null;
 
@@ -149,11 +151,11 @@ export default function CompressPage() {
 					/>
 
 					{/* Compression Level Selector */}
-					<div className="space-y-3">
-						<label className="text-sm font-medium text-foreground">
+					<fieldset className="space-y-3">
+						<legend className="text-sm font-medium text-foreground">
 							Compression Level
-						</label>
-						<div className="grid grid-cols-3 gap-3">
+						</legend>
+						<div className="grid grid-cols-3 gap-3" role="group">
 							{(["light", "balanced", "maximum"] as CompressionLevel[]).map(
 								(level) => (
 									<button
@@ -181,7 +183,7 @@ export default function CompressPage() {
 						<p className="text-xs text-muted-foreground">
 							{COMPRESSION_DESCRIPTIONS[compressionLevel]}
 						</p>
-					</div>
+					</fieldset>
 
 					<div className="info-box">
 						<svg
@@ -219,11 +221,11 @@ export default function CompressPage() {
 
 					{/* Compression Level Selector (when file selected) */}
 					{!isProcessing && (
-						<div className="space-y-3">
-							<label className="text-sm font-medium text-foreground">
+						<fieldset className="space-y-3">
+							<legend className="text-sm font-medium text-foreground">
 								Compression Level
-							</label>
-							<div className="grid grid-cols-3 gap-3">
+							</legend>
+							<div className="grid grid-cols-3 gap-3" role="group">
 								{(["light", "balanced", "maximum"] as CompressionLevel[]).map(
 									(level) => (
 										<button
@@ -248,7 +250,7 @@ export default function CompressPage() {
 									),
 								)}
 							</div>
-						</div>
+						</fieldset>
 					)}
 
 					{error && <ErrorBox message={error} />}

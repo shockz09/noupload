@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, memo } from "react";
 import {
 	DownloadIcon,
 	DuplicateIcon,
@@ -10,10 +10,11 @@ import {
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";
+import { useFileProcessing } from "@/hooks";
 import { downloadBlob, extractPagesWithRotation } from "@/lib/pdf-utils";
-import { formatFileSize } from "@/lib/utils";
+import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
-function PlusIcon({ className }: { className?: string }) {
+const PlusIcon = memo(function PlusIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -27,9 +28,9 @@ function PlusIcon({ className }: { className?: string }) {
 			<line x1="5" y1="12" x2="19" y2="12" />
 		</svg>
 	);
-}
+});
 
-function XIcon({ className }: { className?: string }) {
+const XIcon = memo(function XIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -43,9 +44,9 @@ function XIcon({ className }: { className?: string }) {
 			<line x1="6" y1="6" x2="18" y2="18" />
 		</svg>
 	);
-}
+});
 
-function GripIcon({ className }: { className?: string }) {
+const GripIcon = memo(function GripIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -63,9 +64,9 @@ function GripIcon({ className }: { className?: string }) {
 			<circle cx="15" cy="18" r="1" fill="currentColor" />
 		</svg>
 	);
-}
+});
 
-function RotateIcon({ className }: { className?: string }) {
+const RotateIcon = memo(function RotateIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -79,7 +80,7 @@ function RotateIcon({ className }: { className?: string }) {
 			<path d="M21 3v5h-5" />
 		</svg>
 	);
-}
+});
 
 interface PageItem {
 	id: string;
@@ -90,12 +91,12 @@ interface PageItem {
 
 export default function DuplicatePage() {
 	const [file, setFile] = useState<File | null>(null);
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 	const [pageItems, setPageItems] = useState<PageItem[]>([]);
 	const [draggedId, setDraggedId] = useState<string | null>(null);
 	const [dragOverId, setDragOverId] = useState<string | null>(null);
-	const processingRef = useRef(false);
+
+	// Use custom hook for processing state
+	const { isProcessing, error, startProcessing, stopProcessing, setError, clearError } = useFileProcessing();
 
 	const { pages, loading: pagesLoading } = usePdfPages(file, 0.3);
 
@@ -103,10 +104,10 @@ export default function DuplicatePage() {
 	const handleFileSelected = useCallback((files: File[]) => {
 		if (files.length > 0) {
 			setFile(files[0]);
-			setError(null);
+			clearError();
 			setPageItems([]);
 		}
-	}, []);
+	}, [clearError]);
 
 	// Update page items when pages change
 	if (pages.length > 0 && pageItems.length === 0) {
@@ -122,28 +123,30 @@ export default function DuplicatePage() {
 
 	const handleClear = useCallback(() => {
 		setFile(null);
-		setError(null);
+		clearError();
 		setPageItems([]);
+	}, [clearError]);
+
+	const duplicatePage = useCallback((afterId: string) => {
+		setPageItems((prev) => {
+			const index = prev.findIndex((p) => p.id === afterId);
+			if (index === -1) return prev;
+
+			const item = prev[index];
+			const newItem: PageItem = {
+				id: `dup-${item.pageNumber}-${Date.now()}`,
+				pageNumber: item.pageNumber,
+				isDuplicate: true,
+				rotation: item.rotation,
+			};
+
+			const newItems = [...prev];
+			newItems.splice(index + 1, 0, newItem);
+			return newItems;
+		});
 	}, []);
 
-	const duplicatePage = (afterId: string) => {
-		const index = pageItems.findIndex((p) => p.id === afterId);
-		if (index === -1) return;
-
-		const item = pageItems[index];
-		const newItem: PageItem = {
-			id: `dup-${item.pageNumber}-${Date.now()}`,
-			pageNumber: item.pageNumber,
-			isDuplicate: true,
-			rotation: item.rotation, // Copy rotation from original
-		};
-
-		const newItems = [...pageItems];
-		newItems.splice(index + 1, 0, newItem);
-		setPageItems(newItems);
-	};
-
-	const rotatePage = (id: string) => {
+	const rotatePage = useCallback((id: string) => {
 		setPageItems((prev) =>
 			prev.map((p) =>
 				p.id === id
@@ -151,61 +154,66 @@ export default function DuplicatePage() {
 					: p,
 			),
 		);
-	};
+	}, []);
 
-	const removePage = (id: string) => {
+	const removePage = useCallback((id: string) => {
 		setPageItems((prev) => prev.filter((p) => p.id !== id));
-	};
+	}, []);
+
+	// Use ref for draggedId to avoid stale closures in drag handlers
+	const draggedIdRef = useRef(draggedId);
+	draggedIdRef.current = draggedId;
 
 	// Drag and drop handlers
-	const handleDragStart = (e: React.DragEvent, id: string) => {
+	const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
 		setDraggedId(id);
 		e.dataTransfer.effectAllowed = "move";
-	};
+	}, []);
 
-	const handleDragOver = (e: React.DragEvent, id: string) => {
+	const handleDragOver = useCallback((e: React.DragEvent, id: string) => {
 		e.preventDefault();
-		if (draggedId && draggedId !== id) {
+		if (draggedIdRef.current && draggedIdRef.current !== id) {
 			setDragOverId(id);
 		}
-	};
+	}, []);
 
-	const handleDragLeave = () => {
+	const handleDragLeave = useCallback(() => {
 		setDragOverId(null);
-	};
+	}, []);
 
-	const handleDrop = (e: React.DragEvent, targetId: string) => {
+	const handleDrop = useCallback((e: React.DragEvent, targetId: string) => {
 		e.preventDefault();
-		if (!draggedId || draggedId === targetId) {
+		const currentDraggedId = draggedIdRef.current;
+		if (!currentDraggedId || currentDraggedId === targetId) {
 			setDraggedId(null);
 			setDragOverId(null);
 			return;
 		}
 
-		const dragIndex = pageItems.findIndex((p) => p.id === draggedId);
-		const dropIndex = pageItems.findIndex((p) => p.id === targetId);
+		setPageItems((prev) => {
+			const dragIndex = prev.findIndex((p) => p.id === currentDraggedId);
+			const dropIndex = prev.findIndex((p) => p.id === targetId);
 
-		if (dragIndex === -1 || dropIndex === -1) return;
+			if (dragIndex === -1 || dropIndex === -1) return prev;
 
-		const newItems = [...pageItems];
-		const [removed] = newItems.splice(dragIndex, 1);
-		newItems.splice(dropIndex, 0, removed);
+			const newItems = [...prev];
+			const [removed] = newItems.splice(dragIndex, 1);
+			newItems.splice(dropIndex, 0, removed);
+			return newItems;
+		});
 
-		setPageItems(newItems);
 		setDraggedId(null);
 		setDragOverId(null);
-	};
+	}, []);
 
-	const handleDragEnd = () => {
+	const handleDragEnd = useCallback(() => {
 		setDraggedId(null);
 		setDragOverId(null);
-	};
+	}, []);
 
-	const handleDownload = async () => {
-		if (!file || pageItems.length === 0 || processingRef.current) return;
-		processingRef.current = true;
-		setIsProcessing(true);
-		setError(null);
+	const handleDownload = useCallback(async () => {
+		if (!file || pageItems.length === 0) return;
+		if (!startProcessing()) return;
 
 		try {
 			const pageSpecs = pageItems.map((p) => ({
@@ -214,7 +222,7 @@ export default function DuplicatePage() {
 			}));
 			const data = await extractPagesWithRotation(file, pageSpecs);
 
-			const baseName = file.name.replace(/\.pdf$/i, "");
+			const baseName = getFileBaseName(file.name);
 			const hasDuplicates = pageItems.some((p) => p.isDuplicate);
 			const hasRotations = pageItems.some((p) => p.rotation !== 0);
 			let suffix = "_modified";
@@ -226,22 +234,34 @@ export default function DuplicatePage() {
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to process PDF");
 		} finally {
-			setIsProcessing(false);
-			processingRef.current = false;
+			stopProcessing();
 		}
-	};
+	}, [file, pageItems, startProcessing, setError, stopProcessing]);
 
-	const duplicateCount = pageItems.filter((p) => p.isDuplicate).length;
-	const rotatedCount = pageItems.filter((p) => p.rotation !== 0).length;
-	const hasChanges =
+	const duplicateCount = useMemo(() => pageItems.filter((p) => p.isDuplicate).length, [pageItems]);
+	const rotatedCount = useMemo(() => pageItems.filter((p) => p.rotation !== 0).length, [pageItems]);
+	const hasChanges = useMemo(() =>
 		duplicateCount > 0 ||
 		rotatedCount > 0 ||
-		pageItems.some((p, i) => p.pageNumber !== i + 1);
+		pageItems.some((p, i) => p.pageNumber !== i + 1),
+	[duplicateCount, rotatedCount, pageItems]);
 
-	const getPagePreview = (pageNumber: number) => {
+	const getPagePreview = useCallback((pageNumber: number) => {
 		const page = pages.find((p) => p.pageNumber === pageNumber);
 		return page?.dataUrl || "";
-	};
+	}, [pages]);
+
+	// Reset handler
+	const handleReset = useCallback(() => {
+		setPageItems(
+			pages.map((p) => ({
+				id: `page-${p.pageNumber}`,
+				pageNumber: p.pageNumber,
+				isDuplicate: false,
+				rotation: 0,
+			})),
+		);
+	}, [pages]);
 
 	return (
 		<div className="page-enter max-w-4xl mx-auto space-y-8">
@@ -347,16 +367,7 @@ export default function DuplicatePage() {
 								{hasChanges && (
 									<button
 										type="button"
-										onClick={() =>
-											setPageItems(
-												pages.map((p) => ({
-													id: `page-${p.pageNumber}`,
-													pageNumber: p.pageNumber,
-													isDuplicate: false,
-													rotation: 0,
-												})),
-											)
-										}
+										onClick={handleReset}
 										className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
 									>
 										Reset
@@ -400,6 +411,8 @@ export default function DuplicatePage() {
 														className="w-full h-full object-contain transition-transform"
 														style={{ transform: `rotate(${item.rotation}deg)` }}
 														draggable={false}
+														loading="lazy"
+														decoding="async"
 													/>
 												</div>
 

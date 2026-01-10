@@ -11,14 +11,16 @@ import {
 	SuccessCard,
 } from "@/components/pdf/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
+import { useFileProcessing } from "@/hooks";
 import { useGhostscript } from "@/lib/ghostscript/useGhostscript";
 import { downloadBlob } from "@/lib/pdf-utils";
-import { formatFileSize } from "@/lib/utils";
+import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 // Grayscale icon
 function GrayscaleIcon({ className }: { className?: string }) {
 	return (
 		<svg
+			aria-hidden="true"
 			className={className}
 			viewBox="0 0 24 24"
 			fill="none"
@@ -44,24 +46,21 @@ export default function GrayscalePage() {
 	const { isInstant, isLoaded } = useInstantMode();
 	const { toGrayscale, progress: gsProgress } = useGhostscript();
 	const [file, setFile] = useState<File | null>(null);
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 	const [result, setResult] = useState<ConvertResult | null>(null);
-	const processingRef = useRef(false);
 	const instantTriggeredRef = useRef(false);
+
+	// Use custom hook for processing state
+	const { isProcessing, error, startProcessing, stopProcessing, setError, clearError } = useFileProcessing();
 
 	const processFile = useCallback(
 		async (fileToProcess: File) => {
-			if (processingRef.current) return;
-			processingRef.current = true;
-			setIsProcessing(true);
-			setError(null);
+			if (!startProcessing()) return;
 			setResult(null);
 
 			try {
 				const converted = await toGrayscale(fileToProcess);
 
-				const baseName = fileToProcess.name.replace(".pdf", "");
+				const baseName = getFileBaseName(fileToProcess.name);
 				setResult({
 					data: converted,
 					filename: `${baseName}_grayscale.pdf`,
@@ -71,23 +70,22 @@ export default function GrayscalePage() {
 			} catch (err) {
 				setError(err instanceof Error ? err.message : "Failed to convert PDF");
 			} finally {
-				setIsProcessing(false);
-				processingRef.current = false;
+				stopProcessing();
 			}
 		},
-		[toGrayscale],
+		[toGrayscale, startProcessing, setError, stopProcessing],
 	);
 
 	const handleFileSelected = useCallback(
 		(files: File[]) => {
 			if (files.length > 0) {
 				setFile(files[0]);
-				setError(null);
+				clearError();
 				setResult(null);
 				instantTriggeredRef.current = false;
 			}
 		},
-		[],
+		[clearError],
 	);
 
 	// Instant mode auto-process
@@ -100,29 +98,29 @@ export default function GrayscalePage() {
 
 	const handleClear = useCallback(() => {
 		setFile(null);
-		setError(null);
+		clearError();
 		setResult(null);
-	}, []);
+	}, [clearError]);
 
-	const handleConvert = async () => {
+	const handleConvert = useCallback(async () => {
 		if (!file) return;
 		processFile(file);
-	};
+	}, [file, processFile]);
 
-	const handleDownload = (e: React.MouseEvent) => {
+	const handleDownload = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
 		if (result) {
 			downloadBlob(result.data, result.filename);
 		}
-	};
+	}, [result]);
 
-	const handleStartOver = () => {
+	const handleStartOver = useCallback(() => {
 		setFile(null);
 		setResult(null);
-		setError(null);
+		clearError();
 		instantTriggeredRef.current = false;
-	};
+	}, [clearError]);
 
 	if (!isLoaded) return null;
 
