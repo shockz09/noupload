@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { FileInfo, PageHeader } from "@/components/shared";
 
 // Re-export common components
@@ -19,7 +19,7 @@ interface ImagePageHeaderProps {
 	description: string;
 }
 
-export function ImagePageHeader({
+export const ImagePageHeader = memo(function ImagePageHeader({
 	icon,
 	iconClass,
 	title,
@@ -35,7 +35,7 @@ export function ImagePageHeader({
 			backLabel="Back to Image Tools"
 		/>
 	);
-}
+});
 
 // ============ Image File Info (alias) ============
 export const ImageFileInfo = FileInfo;
