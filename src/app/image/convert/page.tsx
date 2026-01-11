@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ConvertIcon, ImageIcon } from "@/components/icons";
 import {
 	ComparisonDisplay,
@@ -14,16 +14,20 @@ import {
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import {
+	useFileProcessing,
+	useImagePaste,
+	useObjectURL,
+	useProcessingResult,
+} from "@/hooks";
+import {
 	convertFormat,
 	copyImageToClipboard,
-	downloadImage,
 	formatFileSize,
 	type ImageFormat,
 } from "@/lib/image-utils";
+import { getFileBaseName } from "@/lib/utils";
 
-interface ConvertResult {
-	blob: Blob;
-	filename: string;
+interface ConvertMetadata {
 	originalFormat: string;
 	newFormat: ImageFormat;
 }
@@ -49,51 +53,40 @@ const formats: { value: ImageFormat; label: string; description: string }[] = [
 export default function ImageConvertPage() {
 	const { isInstant, isLoaded } = useInstantMode();
 	const [file, setFile] = useState<File | null>(null);
-	const [preview, setPreview] = useState<string | null>(null);
 	const [targetFormat, setTargetFormat] = useState<ImageFormat>("jpeg");
 	const [quality, setQuality] = useState(90);
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [progress, setProgress] = useState(0);
-	const [error, setError] = useState<string | null>(null);
-	const [result, setResult] = useState<ConvertResult | null>(null);
-	const processingRef = useRef(false);
+
+	// Use custom hooks
+	const { url: preview, setSource: setPreview, revoke: revokePreview } = useObjectURL();
+	const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError } = useFileProcessing();
+	const { result, setResult, clearResult, download } = useProcessingResult<ConvertMetadata>();
 
 	const processFile = useCallback(
 		async (fileToProcess: File, format: ImageFormat, q: number) => {
-			if (processingRef.current) return;
-			processingRef.current = true;
-			setIsProcessing(true);
-			setProgress(0);
-			setError(null);
-			setResult(null);
+			if (!startProcessing()) return;
 
 			try {
 				setProgress(30);
 				const converted = await convertFormat(fileToProcess, format, q / 100);
 				setProgress(90);
 
-				const baseName = fileToProcess.name.split(".").slice(0, -1).join(".");
+				const baseName = getFileBaseName(fileToProcess.name);
 				const ext = format === "jpeg" ? "jpg" : format;
-				const originalExt =
-					fileToProcess.name.split(".").pop()?.toUpperCase() || "Unknown";
+				const originalExt = fileToProcess.name.split(".").pop()?.toUpperCase() || "Unknown";
 
-				setResult({
-					blob: converted,
-					filename: `${baseName}.${ext}`,
-					originalFormat: originalExt,
-					newFormat: format,
-				});
+				setResult(
+					converted,
+					`${baseName}.${ext}`,
+					{ originalFormat: originalExt, newFormat: format }
+				);
 				setProgress(100);
 			} catch (err) {
-				setError(
-					err instanceof Error ? err.message : "Failed to convert image",
-				);
+				setError(err instanceof Error ? err.message : "Failed to convert image");
 			} finally {
-				setIsProcessing(false);
-				processingRef.current = false;
+				stopProcessing();
 			}
 		},
-		[],
+		[startProcessing, setProgress, setResult, setError, stopProcessing],
 	);
 
 	const handleFileSelected = useCallback(
@@ -101,11 +94,8 @@ export default function ImageConvertPage() {
 			if (files.length > 0) {
 				const selectedFile = files[0];
 				setFile(selectedFile);
-				setError(null);
-				setResult(null);
-
-				const url = URL.createObjectURL(selectedFile);
-				setPreview(url);
+				clearResult();
+				setPreview(selectedFile);
 
 				// Auto-select a different format as target
 				const ext = selectedFile.name.split(".").pop()?.toLowerCase();
@@ -114,65 +104,51 @@ export default function ImageConvertPage() {
 				else if (ext === "webp") setTargetFormat("jpeg");
 
 				if (isInstant) {
-					// Instant mode: convert to PNG by default
 					processFile(selectedFile, "png", 100);
 				}
 			}
 		},
-		[isInstant, processFile],
+		[isInstant, processFile, clearResult, setPreview],
 	);
 
+	// Use clipboard paste hook
+	useImagePaste(handleFileSelected, !result);
+
 	const handleClear = useCallback(() => {
-		if (preview) URL.revokeObjectURL(preview);
+		revokePreview();
 		setFile(null);
-		setPreview(null);
-		setError(null);
-		setResult(null);
-	}, [preview]);
+		clearResult();
+	}, [revokePreview, clearResult]);
 
-	useEffect(() => {
-		return () => {
-			if (preview) URL.revokeObjectURL(preview);
-		};
-	}, [preview]);
-
-	useEffect(() => {
-		const handlePaste = (e: ClipboardEvent) => {
-			const items = e.clipboardData?.items;
-			if (!items) return;
-			for (const item of items) {
-				if (item.type.startsWith("image/")) {
-					const file = item.getAsFile();
-					if (file) handleFileSelected([file]);
-					break;
-				}
-			}
-		};
-		window.addEventListener("paste", handlePaste);
-		return () => window.removeEventListener("paste", handlePaste);
-	}, [handleFileSelected]);
-
-	const handleConvert = async () => {
+	const handleConvert = useCallback(async () => {
 		if (!file) return;
 		processFile(file, targetFormat, quality);
-	};
+	}, [file, targetFormat, quality, processFile]);
 
-	const handleDownload = (e: React.MouseEvent) => {
+	const handleDownload = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
-		if (result) downloadImage(result.blob, result.filename);
-	};
+		download();
+	}, [download]);
 
-	const handleStartOver = () => {
-		if (preview) URL.revokeObjectURL(preview);
+	const handleStartOver = useCallback(() => {
+		revokePreview();
 		setFile(null);
-		setPreview(null);
-		setResult(null);
-		setError(null);
-		setProgress(0);
-	};
+		clearResult();
+	}, [revokePreview, clearResult]);
 
-	const showQualitySlider = targetFormat === "jpeg" || targetFormat === "webp";
+	const handleFormatSelect = useCallback((format: ImageFormat) => {
+		setTargetFormat(format);
+	}, []);
+
+	const handleQualityChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		setQuality(Number(e.target.value));
+	}, []);
+
+	const showQualitySlider = useMemo(() =>
+		targetFormat === "jpeg" || targetFormat === "webp",
+		[targetFormat]
+	);
 
 	if (!isLoaded) return null;
 
@@ -189,7 +165,7 @@ export default function ImageConvertPage() {
 				<SuccessCard
 					stampText="Converted"
 					title="Image Converted!"
-					downloadLabel={`Download ${result.newFormat.toUpperCase()}`}
+					downloadLabel={`Download ${result.metadata?.newFormat.toUpperCase()}`}
 					onDownload={handleDownload}
 					onCopy={() => copyImageToClipboard(result.blob)}
 					onStartOver={handleStartOver}
@@ -197,9 +173,9 @@ export default function ImageConvertPage() {
 				>
 					<ComparisonDisplay
 						originalLabel="Original"
-						originalValue={result.originalFormat}
+						originalValue={result.metadata?.originalFormat ?? ""}
 						newLabel="New Format"
-						newValue={result.newFormat.toUpperCase()}
+						newValue={result.metadata?.newFormat.toUpperCase() ?? ""}
 					/>
 					<p className="text-sm text-muted-foreground">
 						File size: {formatFileSize(result.blob.size)}
@@ -248,6 +224,8 @@ export default function ImageConvertPage() {
 								src={preview}
 								alt="Preview"
 								className="max-h-48 mx-auto object-contain"
+								loading="lazy"
+								decoding="async"
 							/>
 						</div>
 					)}
@@ -266,7 +244,7 @@ export default function ImageConvertPage() {
 								<button
 									type="button"
 									key={format.value}
-									onClick={() => setTargetFormat(format.value)}
+									onClick={() => handleFormatSelect(format.value)}
 									className={`px-4 py-3 text-sm font-bold border-2 border-foreground transition-colors ${
 										targetFormat === format.value
 											? "bg-foreground text-background"
@@ -295,7 +273,7 @@ export default function ImageConvertPage() {
 								min="10"
 								max="100"
 								value={quality}
-								onChange={(e) => setQuality(Number(e.target.value))}
+								onChange={handleQualityChange}
 								className="w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-foreground [&::-webkit-slider-thumb]:cursor-pointer"
 							/>
 							<div className="flex justify-between text-xs text-muted-foreground font-medium">

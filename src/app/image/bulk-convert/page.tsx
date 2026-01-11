@@ -20,6 +20,7 @@ import {
 	formatFileSize,
 	type ImageFormat,
 } from "@/lib/image-utils";
+import { getFileBaseName } from "@/lib/utils";
 
 interface FileItem {
 	id: string;
@@ -76,7 +77,7 @@ export default function BulkConvertPage() {
 				const batchResults = await Promise.all(
 					batch.map(async ({ file }) => {
 						const blob = await convertFormat(file, targetFormat, quality / 100);
-						const baseName = file.name.split(".").slice(0, -1).join(".");
+						const baseName = getFileBaseName(file.name);
 						return { original: file, blob, filename: `${baseName}.${ext}` };
 					}),
 				);
@@ -153,9 +154,9 @@ export default function BulkConvertPage() {
 					</div>
 
 					<div className="space-y-2">
-						{results.map((item, i) => (
+						{results.map((item) => (
 							<div
-								key={i}
+								key={item.filename}
 								className="flex items-center justify-between p-3 border-2 border-foreground bg-background"
 							>
 								<div className="flex-1 min-w-0">

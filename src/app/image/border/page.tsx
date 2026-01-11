@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { BorderIcon, LoaderIcon } from "@/components/icons";
 import {
 	ErrorBox,
@@ -9,14 +9,18 @@ import {
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import {
+	useFileProcessing,
+	useImagePaste,
+	useObjectURL,
+	useProcessingResult,
+} from "@/hooks";
+import {
 	addBorder,
 	copyImageToClipboard,
-	downloadImage,
 	formatFileSize,
 	getOutputFilename,
 } from "@/lib/image-utils";
 
-// 6 colors to fit in one row
 const presetColors = [
 	"#000000",
 	"#FFFFFF",
@@ -26,7 +30,6 @@ const presetColors = [
 	"#eab308",
 ];
 
-// Width presets
 const widthPresets = [
 	{ value: 10, label: "S" },
 	{ value: 30, label: "M" },
@@ -36,83 +39,76 @@ const widthPresets = [
 
 export default function ImageBorderPage() {
 	const [file, setFile] = useState<File | null>(null);
-	const [preview, setPreview] = useState<string | null>(null);
 	const [borderWidth, setBorderWidth] = useState(30);
 	const [borderColor, setBorderColor] = useState("#000000");
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [result, setResult] = useState<{ blob: Blob; filename: string } | null>(
-		null,
-	);
+
+	// Use custom hooks
+	const { url: preview, setSource: setPreview, revoke: revokePreview } = useObjectURL();
+	const { isProcessing, error, startProcessing, stopProcessing, setError } = useFileProcessing();
+	const { result, setResult, clearResult, download } = useProcessingResult();
 
 	const handleFileSelected = useCallback((files: File[]) => {
 		if (files.length > 0) {
 			setFile(files[0]);
-			setError(null);
-			setResult(null);
-			setPreview(URL.createObjectURL(files[0]));
+			clearResult();
+			setPreview(files[0]);
 		}
-	}, []);
+	}, [clearResult, setPreview]);
+
+	// Use clipboard paste hook
+	useImagePaste(handleFileSelected, !result);
 
 	const handleClear = useCallback(() => {
-		if (preview) URL.revokeObjectURL(preview);
+		revokePreview();
 		setFile(null);
-		setPreview(null);
-		setError(null);
-		setResult(null);
-	}, [preview]);
+		clearResult();
+	}, [revokePreview, clearResult]);
 
-	useEffect(() => {
-		return () => {
-			if (preview) URL.revokeObjectURL(preview);
-		};
-	}, [preview]);
-
-	useEffect(() => {
-		const handlePaste = (e: ClipboardEvent) => {
-			const items = e.clipboardData?.items;
-			if (!items) return;
-			for (const item of items) {
-				if (item.type.startsWith("image/")) {
-					const f = item.getAsFile();
-					if (f) handleFileSelected([f]);
-					break;
-				}
-			}
-		};
-		window.addEventListener("paste", handlePaste);
-		return () => window.removeEventListener("paste", handlePaste);
-	}, [handleFileSelected]);
-
-	const handleApply = async () => {
+	const handleApply = useCallback(async () => {
 		if (!file) return;
-		setIsProcessing(true);
-		setError(null);
+		if (!startProcessing()) return;
+
 		try {
 			const bordered = await addBorder(file, borderWidth, borderColor);
-			setResult({
-				blob: bordered,
-				filename: getOutputFilename(file.name, undefined, "_bordered"),
-			});
+			setResult(bordered, getOutputFilename(file.name, undefined, "_bordered"));
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to add border");
 		} finally {
-			setIsProcessing(false);
+			stopProcessing();
 		}
-	};
+	}, [file, borderWidth, borderColor, startProcessing, setResult, setError, stopProcessing]);
 
-	const handleDownload = (e: React.MouseEvent) => {
+	const handleDownload = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
-		if (result) downloadImage(result.blob, result.filename);
-	};
+		download();
+	}, [download]);
 
-	const handleStartOver = () => {
-		if (preview) URL.revokeObjectURL(preview);
+	const handleStartOver = useCallback(() => {
+		revokePreview();
 		setFile(null);
-		setPreview(null);
-		setResult(null);
-		setError(null);
-	};
+		clearResult();
+	}, [revokePreview, clearResult]);
+
+	const handleWidthPreset = useCallback((width: number) => {
+		setBorderWidth(width);
+	}, []);
+
+	const handleWidthChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		setBorderWidth(Number(e.target.value));
+	}, []);
+
+	const handleColorPreset = useCallback((color: string) => {
+		setBorderColor(color);
+	}, []);
+
+	const handleColorChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		setBorderColor(e.target.value);
+	}, []);
+
+	const previewPadding = useMemo(() =>
+		Math.min(borderWidth * 0.15, 20),
+		[borderWidth]
+	);
 
 	return (
 		<div className="page-enter max-w-4xl mx-auto space-y-8">
@@ -164,7 +160,7 @@ export default function ImageBorderPage() {
 						<div className="border-2 border-foreground p-2 bg-muted/30 flex justify-center items-center min-h-[200px]">
 							<div
 								style={{
-									padding: `${Math.min(borderWidth * 0.15, 20)}px`,
+									padding: `${previewPadding}px`,
 									backgroundColor: borderColor,
 								}}
 								className="inline-block transition-all duration-150"
@@ -173,6 +169,8 @@ export default function ImageBorderPage() {
 									src={preview!}
 									alt="Preview"
 									className="max-h-[160px] object-contain block"
+									loading="lazy"
+									decoding="async"
 								/>
 							</div>
 						</div>
@@ -196,7 +194,7 @@ export default function ImageBorderPage() {
 									<button
 										type="button"
 										key={preset.value}
-										onClick={() => setBorderWidth(preset.value)}
+										onClick={() => handleWidthPreset(preset.value)}
 										className={`flex-1 py-1.5 text-xs font-bold border-2 transition-all ${
 											borderWidth === preset.value
 												? "border-foreground bg-foreground text-background"
@@ -212,7 +210,7 @@ export default function ImageBorderPage() {
 								min="1"
 								max="200"
 								value={borderWidth}
-								onChange={(e) => setBorderWidth(Number(e.target.value))}
+								onChange={handleWidthChange}
 								className="w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:cursor-pointer"
 							/>
 						</div>
@@ -227,7 +225,7 @@ export default function ImageBorderPage() {
 									<button
 										type="button"
 										key={color}
-										onClick={() => setBorderColor(color)}
+										onClick={() => handleColorPreset(color)}
 										className={`w-7 h-8 border-2 transition-all ${
 											borderColor === color
 												? "border-foreground ring-2 ring-offset-1 ring-foreground"
@@ -239,7 +237,7 @@ export default function ImageBorderPage() {
 								<input
 									type="color"
 									value={borderColor}
-									onChange={(e) => setBorderColor(e.target.value)}
+									onChange={handleColorChange}
 									className="w-7 h-8 border-2 border-foreground/20 cursor-pointer"
 								/>
 							</div>

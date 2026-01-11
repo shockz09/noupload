@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { BrightnessIcon, LoaderIcon } from "@/components/icons";
 import {
 	ErrorBox,
@@ -9,115 +9,118 @@ import {
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import {
+	useFileProcessing,
+	useImagePaste,
+	useObjectURL,
+	useProcessingResult,
+} from "@/hooks";
+import {
 	adjustImage,
 	copyImageToClipboard,
-	downloadImage,
 	formatFileSize,
 	getOutputFilename,
 } from "@/lib/image-utils";
 
+const sliderClass =
+	"w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:cursor-pointer";
+
 export default function ImageAdjustPage() {
 	const [file, setFile] = useState<File | null>(null);
-	const [preview, setPreview] = useState<string | null>(null);
 	const [brightness, setBrightness] = useState(0);
 	const [contrast, setContrast] = useState(0);
 	const [saturation, setSaturation] = useState(0);
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [result, setResult] = useState<{ blob: Blob; filename: string } | null>(
-		null,
-	);
+
+	// Use custom hooks
+	const { url: preview, setSource: setPreview, revoke: revokePreview } = useObjectURL();
+	const { isProcessing, error, startProcessing, stopProcessing, setError } = useFileProcessing();
+	const { result, setResult, clearResult, download } = useProcessingResult();
 
 	const handleFileSelected = useCallback((files: File[]) => {
 		if (files.length > 0) {
 			setFile(files[0]);
-			setError(null);
-			setResult(null);
+			clearResult();
 			setBrightness(0);
 			setContrast(0);
 			setSaturation(0);
-			setPreview(URL.createObjectURL(files[0]));
+			setPreview(files[0]);
 		}
-	}, []);
+	}, [clearResult, setPreview]);
+
+	// Use clipboard paste hook
+	useImagePaste(handleFileSelected, !result);
 
 	const handleClear = useCallback(() => {
-		if (preview) URL.revokeObjectURL(preview);
+		revokePreview();
 		setFile(null);
-		setPreview(null);
-		setError(null);
-		setResult(null);
+		clearResult();
 		setBrightness(0);
 		setContrast(0);
 		setSaturation(0);
-	}, [preview]);
+	}, [revokePreview, clearResult]);
 
-	useEffect(() => {
-		return () => {
-			if (preview) URL.revokeObjectURL(preview);
-		};
-	}, [preview]);
-
-	useEffect(() => {
-		const handlePaste = (e: ClipboardEvent) => {
-			const items = e.clipboardData?.items;
-			if (!items) return;
-			for (const item of items) {
-				if (item.type.startsWith("image/")) {
-					const f = item.getAsFile();
-					if (f) handleFileSelected([f]);
-					break;
-				}
-			}
-		};
-		window.addEventListener("paste", handlePaste);
-		return () => window.removeEventListener("paste", handlePaste);
-	}, [handleFileSelected]);
-
-	const filterStyle = {
+	const filterStyle = useMemo(() => ({
 		filter: `brightness(${100 + brightness}%) contrast(${100 + contrast}%) saturate(${100 + saturation}%)`,
-	};
+	}), [brightness, contrast, saturation]);
 
-	const hasChanges = brightness !== 0 || contrast !== 0 || saturation !== 0;
+	const hasChanges = useMemo(() =>
+		brightness !== 0 || contrast !== 0 || saturation !== 0,
+		[brightness, contrast, saturation]
+	);
 
-	const handleApply = async () => {
+	const handleApply = useCallback(async () => {
 		if (!file) return;
-		setIsProcessing(true);
-		setError(null);
+		if (!startProcessing()) return;
+
 		try {
 			const adjusted = await adjustImage(file, {
 				brightness,
 				contrast,
 				saturation,
 			});
-			setResult({
-				blob: adjusted,
-				filename: getOutputFilename(file.name, undefined, "_adjusted"),
-			});
+			setResult(adjusted, getOutputFilename(file.name, undefined, "_adjusted"));
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to adjust image");
 		} finally {
-			setIsProcessing(false);
+			stopProcessing();
 		}
-	};
+	}, [file, brightness, contrast, saturation, startProcessing, setResult, setError, stopProcessing]);
 
-	const handleDownload = (e: React.MouseEvent) => {
+	const handleDownload = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
-		if (result) downloadImage(result.blob, result.filename);
-	};
+		download();
+	}, [download]);
 
-	const handleStartOver = () => {
-		if (preview) URL.revokeObjectURL(preview);
+	const handleStartOver = useCallback(() => {
+		revokePreview();
 		setFile(null);
-		setPreview(null);
-		setResult(null);
-		setError(null);
+		clearResult();
 		setBrightness(0);
 		setContrast(0);
 		setSaturation(0);
-	};
+	}, [revokePreview, clearResult]);
 
-	const sliderClass =
-		"w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:cursor-pointer";
+	const handleBrightnessChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		setBrightness(Number(e.target.value));
+	}, []);
+
+	const handleContrastChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		setContrast(Number(e.target.value));
+	}, []);
+
+	const handleSaturationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		setSaturation(Number(e.target.value));
+	}, []);
+
+	const handleReset = useCallback(() => {
+		setBrightness(0);
+		setContrast(0);
+		setSaturation(0);
+	}, []);
+
+	const formatValue = useCallback((val: number) =>
+		val > 0 ? `+${val}` : String(val),
+		[]
+	);
 
 	return (
 		<div className="page-enter max-w-4xl mx-auto space-y-8">
@@ -172,6 +175,8 @@ export default function ImageAdjustPage() {
 								alt="Preview"
 								style={filterStyle}
 								className="max-h-[180px] max-w-full object-contain transition-all duration-100"
+								loading="lazy"
+								decoding="async"
 							/>
 						</div>
 						<p className="text-xs text-muted-foreground truncate">
@@ -188,7 +193,7 @@ export default function ImageAdjustPage() {
 									Brightness
 								</span>
 								<span className="text-xs font-bold tabular-nums">
-									{brightness > 0 ? `+${brightness}` : brightness}
+									{formatValue(brightness)}
 								</span>
 							</div>
 							<input
@@ -196,7 +201,7 @@ export default function ImageAdjustPage() {
 								min="-100"
 								max="100"
 								value={brightness}
-								onChange={(e) => setBrightness(Number(e.target.value))}
+								onChange={handleBrightnessChange}
 								className={sliderClass}
 							/>
 						</div>
@@ -208,7 +213,7 @@ export default function ImageAdjustPage() {
 									Contrast
 								</span>
 								<span className="text-xs font-bold tabular-nums">
-									{contrast > 0 ? `+${contrast}` : contrast}
+									{formatValue(contrast)}
 								</span>
 							</div>
 							<input
@@ -216,7 +221,7 @@ export default function ImageAdjustPage() {
 								min="-100"
 								max="100"
 								value={contrast}
-								onChange={(e) => setContrast(Number(e.target.value))}
+								onChange={handleContrastChange}
 								className={sliderClass}
 							/>
 						</div>
@@ -228,7 +233,7 @@ export default function ImageAdjustPage() {
 									Saturation
 								</span>
 								<span className="text-xs font-bold tabular-nums">
-									{saturation > 0 ? `+${saturation}` : saturation}
+									{formatValue(saturation)}
 								</span>
 							</div>
 							<input
@@ -236,7 +241,7 @@ export default function ImageAdjustPage() {
 								min="-100"
 								max="100"
 								value={saturation}
-								onChange={(e) => setSaturation(Number(e.target.value))}
+								onChange={handleSaturationChange}
 								className={sliderClass}
 							/>
 						</div>
@@ -245,11 +250,7 @@ export default function ImageAdjustPage() {
 						{hasChanges && (
 							<button
 								type="button"
-								onClick={() => {
-									setBrightness(0);
-									setContrast(0);
-									setSaturation(0);
-								}}
+								onClick={handleReset}
 								className="text-xs font-semibold text-muted-foreground hover:text-foreground"
 							>
 								Reset all adjustments

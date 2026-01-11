@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
 	BulkIcon,
 	DownloadIcon,
@@ -50,15 +50,15 @@ export default function BulkCompressPage() {
 		setResults([]);
 	}, []);
 
-	const handleRemoveFile = (id: string) => {
+	const handleRemoveFile = useCallback((id: string) => {
 		setFiles((prev) => prev.filter((f) => f.id !== id));
-	};
+	}, []);
 
-	const handleClearAll = () => {
+	const handleClearAll = useCallback(() => {
 		setFiles([]);
 		setResults([]);
 		setError(null);
-	};
+	}, []);
 
 	const handleCompress = async () => {
 		if (files.length === 0) return;
@@ -103,30 +103,35 @@ export default function BulkCompressPage() {
 		}
 	};
 
-	const handleDownloadOne = (item: CompressedItem) => {
+	const handleDownloadOne = useCallback((item: CompressedItem) => {
 		downloadImage(item.blob, item.filename);
-	};
+	}, []);
 
-	const handleDownloadAll = async () => {
+	const handleDownloadAll = useCallback(async () => {
 		for (const item of results) {
 			downloadImage(item.blob, item.filename);
 			await new Promise((resolve) => setTimeout(resolve, 200));
 		}
-	};
+	}, [results]);
 
-	const handleStartOver = () => {
+	const handleStartOver = useCallback(() => {
 		setFiles([]);
 		setResults([]);
 		setError(null);
 		setProgress({ current: 0, total: 0 });
-	};
+	}, []);
 
-	const totalOriginalSize = files.reduce((sum, f) => sum + f.file.size, 0);
-	const totalCompressedSize = results.reduce((sum, r) => sum + r.blob.size, 0);
-	const totalSavings =
-		results.length > 0
-			? Math.round((1 - totalCompressedSize / totalOriginalSize) * 100)
-			: 0;
+	// Memoize expensive calculations
+	const totalOriginalSize = useMemo(
+		() => files.reduce((sum, f) => sum + f.file.size, 0),
+		[files],
+	);
+
+	const totalSavings = useMemo(() => {
+		if (results.length === 0 || totalOriginalSize === 0) return 0;
+		const totalCompressedSize = results.reduce((sum, r) => sum + r.blob.size, 0);
+		return Math.round((1 - totalCompressedSize / totalOriginalSize) * 100);
+	}, [results, totalOriginalSize]);
 
 	return (
 		<div className="page-enter max-w-2xl mx-auto space-y-8">

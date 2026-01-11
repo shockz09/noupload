@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CropIcon, ImageIcon, LoaderIcon } from "@/components/icons";
 import {
 	ErrorBox,
@@ -9,10 +9,15 @@ import {
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import {
+	useFileProcessing,
+	useImagePaste,
+	useObjectURL,
+	useProcessingResult,
+} from "@/hooks";
+import {
 	type CropArea,
 	copyImageToClipboard,
 	cropImage,
-	downloadImage,
 	formatFileSize,
 	getImageDimensions,
 	getOutputFilename,
@@ -27,45 +32,33 @@ const aspectRatios = [
 	{ label: "2:3", value: 2 / 3 },
 ];
 
-interface CropResult {
-	blob: Blob;
-	filename: string;
-	dimensions: { width: number; height: number };
+interface CropMetadata {
+	width: number;
+	height: number;
 }
 
 export default function ImageCropPage() {
 	const [file, setFile] = useState<File | null>(null);
-	const [preview, setPreview] = useState<string | null>(null);
-	const [imageDimensions, setImageDimensions] = useState<{
-		width: number;
-		height: number;
-	} | null>(null);
+	const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
 	const [aspectRatio, setAspectRatio] = useState<number | null>(null);
-	const [cropArea, setCropArea] = useState<CropArea>({
-		x: 0,
-		y: 0,
-		width: 100,
-		height: 100,
-	});
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [result, setResult] = useState<CropResult | null>(null);
-
+	const [cropArea, setCropArea] = useState<CropArea>({ x: 0, y: 0, width: 100, height: 100 });
 	const [isDragging, setIsDragging] = useState(false);
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 	const [isResizing, setIsResizing] = useState<string | null>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [scale, setScale] = useState(1);
 
+	// Use custom hooks
+	const { url: preview, setSource: setPreview, revoke: revokePreview } = useObjectURL();
+	const { isProcessing, error, startProcessing, stopProcessing, setError } = useFileProcessing();
+	const { result, setResult, clearResult, download } = useProcessingResult<CropMetadata>();
+
 	const handleFileSelected = useCallback(async (files: File[]) => {
 		if (files.length > 0) {
 			const selectedFile = files[0];
 			setFile(selectedFile);
-			setError(null);
-			setResult(null);
-
-			const url = URL.createObjectURL(selectedFile);
-			setPreview(url);
+			clearResult();
+			setPreview(selectedFile);
 
 			const dims = await getImageDimensions(selectedFile);
 			setImageDimensions(dims);
@@ -78,17 +71,18 @@ export default function ImageCropPage() {
 				height: initialSize,
 			});
 		}
-	}, []);
+	}, [clearResult, setPreview]);
+
+	// Use clipboard paste hook
+	useImagePaste(handleFileSelected, !result);
 
 	const handleClear = useCallback(() => {
-		if (preview) URL.revokeObjectURL(preview);
+		revokePreview();
 		setFile(null);
-		setPreview(null);
 		setImageDimensions(null);
-		setError(null);
-		setResult(null);
+		clearResult();
 		setAspectRatio(null);
-	}, [preview]);
+	}, [revokePreview, clearResult]);
 
 	useEffect(() => {
 		if (containerRef.current && imageDimensions) {
@@ -120,7 +114,7 @@ export default function ImageCropPage() {
 		}
 	}, [aspectRatio, imageDimensions]);
 
-	const handleMouseDown = (e: React.MouseEvent, handle?: string) => {
+	const handleMouseDown = useCallback((e: React.MouseEvent, handle?: string) => {
 		e.preventDefault();
 		if (handle) {
 			setIsResizing(handle);
@@ -128,7 +122,7 @@ export default function ImageCropPage() {
 			setIsDragging(true);
 		}
 		setDragStart({ x: e.clientX, y: e.clientY });
-	};
+	}, []);
 
 	const handleMouseMove = useCallback(
 		(e: MouseEvent) => {
@@ -140,30 +134,16 @@ export default function ImageCropPage() {
 			if (isDragging) {
 				setCropArea((prev) => ({
 					...prev,
-					x: Math.max(
-						0,
-						Math.min(imageDimensions.width - prev.width, prev.x + dx),
-					),
-					y: Math.max(
-						0,
-						Math.min(imageDimensions.height - prev.height, prev.y + dy),
-					),
+					x: Math.max(0, Math.min(imageDimensions.width - prev.width, prev.x + dx)),
+					y: Math.max(0, Math.min(imageDimensions.height - prev.height, prev.y + dy)),
 				}));
 				setDragStart({ x: e.clientX, y: e.clientY });
 			} else if (isResizing) {
 				setCropArea((prev) => {
 					const newArea = { ...prev };
 
-					if (isResizing.includes("e"))
-						newArea.width = Math.max(
-							50,
-							Math.min(imageDimensions.width - prev.x, prev.width + dx),
-						);
-					if (isResizing.includes("s"))
-						newArea.height = Math.max(
-							50,
-							Math.min(imageDimensions.height - prev.y, prev.height + dy),
-						);
+					if (isResizing.includes("e")) newArea.width = Math.max(50, Math.min(imageDimensions.width - prev.x, prev.width + dx));
+					if (isResizing.includes("s")) newArea.height = Math.max(50, Math.min(imageDimensions.height - prev.y, prev.height + dy));
 					if (isResizing.includes("w")) {
 						const newX = Math.max(0, prev.x + dx);
 						newArea.width = prev.width - (newX - prev.x);
@@ -207,34 +187,9 @@ export default function ImageCropPage() {
 		}
 	}, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
 
-	useEffect(() => {
-		return () => {
-			if (preview) URL.revokeObjectURL(preview);
-		};
-	}, [preview]);
-
-	useEffect(() => {
-		const handlePaste = (e: ClipboardEvent) => {
-			const items = e.clipboardData?.items;
-			if (!items) return;
-			for (const item of items) {
-				if (item.type.startsWith("image/")) {
-					const file = item.getAsFile();
-					if (file) handleFileSelected([file]);
-					break;
-				}
-			}
-		};
-		window.addEventListener("paste", handlePaste);
-		return () => window.removeEventListener("paste", handlePaste);
-	}, [handleFileSelected]);
-
-	const handleCrop = async () => {
+	const handleCrop = useCallback(async () => {
 		if (!file) return;
-
-		setIsProcessing(true);
-		setError(null);
-		setResult(null);
+		if (!startProcessing()) return;
 
 		try {
 			const cropped = await cropImage(file, {
@@ -243,37 +198,53 @@ export default function ImageCropPage() {
 				width: Math.round(cropArea.width),
 				height: Math.round(cropArea.height),
 			});
-
-			setResult({
-				blob: cropped,
-				filename: getOutputFilename(file.name, undefined, "_cropped"),
-				dimensions: {
-					width: Math.round(cropArea.width),
-					height: Math.round(cropArea.height),
-				},
+			setResult(cropped, getOutputFilename(file.name, undefined, "_cropped"), {
+				width: Math.round(cropArea.width),
+				height: Math.round(cropArea.height),
 			});
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to crop image");
 		} finally {
-			setIsProcessing(false);
+			stopProcessing();
 		}
-	};
+	}, [file, cropArea, startProcessing, setResult, setError, stopProcessing]);
 
-	const handleDownload = (e: React.MouseEvent) => {
+	const handleDownload = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
-		e.stopPropagation();
-		if (result) downloadImage(result.blob, result.filename);
-	};
+		download();
+	}, [download]);
 
-	const handleStartOver = () => {
-		if (preview) URL.revokeObjectURL(preview);
+	const handleStartOver = useCallback(() => {
+		revokePreview();
 		setFile(null);
-		setPreview(null);
 		setImageDimensions(null);
-		setResult(null);
-		setError(null);
+		clearResult();
 		setAspectRatio(null);
-	};
+	}, [revokePreview, clearResult]);
+
+	const handleAspectRatioSelect = useCallback((value: number | null) => {
+		setAspectRatio(value);
+	}, []);
+
+	const containerHeight = useMemo(() =>
+		imageDimensions ? Math.min(400, imageDimensions.height * scale) : 0,
+		[imageDimensions, scale]
+	);
+
+	const cropBoxStyle = useMemo(() => imageDimensions ? ({
+		left: `calc(50% - ${(imageDimensions.width / 2 - cropArea.x) * scale}px)`,
+		top: `calc(50% - ${(imageDimensions.height / 2 - cropArea.y) * scale}px)`,
+		width: cropArea.width * scale,
+		height: cropArea.height * scale,
+	}) : {}, [imageDimensions, cropArea, scale]);
+
+	const imageStyle = useMemo(() => imageDimensions ? ({
+		width: imageDimensions.width * scale,
+		height: imageDimensions.height * scale,
+		left: "50%",
+		top: "50%",
+		transform: "translate(-50%, -50%)",
+	}) : {}, [imageDimensions, scale]);
 
 	return (
 		<div className="page-enter max-w-3xl mx-auto space-y-8">
@@ -295,8 +266,7 @@ export default function ImageCropPage() {
 					startOverLabel="Crop Another"
 				>
 					<p className="text-muted-foreground">
-						New size: {result.dimensions.width}×{result.dimensions.height} •{" "}
-						{formatFileSize(result.blob.size)}
+						New size: {result.metadata?.width}×{result.metadata?.height} • {formatFileSize(result.blob.size)}
 					</p>
 				</SuccessCard>
 			) : !file ? (
@@ -316,11 +286,9 @@ export default function ImageCropPage() {
 								<button
 									type="button"
 									key={ar.label}
-									onClick={() => setAspectRatio(ar.value)}
+									onClick={() => handleAspectRatioSelect(ar.value)}
 									className={`px-4 py-2 text-sm font-bold border-2 border-foreground transition-colors ${
-										aspectRatio === ar.value
-											? "bg-foreground text-background"
-											: "hover:bg-muted"
+										aspectRatio === ar.value ? "bg-foreground text-background" : "hover:bg-muted"
 									}`}
 								>
 									{ar.label}
@@ -333,30 +301,21 @@ export default function ImageCropPage() {
 						<div
 							ref={containerRef}
 							className="relative border-2 border-foreground bg-[#1a1a1a] overflow-hidden"
-							style={{ height: Math.min(400, imageDimensions.height * scale) }}
+							style={{ height: containerHeight }}
 						>
 							<img
 								src={preview}
 								alt="To crop"
 								className="absolute"
-								style={{
-									width: imageDimensions.width * scale,
-									height: imageDimensions.height * scale,
-									left: "50%",
-									top: "50%",
-									transform: "translate(-50%, -50%)",
-								}}
+								style={imageStyle}
 								draggable={false}
+								loading="lazy"
+								decoding="async"
 							/>
 
 							<div
 								className="absolute border-2 border-white cursor-move"
-								style={{
-									left: `calc(50% - ${(imageDimensions.width / 2 - cropArea.x) * scale}px)`,
-									top: `calc(50% - ${(imageDimensions.height / 2 - cropArea.y) * scale}px)`,
-									width: cropArea.width * scale,
-									height: cropArea.height * scale,
-								}}
+								style={cropBoxStyle}
 								onMouseDown={(e) => handleMouseDown(e)}
 							>
 								{["nw", "ne", "sw", "se", "n", "s", "e", "w"].map((handle) => (
@@ -369,20 +328,12 @@ export default function ImageCropPage() {
 											...(handle.includes("s") ? { bottom: -6 } : {}),
 											...(handle.includes("w") ? { left: -6 } : {}),
 											...(handle.includes("e") ? { right: -6 } : {}),
-											...(handle === "n" || handle === "s"
-												? { left: "50%", transform: "translateX(-50%)" }
-												: {}),
-											...(handle === "e" || handle === "w"
-												? { top: "50%", transform: "translateY(-50%)" }
-												: {}),
+											...(handle === "n" || handle === "s" ? { left: "50%", transform: "translateX(-50%)" } : {}),
+											...(handle === "e" || handle === "w" ? { top: "50%", transform: "translateY(-50%)" } : {}),
 										}}
-										onMouseDown={(e) => {
-											e.stopPropagation();
-											handleMouseDown(e, handle);
-										}}
+										onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, handle); }}
 									/>
 								))}
-
 								<div className="absolute inset-0 pointer-events-none">
 									<div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/30" />
 									<div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/30" />
@@ -400,8 +351,7 @@ export default function ImageCropPage() {
 						<div className="flex-1 min-w-0">
 							<p className="font-bold truncate">{file.name}</p>
 							<p className="text-sm text-muted-foreground">
-								Selection: {Math.round(cropArea.width)}×
-								{Math.round(cropArea.height)}
+								Selection: {Math.round(cropArea.width)}×{Math.round(cropArea.height)}
 							</p>
 						</div>
 						<button
@@ -429,15 +379,9 @@ export default function ImageCropPage() {
 						className="btn-primary w-full"
 					>
 						{isProcessing ? (
-							<>
-								<LoaderIcon className="w-5 h-5" />
-								Processing...
-							</>
+							<><LoaderIcon className="w-5 h-5" />Processing...</>
 						) : (
-							<>
-								<CropIcon className="w-5 h-5" />
-								Crop Image
-							</>
+							<><CropIcon className="w-5 h-5" />Crop Image</>
 						)}
 					</button>
 				</div>

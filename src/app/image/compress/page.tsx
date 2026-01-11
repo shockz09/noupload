@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ImageCompressIcon, ImageIcon } from "@/components/icons";
 import {
 	ComparisonDisplay,
@@ -15,16 +15,19 @@ import {
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import {
+	useFileProcessing,
+	useImagePaste,
+	useObjectURL,
+	useProcessingResult,
+} from "@/hooks";
+import {
 	compressImage,
 	copyImageToClipboard,
-	downloadImage,
 	formatFileSize,
 	getOutputFilename,
 } from "@/lib/image-utils";
 
-interface CompressResult {
-	blob: Blob;
-	filename: string;
+interface CompressMetadata {
 	originalSize: number;
 	compressedSize: number;
 }
@@ -32,112 +35,82 @@ interface CompressResult {
 export default function ImageCompressPage() {
 	const { isInstant, isLoaded } = useInstantMode();
 	const [file, setFile] = useState<File | null>(null);
-	const [preview, setPreview] = useState<string | null>(null);
 	const [quality, setQuality] = useState(80);
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [progress, setProgress] = useState(0);
-	const [error, setError] = useState<string | null>(null);
-	const [result, setResult] = useState<CompressResult | null>(null);
-	const processingRef = useRef(false);
+
+	// Use custom hooks for common patterns
+	const { url: preview, setSource: setPreview, revoke: revokePreview } = useObjectURL();
+	const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError } = useFileProcessing();
+	const { result, setResult, clearResult, download } = useProcessingResult<CompressMetadata>();
 
 	const processFile = useCallback(async (fileToProcess: File, q: number) => {
-		if (processingRef.current) return;
-		processingRef.current = true;
-		setIsProcessing(true);
-		setProgress(0);
-		setError(null);
-		setResult(null);
+		if (!startProcessing()) return;
 
 		try {
 			setProgress(30);
 			const compressed = await compressImage(fileToProcess, q / 100);
 			setProgress(90);
-			setResult({
-				blob: compressed,
-				filename: getOutputFilename(fileToProcess.name, "jpeg", "_compressed"),
-				originalSize: fileToProcess.size,
-				compressedSize: compressed.size,
-			});
+			setResult(
+				compressed,
+				getOutputFilename(fileToProcess.name, "jpeg", "_compressed"),
+				{ originalSize: fileToProcess.size, compressedSize: compressed.size }
+			);
 			setProgress(100);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to compress image");
 		} finally {
-			setIsProcessing(false);
-			processingRef.current = false;
+			stopProcessing();
 		}
-	}, []);
+	}, [startProcessing, setProgress, setResult, setError, stopProcessing]);
 
 	const handleFileSelected = useCallback(
 		(files: File[]) => {
 			if (files.length > 0) {
 				const selectedFile = files[0];
 				setFile(selectedFile);
-				setError(null);
-				setResult(null);
-				const url = URL.createObjectURL(selectedFile);
-				setPreview(url);
+				clearResult();
+				setPreview(selectedFile);
 
 				if (isInstant) {
 					processFile(selectedFile, 80);
 				}
 			}
 		},
-		[isInstant, processFile],
+		[isInstant, processFile, clearResult, setPreview],
 	);
 
+	// Use clipboard paste hook
+	useImagePaste(handleFileSelected, !result);
+
 	const handleClear = useCallback(() => {
-		if (preview) URL.revokeObjectURL(preview);
+		revokePreview();
 		setFile(null);
-		setPreview(null);
-		setError(null);
-		setResult(null);
-	}, [preview]);
+		clearResult();
+	}, [revokePreview, clearResult]);
 
-	useEffect(() => {
-		return () => {
-			if (preview) URL.revokeObjectURL(preview);
-		};
-	}, [preview]);
-
-	useEffect(() => {
-		const handlePaste = (e: ClipboardEvent) => {
-			const items = e.clipboardData?.items;
-			if (!items) return;
-			for (const item of items) {
-				if (item.type.startsWith("image/")) {
-					const file = item.getAsFile();
-					if (file) handleFileSelected([file]);
-					break;
-				}
-			}
-		};
-		window.addEventListener("paste", handlePaste);
-		return () => window.removeEventListener("paste", handlePaste);
-	}, [handleFileSelected]);
-
-	const handleCompress = async () => {
+	const handleCompress = useCallback(async () => {
 		if (!file) return;
 		processFile(file, quality);
-	};
+	}, [file, quality, processFile]);
 
-	const handleDownload = (e: React.MouseEvent) => {
+	const handleDownload = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
-		if (result) downloadImage(result.blob, result.filename);
-	};
+		download();
+	}, [download]);
 
-	const handleStartOver = () => {
-		if (preview) URL.revokeObjectURL(preview);
+	const handleStartOver = useCallback(() => {
+		revokePreview();
 		setFile(null);
-		setPreview(null);
-		setResult(null);
-		setError(null);
-		setProgress(0);
-	};
+		clearResult();
+	}, [revokePreview, clearResult]);
 
-	const savings = result
-		? Math.round((1 - result.compressedSize / result.originalSize) * 100)
-		: 0;
+	const handleQualityChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		setQuality(Number(e.target.value));
+	}, []);
+
+	const savings = useMemo(() => result?.metadata
+		? Math.round((1 - result.metadata.compressedSize / result.metadata.originalSize) * 100)
+		: 0, [result]);
 
 	if (!isLoaded) return null;
 
@@ -162,9 +135,9 @@ export default function ImageCompressPage() {
 				>
 					<ComparisonDisplay
 						originalLabel="Original"
-						originalValue={formatFileSize(result.originalSize)}
+						originalValue={formatFileSize(result.metadata?.originalSize ?? 0)}
 						newLabel="Compressed"
-						newValue={formatFileSize(result.compressedSize)}
+						newValue={formatFileSize(result.metadata?.compressedSize ?? 0)}
 					/>
 					<SavingsBadge savings={savings} />
 				</SuccessCard>
@@ -210,6 +183,8 @@ export default function ImageCompressPage() {
 								src={preview}
 								alt="Preview"
 								className="max-h-64 mx-auto object-contain"
+								loading="lazy"
+								decoding="async"
 							/>
 						</div>
 					)}
@@ -231,7 +206,7 @@ export default function ImageCompressPage() {
 							min="10"
 							max="100"
 							value={quality}
-							onChange={(e) => setQuality(Number(e.target.value))}
+							onChange={handleQualityChange}
 							className="w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-foreground [&::-webkit-slider-thumb]:cursor-pointer"
 						/>
 						<div className="flex justify-between text-xs text-muted-foreground font-medium">
