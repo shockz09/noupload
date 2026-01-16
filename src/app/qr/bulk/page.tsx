@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	ArrowLeftIcon,
 	CopyIcon,
@@ -9,6 +9,7 @@ import {
 	LoaderIcon,
 } from "@/components/icons";
 import { QRCustomizePanel } from "@/components/qr/customize-panel";
+import { ErrorBox } from "@/components/shared";
 import { copyImageToClipboard } from "@/lib/image-utils";
 import {
 	downloadQR,
@@ -74,8 +75,17 @@ export default function BulkQRGeneratePage() {
 	const [logoPreview, setLogoPreview] = useState<string | null>(null);
 	const [logoPadding, setLogoPadding] = useState(true);
 
-	const items = inputText.split("\n").filter((line) => line.trim().length > 0);
-	const colorOptions = { color: { dark: darkColor, light: lightColor } };
+	// Memoize parsed items to prevent recalculation on every render
+	const items = useMemo(
+		() => inputText.split("\n").filter((line) => line.trim().length > 0),
+		[inputText]
+	);
+
+	// Memoize color options object
+	const colorOptions = useMemo(
+		() => ({ color: { dark: darkColor, light: lightColor } }),
+		[darkColor, lightColor]
+	);
 
 	// Auto-generate previews (debounced)
 	useEffect(() => {
@@ -227,6 +237,8 @@ export default function BulkQRGeneratePage() {
 													src={preview.dataUrl}
 													alt={`QR ${index + 1}`}
 													className="w-full"
+													loading="lazy"
+													decoding="async"
 												/>
 												<div className="absolute inset-0 flex items-center justify-center gap-3 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity">
 													<button
@@ -313,12 +325,13 @@ export default function BulkQRGeneratePage() {
 						{/* Input */}
 						<div className="space-y-3">
 							<div className="flex items-center justify-between">
-								<span className="input-label">Enter Items (one per line)</span>
+								<label htmlFor="bulk-items" className="input-label">Enter Items (one per line)</label>
 								<span className="text-sm text-muted-foreground font-medium">
 									{items.length} item{items.length !== 1 ? "s" : ""}
 								</span>
 							</div>
 							<textarea
+								id="bulk-items"
 								value={inputText}
 								onChange={(e) => setInputText(e.target.value)}
 								placeholder={
@@ -343,23 +356,7 @@ export default function BulkQRGeneratePage() {
 							setLogoPadding={setLogoPadding}
 						/>
 
-						{error && (
-							<div className="error-box animate-shake">
-								<svg
-									aria-hidden="true"
-									className="w-5 h-5"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-								>
-									<circle cx="12" cy="12" r="10" />
-									<line x1="12" y1="8" x2="12" y2="12" />
-									<line x1="12" y1="16" x2="12.01" y2="16" />
-								</svg>
-								<span className="font-medium">{error}</span>
-							</div>
-						)}
+						{error && <ErrorBox message={error} />}
 					</div>
 				</div>
 			</div>

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, memo } from "react";
 import { ArrowLeftIcon, CopyIcon, DownloadIcon } from "@/components/icons";
 import { QRCustomizePanel } from "@/components/qr/customize-panel";
+import { ErrorBox } from "@/components/shared";
 import { copyImageToClipboard } from "@/lib/image-utils";
 import {
 	downloadQR,
@@ -21,7 +22,7 @@ import {
 	type WifiData,
 } from "@/lib/qr-utils";
 
-function QRIcon({ className }: { className?: string }) {
+const QRIcon = memo(function QRIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -40,9 +41,9 @@ function QRIcon({ className }: { className?: string }) {
 			<rect x="18" y="18" width="3" height="3" />
 		</svg>
 	);
-}
+});
 
-function TextIcon({ className }: { className?: string }) {
+const TextIcon = memo(function TextIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -57,9 +58,9 @@ function TextIcon({ className }: { className?: string }) {
 			<path d="M8 20h8" />
 		</svg>
 	);
-}
+});
 
-function LinkIcon({ className }: { className?: string }) {
+const LinkIcon = memo(function LinkIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -73,9 +74,9 @@ function LinkIcon({ className }: { className?: string }) {
 			<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
 		</svg>
 	);
-}
+});
 
-function WifiIcon({ className }: { className?: string }) {
+const WifiIcon = memo(function WifiIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -91,9 +92,9 @@ function WifiIcon({ className }: { className?: string }) {
 			<circle cx="12" cy="20" r="1" fill="currentColor" />
 		</svg>
 	);
-}
+});
 
-function EmailIcon({ className }: { className?: string }) {
+const EmailIcon = memo(function EmailIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -107,9 +108,9 @@ function EmailIcon({ className }: { className?: string }) {
 			<path d="M22 6L12 13 2 6" />
 		</svg>
 	);
-}
+});
 
-function PhoneIcon({ className }: { className?: string }) {
+const PhoneIcon = memo(function PhoneIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -122,9 +123,9 @@ function PhoneIcon({ className }: { className?: string }) {
 			<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
 		</svg>
 	);
-}
+});
 
-function SmsIcon({ className }: { className?: string }) {
+const SmsIcon = memo(function SmsIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -140,9 +141,9 @@ function SmsIcon({ className }: { className?: string }) {
 			<path d="M16 10h.01" />
 		</svg>
 	);
-}
+});
 
-function UpiIcon({ className }: { className?: string }) {
+const UpiIcon = memo(function UpiIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -157,7 +158,7 @@ function UpiIcon({ className }: { className?: string }) {
 			<path d="M9 12h6" />
 		</svg>
 	);
-}
+});
 
 const dataTypes: {
 	value: QRDataType;
@@ -268,9 +269,13 @@ export default function QRGeneratePage() {
 		upiData,
 	]);
 
-	const colorOptions = { color: { dark: darkColor, light: lightColor } };
+	// Memoize color options to prevent unnecessary re-renders
+	const colorOptions = useMemo(
+		() => ({ color: { dark: darkColor, light: lightColor } }),
+		[darkColor, lightColor]
+	);
 
-	const handleDownload = async () => {
+	const handleDownload = useCallback(async () => {
 		if (!qrImage) return;
 		try {
 			const data = getDataString();
@@ -290,9 +295,9 @@ export default function QRGeneratePage() {
 		} catch {
 			// Download failure is non-critical
 		}
-	};
+	}, [qrImage, getDataString, logo, colorOptions, logoPadding]);
 
-	const handleCopy = async () => {
+	const handleCopy = useCallback(async () => {
 		if (!qrImage) return;
 		try {
 			const data = getDataString();
@@ -312,7 +317,13 @@ export default function QRGeneratePage() {
 		} catch {
 			// Copy failure is non-critical
 		}
-	};
+	}, [qrImage, getDataString, logo, colorOptions, logoPadding]);
+
+	// Handler for data type selection
+	const handleDataTypeSelect = useCallback((type: QRDataType) => {
+		setDataType(type);
+		setQrImage(null);
+	}, []);
 
 	// Auto-generate QR on input change (debounced)
 	useEffect(() => {
@@ -444,10 +455,7 @@ export default function QRGeneratePage() {
 										<button
 											type="button"
 											key={type.value}
-											onClick={() => {
-												setDataType(type.value);
-												setQrImage(null);
-											}}
+											onClick={() => handleDataTypeSelect(type.value)}
 											className={`p-3 text-center border-2 border-foreground transition-all ${
 												dataType === type.value
 													? "bg-foreground text-background"
@@ -466,8 +474,9 @@ export default function QRGeneratePage() {
 						<div className="space-y-4">
 							{dataType === "text" && (
 								<div className="space-y-2">
-									<span className="input-label">Your Text</span>
+									<label htmlFor="qr-text" className="input-label">Your Text</label>
 									<textarea
+										id="qr-text"
 										value={textValue}
 										onChange={(e) => setTextValue(e.target.value)}
 										placeholder="Enter any text you want to encode..."
@@ -478,8 +487,9 @@ export default function QRGeneratePage() {
 
 							{dataType === "url" && (
 								<div className="space-y-2">
-									<span className="input-label">Website URL</span>
+									<label htmlFor="qr-url" className="input-label">Website URL</label>
 									<input
+										id="qr-url"
 										type="url"
 										value={urlValue}
 										onChange={(e) => setUrlValue(e.target.value)}
@@ -492,8 +502,9 @@ export default function QRGeneratePage() {
 							{dataType === "wifi" && (
 								<div className="grid sm:grid-cols-2 gap-4">
 									<div className="space-y-2">
-										<span className="input-label">Network Name (SSID)</span>
+										<label htmlFor="wifi-ssid" className="input-label">Network Name (SSID)</label>
 										<input
+											id="wifi-ssid"
 											type="text"
 											value={wifiData.ssid}
 											onChange={(e) =>
@@ -504,8 +515,9 @@ export default function QRGeneratePage() {
 										/>
 									</div>
 									<div className="space-y-2">
-										<span className="input-label">Password</span>
+										<label htmlFor="wifi-password" className="input-label">Password</label>
 										<input
+											id="wifi-password"
 											type="text"
 											value={wifiData.password}
 											onChange={(e) =>
@@ -545,8 +557,9 @@ export default function QRGeneratePage() {
 							{dataType === "email" && (
 								<div className="space-y-4">
 									<div className="space-y-2">
-										<span className="input-label">Email Address</span>
+										<label htmlFor="email-to" className="input-label">Email Address</label>
 										<input
+											id="email-to"
 											type="email"
 											value={emailData.to}
 											onChange={(e) =>
@@ -558,8 +571,9 @@ export default function QRGeneratePage() {
 									</div>
 									<div className="grid sm:grid-cols-2 gap-4">
 										<div className="space-y-2">
-											<span className="input-label">Subject (optional)</span>
+											<label htmlFor="email-subject" className="input-label">Subject (optional)</label>
 											<input
+												id="email-subject"
 												type="text"
 												value={emailData.subject}
 												onChange={(e) =>
@@ -573,8 +587,9 @@ export default function QRGeneratePage() {
 											/>
 										</div>
 										<div className="space-y-2">
-											<span className="input-label">Body (optional)</span>
+											<label htmlFor="email-body" className="input-label">Body (optional)</label>
 											<input
+												id="email-body"
 												type="text"
 												value={emailData.body}
 												onChange={(e) =>
@@ -590,8 +605,9 @@ export default function QRGeneratePage() {
 
 							{dataType === "phone" && (
 								<div className="space-y-2">
-									<span className="input-label">Phone Number</span>
+									<label htmlFor="phone-number" className="input-label">Phone Number</label>
 									<input
+										id="phone-number"
 										type="tel"
 										value={phoneValue}
 										onChange={(e) => setPhoneValue(e.target.value)}
@@ -604,8 +620,9 @@ export default function QRGeneratePage() {
 							{dataType === "sms" && (
 								<div className="space-y-4">
 									<div className="space-y-2">
-										<span className="input-label">Phone Number</span>
+										<label htmlFor="sms-phone" className="input-label">Phone Number</label>
 										<input
+											id="sms-phone"
 											type="tel"
 											value={smsData.phone}
 											onChange={(e) =>
@@ -616,8 +633,9 @@ export default function QRGeneratePage() {
 										/>
 									</div>
 									<div className="space-y-2">
-										<span className="input-label">Message (optional)</span>
+										<label htmlFor="sms-message" className="input-label">Message (optional)</label>
 										<textarea
+											id="sms-message"
 											value={smsData.message}
 											onChange={(e) =>
 												setSmsData({ ...smsData, message: e.target.value })
@@ -632,8 +650,9 @@ export default function QRGeneratePage() {
 							{dataType === "upi" && (
 								<div className="space-y-4">
 									<div className="space-y-2">
-										<span className="input-label">UPI ID (VPA) *</span>
+										<label htmlFor="upi-vpa" className="input-label">UPI ID (VPA) *</label>
 										<input
+											id="upi-vpa"
 											type="text"
 											value={upiData.vpa}
 											onChange={(e) =>
@@ -650,8 +669,9 @@ export default function QRGeneratePage() {
 									</div>
 									<div className="grid sm:grid-cols-2 gap-4">
 										<div className="space-y-2">
-											<span className="input-label">Amount (optional)</span>
+											<label htmlFor="upi-amount" className="input-label">Amount (optional)</label>
 											<input
+												id="upi-amount"
 												type="number"
 												value={upiData.amount}
 												onChange={(e) =>
@@ -664,8 +684,9 @@ export default function QRGeneratePage() {
 											/>
 										</div>
 										<div className="space-y-2">
-											<span className="input-label">Note (optional)</span>
+											<label htmlFor="upi-note" className="input-label">Note (optional)</label>
 											<input
+												id="upi-note"
 												type="text"
 												value={upiData.note}
 												onChange={(e) =>
@@ -695,23 +716,7 @@ export default function QRGeneratePage() {
 							setLogoPadding={setLogoPadding}
 						/>
 
-						{error && (
-							<div className="error-box animate-shake">
-								<svg
-									aria-hidden="true"
-									className="w-5 h-5"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-								>
-									<circle cx="12" cy="12" r="10" />
-									<line x1="12" y1="8" x2="12" y2="12" />
-									<line x1="12" y1="16" x2="12.01" y2="16" />
-								</svg>
-								<span className="font-medium">{error}</span>
-							</div>
-						)}
+						{error && <ErrorBox message={error} />}
 					</div>
 				</div>
 			</div>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useCallback, memo } from "react";
 import { QR_COLOR_PRESETS } from "@/lib/qr-utils";
 
-function ChevronDownIcon({ className }: { className?: string }) {
+const ChevronDownIcon = memo(function ChevronDownIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -16,9 +16,9 @@ function ChevronDownIcon({ className }: { className?: string }) {
 			<polyline points="6 9 12 15 18 9" />
 		</svg>
 	);
-}
+});
 
-function ImageIcon({ className }: { className?: string }) {
+const ImageIcon = memo(function ImageIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -33,7 +33,7 @@ function ImageIcon({ className }: { className?: string }) {
 			<path d="M21 15l-5-5L5 21" />
 		</svg>
 	);
-}
+});
 
 interface QRCustomizePanelProps {
 	showCustomize: boolean;
@@ -50,7 +50,7 @@ interface QRCustomizePanelProps {
 	setLogoPadding: (padding: boolean) => void;
 }
 
-export function QRCustomizePanel({
+export const QRCustomizePanel = memo(function QRCustomizePanel({
 	showCustomize,
 	setShowCustomize,
 	darkColor,
@@ -66,31 +66,45 @@ export function QRCustomizePanel({
 }: QRCustomizePanelProps) {
 	const logoInputRef = useRef<HTMLInputElement>(null);
 
-	const applyPreset = (preset: (typeof QR_COLOR_PRESETS)[0]) => {
+	const applyPreset = useCallback((preset: (typeof QR_COLOR_PRESETS)[0]) => {
 		setDarkColor(preset.dark);
 		setLightColor(preset.light);
-	};
+	}, [setDarkColor, setLightColor]);
 
-	const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleLogoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
 			setLogo(file);
 			setLogoPreview(URL.createObjectURL(file));
 		}
-	};
+	}, [setLogo, setLogoPreview]);
 
-	const handleRemoveLogo = () => {
+	const handleRemoveLogo = useCallback(() => {
 		setLogo(null);
 		if (logoPreview) URL.revokeObjectURL(logoPreview);
 		setLogoPreview(null);
 		if (logoInputRef.current) logoInputRef.current.value = "";
-	};
+	}, [setLogo, logoPreview, setLogoPreview]);
+
+	// Toggle handler
+	const handleToggle = useCallback(() => {
+		setShowCustomize(!showCustomize);
+	}, [showCustomize, setShowCustomize]);
+
+	// Color handlers
+	const handleDarkColorChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		setDarkColor(e.target.value);
+	}, [setDarkColor]);
+
+	const handleLightColorChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+		setLightColor(e.target.value);
+	}, [setLightColor]);
 
 	return (
 		<div className="border-2 border-foreground overflow-hidden">
 			<button
 				type="button"
-				onClick={() => setShowCustomize(!showCustomize)}
+				onClick={handleToggle}
 				className="w-full p-4 flex items-center justify-between text-left hover:bg-muted/50 transition-colors group"
 			>
 				<div className="flex items-center gap-3">
@@ -168,7 +182,7 @@ export function QRCustomizePanel({
 								<input
 									type="color"
 									value={darkColor}
-									onChange={(e) => setDarkColor(e.target.value)}
+									onChange={handleDarkColorChange}
 									className="w-8 h-8 border-2 border-foreground cursor-pointer appearance-none bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none"
 								/>
 								<div className="flex-1 min-w-0">
@@ -182,7 +196,7 @@ export function QRCustomizePanel({
 								<input
 									type="color"
 									value={lightColor}
-									onChange={(e) => setLightColor(e.target.value)}
+									onChange={handleLightColorChange}
 									className="w-8 h-8 border-2 border-foreground cursor-pointer appearance-none bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none"
 								/>
 								<div className="flex-1 min-w-0">
@@ -217,6 +231,8 @@ export function QRCustomizePanel({
 										src={logoPreview}
 										alt="Logo"
 										className="w-full h-full object-contain"
+										loading="lazy"
+										decoding="async"
 									/>
 								</div>
 								<div className="flex-1 min-w-0 space-y-2">
@@ -287,4 +303,4 @@ export function QRCustomizePanel({
 			)}
 		</div>
 	);
-}
+});

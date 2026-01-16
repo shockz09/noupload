@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftIcon } from "@/components/icons";
+import { ArrowLeftIcon, BarcodeIcon } from "@/components/icons";
 
 function QRIcon({ className }: { className?: string }) {
 	return (
@@ -116,108 +116,101 @@ export default function QRPage() {
 					<div className="flex-1 h-0.5 bg-foreground" />
 				</div>
 
-				<div className="grid sm:grid-cols-3 gap-4">
-					{/* Generate Card */}
-					<Link
-						href="/qr/generate"
-						className="tool-card tool-qr-generate group text-left transition-all hover:ring-4 hover:ring-[#1E4A7C] hover:ring-offset-2"
-					>
-						<span className="category-tag">Create</span>
-						<div className="space-y-4">
-							<div className="tool-icon tool-qr-generate">
-								<QRIcon className="w-6 h-6" />
+				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
+					<Link href="/qr/generate">
+						<article className="tool-card tool-qr-generate group h-full cursor-pointer">
+							<span className="category-tag">Create</span>
+							<div className="space-y-4">
+								<div className="tool-icon">
+									<QRIcon className="w-6 h-6" />
+								</div>
+								<div className="space-y-2 pr-16">
+									<h3 className="text-xl font-bold text-foreground">Generate QR</h3>
+									<p className="text-sm text-muted-foreground leading-relaxed">
+										Create QR codes for text, URLs, WiFi, UPI, and more
+									</p>
+								</div>
+								<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
+									<span>Use tool</span>
+									<svg aria-hidden="true" className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+										<path d="M5 12h14" />
+										<path d="m12 5 7 7-7 7" />
+									</svg>
+								</div>
 							</div>
-							<div className="space-y-2 pr-12">
-								<h3 className="text-xl font-bold text-foreground">
-									Generate QR
-								</h3>
-								<p className="text-sm text-muted-foreground leading-relaxed">
-									Create QR codes for text, URLs, WiFi, UPI, and more
-								</p>
-							</div>
-							<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
-								<span>Open</span>
-								<svg
-									aria-hidden="true"
-									className="w-4 h-4"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2.5"
-								>
-									<path d="M5 12h14" />
-									<path d="m12 5 7 7-7 7" />
-								</svg>
-							</div>
-						</div>
+						</article>
 					</Link>
 
-					{/* Scan Card */}
-					<Link
-						href="/qr/scan"
-						className="tool-card tool-qr-scan group text-left transition-all hover:ring-4 hover:ring-[#7C1E4A] hover:ring-offset-2"
-					>
-						<span className="category-tag">Read</span>
-						<div className="space-y-4">
-							<div className="tool-icon tool-qr-scan">
-								<ScanIcon className="w-6 h-6" />
+					<Link href="/qr/scan">
+						<article className="tool-card tool-qr-scan group h-full cursor-pointer">
+							<span className="category-tag">Read</span>
+							<div className="space-y-4">
+								<div className="tool-icon">
+									<ScanIcon className="w-6 h-6" />
+								</div>
+								<div className="space-y-2 pr-16">
+									<h3 className="text-xl font-bold text-foreground">Scan QR</h3>
+									<p className="text-sm text-muted-foreground leading-relaxed">
+										Use your camera to read any QR code instantly
+									</p>
+								</div>
+								<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
+									<span>Use tool</span>
+									<svg aria-hidden="true" className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+										<path d="M5 12h14" />
+										<path d="m12 5 7 7-7 7" />
+									</svg>
+								</div>
 							</div>
-							<div className="space-y-2 pr-12">
-								<h3 className="text-xl font-bold text-foreground">Scan QR</h3>
-								<p className="text-sm text-muted-foreground leading-relaxed">
-									Use your camera to read any QR code instantly
-								</p>
-							</div>
-							<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
-								<span>Open</span>
-								<svg
-									aria-hidden="true"
-									className="w-4 h-4"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2.5"
-								>
-									<path d="M5 12h14" />
-									<path d="m12 5 7 7-7 7" />
-								</svg>
-							</div>
-						</div>
+						</article>
 					</Link>
 
-					{/* Bulk Generate Card */}
-					<Link
-						href="/qr/bulk"
-						className="tool-card tool-qr-generate group text-left transition-all hover:ring-4 hover:ring-[#4A1E7C] hover:ring-offset-2"
-					>
-						<span className="category-tag">Batch</span>
-						<div className="space-y-4">
-							<div className="tool-icon tool-qr-generate">
-								<BulkIcon className="w-6 h-6" />
+					<Link href="/qr/bulk">
+						<article className="tool-card tool-qr-bulk group h-full cursor-pointer">
+							<span className="category-tag">Batch</span>
+							<div className="space-y-4">
+								<div className="tool-icon">
+									<BulkIcon className="w-6 h-6" />
+								</div>
+								<div className="space-y-2 pr-16">
+									<h3 className="text-xl font-bold text-foreground">Bulk Generate</h3>
+									<p className="text-sm text-muted-foreground leading-relaxed">
+										Create multiple QR codes at once
+									</p>
+								</div>
+								<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
+									<span>Use tool</span>
+									<svg aria-hidden="true" className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+										<path d="M5 12h14" />
+										<path d="m12 5 7 7-7 7" />
+									</svg>
+								</div>
 							</div>
-							<div className="space-y-2 pr-12">
-								<h3 className="text-xl font-bold text-foreground">
-									Bulk Generate
-								</h3>
-								<p className="text-sm text-muted-foreground leading-relaxed">
-									Create multiple QR codes at once
-								</p>
+						</article>
+					</Link>
+
+					<Link href="/qr/barcode">
+						<article className="tool-card tool-barcode group h-full cursor-pointer">
+							<span className="category-tag">Create</span>
+							<div className="space-y-4">
+								<div className="tool-icon">
+									<BarcodeIcon className="w-6 h-6" />
+								</div>
+								<div className="space-y-2 pr-16">
+									<h3 className="text-xl font-bold text-foreground">Barcode</h3>
+									<p className="text-sm text-muted-foreground leading-relaxed">
+										Generate UPC, EAN, Code 128, and more
+									</p>
+								</div>
+								<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
+									<span>Use tool</span>
+									<svg aria-hidden="true" className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+										<path d="M5 12h14" />
+										<path d="m12 5 7 7-7 7" />
+									</svg>
+								</div>
 							</div>
-							<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
-								<span>Open</span>
-								<svg
-									aria-hidden="true"
-									className="w-4 h-4"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2.5"
-								>
-									<path d="M5 12h14" />
-									<path d="m12 5 7 7-7 7" />
-								</svg>
-							</div>
-						</div>
+						</article>
 					</Link>
 				</div>
 			</section>

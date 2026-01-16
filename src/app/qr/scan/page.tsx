@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { ArrowLeftIcon, LoaderIcon } from "@/components/icons";
+import { ErrorBox } from "@/components/shared";
+import { useImagePaste } from "@/hooks";
 
-function ScanIcon({ className }: { className?: string }) {
+const ScanIcon = memo(function ScanIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -21,9 +23,9 @@ function ScanIcon({ className }: { className?: string }) {
 			<line x1="7" y1="12" x2="17" y2="12" />
 		</svg>
 	);
-}
+});
 
-function CopyIcon({ className }: { className?: string }) {
+const CopyIcon = memo(function CopyIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -37,9 +39,9 @@ function CopyIcon({ className }: { className?: string }) {
 			<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
 		</svg>
 	);
-}
+});
 
-function CheckIcon({ className }: { className?: string }) {
+const CheckIcon = memo(function CheckIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -52,9 +54,9 @@ function CheckIcon({ className }: { className?: string }) {
 			<polyline points="20 6 9 17 4 12" />
 		</svg>
 	);
-}
+});
 
-function UploadIcon({ className }: { className?: string }) {
+const UploadIcon = memo(function UploadIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
@@ -69,7 +71,7 @@ function UploadIcon({ className }: { className?: string }) {
 			<line x1="12" y1="3" x2="12" y2="15" />
 		</svg>
 	);
-}
+});
 
 const SCANNER_ID = "qr-scanner-element";
 
@@ -136,26 +138,13 @@ export default function QRScanPage() {
 		}
 	}, []);
 
-	// Handle paste from clipboard
-	useEffect(() => {
-		const handlePaste = (e: ClipboardEvent) => {
-			const items = e.clipboardData?.items;
-			if (!items || scanResult) return;
+	// Handle paste from clipboard using custom hook
+	const handlePaste = useCallback((files: File[]) => {
+		if (files.length > 0) processQRFile(files[0]);
+	}, [processQRFile]);
+	useImagePaste(handlePaste, !scanResult);
 
-			for (const item of items) {
-				if (item.type.startsWith("image/")) {
-					const file = item.getAsFile();
-					if (file) processQRFile(file);
-					break;
-				}
-			}
-		};
-
-		window.addEventListener("paste", handlePaste);
-		return () => window.removeEventListener("paste", handlePaste);
-	}, [scanResult, processQRFile]);
-
-	const startScanning = async () => {
+	const startScanning = useCallback(async () => {
 		setError(null);
 
 		try {
@@ -187,9 +176,9 @@ export default function QRScanPage() {
 					: "Failed to access camera. Please allow camera permissions.",
 			);
 		}
-	};
+	}, []);
 
-	const stopScanning = async () => {
+	const stopScanning = useCallback(async () => {
 		if (scannerRef.current) {
 			try {
 				await scannerRef.current.stop();
@@ -197,38 +186,39 @@ export default function QRScanPage() {
 			scannerRef.current = null;
 		}
 		setIsScanning(false);
-	};
+	}, []);
 
-	const handleCopy = async () => {
+	const handleCopy = useCallback(async () => {
 		if (scanResult) {
 			await navigator.clipboard.writeText(scanResult);
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		}
-	};
+	}, [scanResult]);
 
-	const isUrl = (text: string) => {
+	const isUrlResult = useMemo(() => {
+		if (!scanResult) return false;
 		try {
-			new URL(text);
+			new URL(scanResult);
 			return true;
 		} catch {
 			return false;
 		}
-	};
+	}, [scanResult]);
 
-	const handleScanAnother = () => {
+	const handleScanAnother = useCallback(() => {
 		setScanResult(null);
 		setError(null);
-	};
+	}, []);
 
-	const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
 		processQRFile(file);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = "";
 		}
-	};
+	}, [processQRFile]);
 
 	return (
 		<div className="page-enter max-w-3xl mx-auto space-y-8">
@@ -339,23 +329,7 @@ export default function QRScanPage() {
 						</div>
 					</div>
 
-					{error && (
-						<div className="error-box animate-shake">
-							<svg
-								aria-hidden="true"
-								className="w-5 h-5"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-							>
-								<circle cx="12" cy="12" r="10" />
-								<line x1="12" y1="8" x2="12" y2="12" />
-								<line x1="12" y1="16" x2="12.01" y2="16" />
-							</svg>
-							<span className="font-medium">{error}</span>
-						</div>
-					)}
+					{error && <ErrorBox message={error} />}
 
 					{/* Tips */}
 					<div className="border-2 border-foreground/30 p-4">
@@ -451,15 +425,15 @@ export default function QRScanPage() {
 									Type:
 								</span>
 								<span
-									className={`px-2 py-1 text-xs font-bold border-2 ${isUrl(scanResult) ? "border-primary bg-primary/10 text-primary" : "border-foreground/30"}`}
+									className={`px-2 py-1 text-xs font-bold border-2 ${isUrlResult ? "border-primary bg-primary/10 text-primary" : "border-foreground/30"}`}
 								>
-									{isUrl(scanResult) ? "URL" : "TEXT"}
+									{isUrlResult ? "URL" : "TEXT"}
 								</span>
 							</div>
 
 							{/* Actions */}
 							<div className="flex gap-3">
-								{isUrl(scanResult) && (
+								{isUrlResult && (
 									<a
 										href={scanResult}
 										target="_blank"
@@ -484,7 +458,7 @@ export default function QRScanPage() {
 								<button
 									type="button"
 									onClick={handleCopy}
-									className={`flex-1 ${isUrl(scanResult) ? "btn-secondary" : "btn-success"}`}
+									className={`flex-1 ${isUrlResult ? "btn-secondary" : "btn-success"}`}
 									style={
 										copied
 											? { background: "#2D5A3D", color: "white" }
