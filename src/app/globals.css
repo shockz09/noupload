@@ -403,6 +403,7 @@
 }
 
 /* Tool colors */
+.tool-edit { --tool-color: #0369A1; }
 .tool-organize { --tool-color: #5B21B6; }
 .tool-merge { --tool-color: #C84C1C; }
 .tool-split { --tool-color: #1E4A7C; }
@@ -461,6 +462,16 @@
 .tool-audio-normalize { --tool-color: #1D4ED8; }
 .tool-audio-silence { --tool-color: #BE185D; }
 .tool-audio-merge { --tool-color: #B91C1C; }
+.tool-audio-metadata { --tool-color: #7C3AED; }
+.tool-metadata { --tool-color: #0369A1; }
+.tool-blur { --tool-color: #DC2626; }
+.tool-barcode { --tool-color: #1E3A5F; }
+.tool-palette { --tool-color: #DB2777; }
+.tool-extract-images { --tool-color: #B45309; }
+.tool-collage { --tool-color: #7C3AED; }
+.tool-html-to-pdf { --tool-color: #7F1D1D; }
+.tool-qr-bulk { --tool-color: #4A1E7C; }
+.tool-markdown-to-pdf { --tool-color: #059669; }
 
 /* Category tag */
 .category-tag {
@@ -1034,6 +1045,20 @@
 *:focus-visible {
   outline: 3px solid #C84C1C;
   outline-offset: 2px;
+}
+
+/* No focus outline for markdown editor */
+.markdown-editor:focus-visible,
+.markdown-editor:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Markdown editor inputs - allow border but no outline */
+input.markdown-editor:focus-visible,
+input.markdown-editor:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* ============================================

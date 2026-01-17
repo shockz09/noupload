@@ -5,11 +5,15 @@ import {
 	CompressIcon,
 	DeletePagesIcon,
 	DuplicateIcon,
+	EditIcon,
+	ExtractImageIcon,
 	FileIcon,
 	GrayscaleIcon,
+	HtmlIcon,
 	ImageIcon,
 	LockIcon,
 	MergeIcon,
+	MetadataIcon,
 	NumbersIcon,
 	OcrIcon,
 	OrganizeIcon,
@@ -24,6 +28,14 @@ import {
 } from "@/components/icons";
 
 const tools = [
+	{
+		title: "Edit PDF",
+		description: "Add text, signatures, shapes, and annotations",
+		href: "/edit",
+		icon: EditIcon,
+		category: "edit",
+		colorClass: "tool-edit",
+	},
 	{
 		title: "Organize PDF",
 		description: "Sort, add and delete pages with drag & drop",
@@ -87,6 +99,22 @@ const tools = [
 		icon: FileIcon,
 		category: "convert",
 		colorClass: "tool-images-to-pdf",
+	},
+	{
+		title: "Markdown → PDF",
+		description: "Convert Markdown with LaTeX math to PDF",
+		href: "/markdown-to-pdf",
+		icon: TextIcon,
+		category: "convert",
+		colorClass: "tool-markdown-to-pdf",
+	},
+	{
+		title: "HTML → PDF",
+		description: "Convert HTML with CSS to PDF documents",
+		href: "/html-to-pdf",
+		icon: HtmlIcon,
+		category: "convert",
+		colorClass: "tool-html-to-pdf",
 	},
 	{
 		title: "Rotate",
@@ -183,6 +211,22 @@ const tools = [
 		icon: DeletePagesIcon,
 		category: "organize",
 		colorClass: "tool-delete",
+	},
+	{
+		title: "PDF Metadata",
+		description: "View and edit document properties",
+		href: "/metadata",
+		icon: MetadataIcon,
+		category: "edit",
+		colorClass: "tool-metadata",
+	},
+	{
+		title: "Extract Images",
+		description: "Pull all images from a PDF",
+		href: "/extract-images",
+		icon: ExtractImageIcon,
+		category: "convert",
+		colorClass: "tool-extract-images",
 	},
 ];
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import {
 	AlertIcon,
 	ArrowLeftIcon,
@@ -18,7 +18,7 @@ interface PageHeaderProps {
 	backLabel: string;
 }
 
-export function PageHeader({
+export const PageHeader = memo(function PageHeader({
 	icon,
 	iconClass,
 	title,
@@ -41,21 +41,21 @@ export function PageHeader({
 			</div>
 		</div>
 	);
-}
+});
 
 // ============ Error Box ============
 interface ErrorBoxProps {
 	message: string;
 }
 
-export function ErrorBox({ message }: ErrorBoxProps) {
+export const ErrorBox = memo(function ErrorBox({ message }: ErrorBoxProps) {
 	return (
 		<div className="error-box animate-shake">
 			<AlertIcon className="w-5 h-5" />
 			<span className="font-medium">{message}</span>
 		</div>
 	);
-}
+});
 
 // ============ Progress Bar ============
 interface ProgressBarProps {
@@ -63,7 +63,7 @@ interface ProgressBarProps {
 	label?: string;
 }
 
-export function ProgressBar({
+export const ProgressBar = memo(function ProgressBar({
 	progress,
 	label = "Processing...",
 }: ProgressBarProps) {
@@ -78,7 +78,7 @@ export function ProgressBar({
 			</div>
 		</div>
 	);
-}
+});
 
 // ============ Process Button ============
 interface ProcessButtonProps {
@@ -90,7 +90,7 @@ interface ProcessButtonProps {
 	label: string;
 }
 
-export function ProcessButton({
+export const ProcessButton = memo(function ProcessButton({
 	onClick,
 	disabled,
 	isProcessing,
@@ -118,7 +118,7 @@ export function ProcessButton({
 			)}
 		</button>
 	);
-}
+});
 
 // ============ Success Card ============
 interface SuccessCardProps {
@@ -133,7 +133,7 @@ interface SuccessCardProps {
 	startOverLabel: string;
 }
 
-export function SuccessCard({
+export const SuccessCard = memo(function SuccessCard({
 	stampText,
 	title,
 	subtitle,
@@ -189,7 +189,7 @@ export function SuccessCard({
 			</div>
 		</div>
 	);
-}
+});
 
 // ============ File Info ============
 interface FileInfoProps {
@@ -199,7 +199,7 @@ interface FileInfoProps {
 	icon?: ReactNode;
 }
 
-export function FileInfo({ file, fileSize, onClear, icon }: FileInfoProps) {
+export const FileInfo = memo(function FileInfo({ file, fileSize, onClear, icon }: FileInfoProps) {
 	return (
 		<div className="file-item">
 			<div className="pdf-icon-box">{icon}</div>
@@ -218,7 +218,7 @@ export function FileInfo({ file, fileSize, onClear, icon }: FileInfoProps) {
 			</button>
 		</div>
 	);
-}
+});
 
 // ============ Comparison Display ============
 interface ComparisonDisplayProps {
@@ -228,7 +228,7 @@ interface ComparisonDisplayProps {
 	newValue: string;
 }
 
-export function ComparisonDisplay({
+export const ComparisonDisplay = memo(function ComparisonDisplay({
 	originalLabel,
 	originalValue,
 	newLabel,
@@ -262,14 +262,14 @@ export function ComparisonDisplay({
 			</div>
 		</div>
 	);
-}
+});
 
 // ============ Savings Badge ============
 interface SavingsBadgeProps {
 	savings: number;
 }
 
-export function SavingsBadge({ savings }: SavingsBadgeProps) {
+export const SavingsBadge = memo(function SavingsBadge({ savings }: SavingsBadgeProps) {
 	return (
 		<div
 			className={`inline-flex items-center gap-2 px-4 py-2 border-2 font-bold text-sm ${
@@ -298,4 +298,4 @@ export function SavingsBadge({ savings }: SavingsBadgeProps) {
 			)}
 		</div>
 	);
-}
+});

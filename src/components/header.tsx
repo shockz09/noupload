@@ -1,21 +1,20 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { InstantModeNavToggle } from "@/components/shared/InstantModeToggle";
 
-export function Header() {
+export const Header = memo(function Header() {
 	const pathname = usePathname();
 
-	const getSection = () => {
+	const section = useMemo(() => {
 		if (pathname?.startsWith("/image"))
 			return { name: "image", href: "/image" };
 		if (pathname?.startsWith("/audio"))
 			return { name: "audio", href: "/audio" };
 		if (pathname?.startsWith("/qr")) return { name: "qr", href: "/qr" };
 		return { name: "pdf", href: "/" };
-	};
-
-	const section = getSection();
+	}, [pathname]);
 
 	return (
 		<header className="header-main sticky top-0 z-50">
@@ -27,4 +26,4 @@ export function Header() {
 			</div>
 		</header>
 	);
-}
+});

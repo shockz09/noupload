@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 
 const STORAGE_KEY = "noupload-instant-mode";
 
@@ -44,7 +44,7 @@ interface InstantModeToggleProps {
 }
 
 // Page-level toggle (larger, with text) - keep for backwards compat
-export function InstantModeToggle({
+export const InstantModeToggle = memo(function InstantModeToggle({
 	isInstant,
 	onToggle,
 }: InstantModeToggleProps) {
@@ -92,10 +92,10 @@ export function InstantModeToggle({
 			</div>
 		</button>
 	);
-}
+});
 
 // Navbar compact toggle (icon-only with animation)
-export function InstantModeNavToggle() {
+export const InstantModeNavToggle = memo(function InstantModeNavToggle() {
 	const { isInstant, toggle, isLoaded } = useInstantMode();
 	const [isPressed, setIsPressed] = useState(false);
 
@@ -142,4 +142,4 @@ export function InstantModeNavToggle() {
 			</div>
 		</button>
 	);
-}
+});
