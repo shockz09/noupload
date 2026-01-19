@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+	// Optimize barrel imports for faster builds and smaller bundles
+	experimental: {
+		optimizePackageImports: [
+			"lucide-react",
+			"@radix-ui/react-dialog",
+			"@radix-ui/react-label",
+			"@radix-ui/react-progress",
+			"@radix-ui/react-scroll-area",
+			"@radix-ui/react-separator",
+			"@radix-ui/react-slot",
+			"@radix-ui/react-tabs",
+		],
+	},
 	async redirects() {
 		return [
 			{

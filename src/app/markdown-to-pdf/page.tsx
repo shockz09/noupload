@@ -270,6 +270,27 @@ function ToolbarButton({
 	);
 }
 
+// Static data hoisted outside component to avoid recreation on each render
+const SNIPPETS = [
+	{ name: "Matrix", code: "$$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$$" },
+	{ name: "Limit", code: "$$\\lim_{x \\to \\infty} f(x)$$" },
+	{ name: "Derivative", code: "$$\\frac{d}{dx} f(x)$$" },
+	{ name: "Integral", code: "$$\\int_{a}^{b} f(x) dx$$" },
+	{ name: "Summation", code: "$$\\sum_{i=1}^{n} x_i$$" },
+	{ name: "Table 3x3", code: "| Col 1 | Col 2 | Col 3 |\n|-------|-------|-------|\n| A1 | B1 | C1 |\n| A2 | B2 | C2 |\n| A3 | B3 | C3 |" },
+	{ name: "Code JS", code: "```javascript\nfunction example() {\n  return 'Hello';\n}\n```" },
+	{ name: "Code Python", code: "```python\ndef example():\n    return 'Hello'\n```" },
+	{ name: "Checklist", code: "- [ ] Task 1\n- [ ] Task 2\n- [x] Completed" },
+	{ name: "Image", code: "![Alt text](url)" },
+] as const;
+
+const EMOJIS = [
+	{ category: "Reactions", items: ["👍", "👎", "👏", "🎉", "❤️", "🔥", "⭐", "💯", "✅", "❌", "⚠️", "💡"] },
+	{ category: "Objects", items: ["📝", "📌", "📎", "📊", "📈", "📉", "💻", "📱", "🔗", "🔒", "🔑", "📁"] },
+	{ category: "Arrows", items: ["➡️", "⬅️", "⬆️", "⬇️", "↗️", "↘️", "↙️", "↖️", "🔄", "🔃", "↩️", "↪️"] },
+	{ category: "Symbols", items: ["ℹ️", "❓", "❗", "💬", "🏷️", "🎯", "🚀", "⚡", "🛠️", "⚙️", "🔧", "📋"] },
+] as const;
+
 export default function MarkdownToPdfPage() {
 	const [markdown, setMarkdown] = useState("");
 	const [docTitle, setDocTitle] = useState("Untitled Document");
@@ -909,32 +930,10 @@ export default function MarkdownToPdfPage() {
 		URL.revokeObjectURL(url);
 	};
 
-	// Snippets for quick insertion
-	const SNIPPETS = [
-		{ name: "Matrix", code: "$$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$$" },
-		{ name: "Limit", code: "$$\\lim_{x \\to \\infty} f(x)$$" },
-		{ name: "Derivative", code: "$$\\frac{d}{dx} f(x)$$" },
-		{ name: "Integral", code: "$$\\int_{a}^{b} f(x) dx$$" },
-		{ name: "Summation", code: "$$\\sum_{i=1}^{n} x_i$$" },
-		{ name: "Table 3x3", code: "| Col 1 | Col 2 | Col 3 |\n|-------|-------|-------|\n| A1 | B1 | C1 |\n| A2 | B2 | C2 |\n| A3 | B3 | C3 |" },
-		{ name: "Code JS", code: "```javascript\nfunction example() {\n  return 'Hello';\n}\n```" },
-		{ name: "Code Python", code: "```python\ndef example():\n    return 'Hello'\n```" },
-		{ name: "Checklist", code: "- [ ] Task 1\n- [ ] Task 2\n- [x] Completed" },
-		{ name: "Image", code: "![Alt text](url)" },
-	];
-
 	const handleInsertSnippet = (code: string) => {
 		insertAtCursor(code);
 		setShowSnippets(false);
 	};
-
-	// Common emojis for documents
-	const EMOJIS = [
-		{ category: "Reactions", items: ["👍", "👎", "👏", "🎉", "❤️", "🔥", "⭐", "💯", "✅", "❌", "⚠️", "💡"] },
-		{ category: "Objects", items: ["📝", "📌", "📎", "📊", "📈", "📉", "💻", "📱", "🔗", "🔒", "🔑", "📁"] },
-		{ category: "Arrows", items: ["➡️", "⬅️", "⬆️", "⬇️", "↗️", "↘️", "↙️", "↖️", "🔄", "🔃", "↩️", "↪️"] },
-		{ category: "Symbols", items: ["ℹ️", "❓", "❗", "💬", "🏷️", "🎯", "🚀", "⚡", "🛠️", "⚙️", "🔧", "📋"] },
-	];
 
 	const handleInsertEmoji = (emoji: string) => {
 		insertAtCursor(emoji);

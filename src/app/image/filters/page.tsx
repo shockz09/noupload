@@ -26,6 +26,14 @@ interface FilterMetadata {
 	filter: FilterType;
 }
 
+// Thermal gradient for heat map effect - hoisted to avoid recreation
+const THERMAL_GRADIENT = [
+	{ pos: 0, r: 0, g: 0, b: 0 }, { pos: 0.15, r: 20, g: 0, b: 80 },
+	{ pos: 0.3, r: 80, g: 0, b: 120 }, { pos: 0.45, r: 180, g: 0, b: 60 },
+	{ pos: 0.6, r: 255, g: 80, b: 0 }, { pos: 0.75, r: 255, g: 180, b: 0 },
+	{ pos: 0.9, r: 255, g: 255, b: 100 }, { pos: 1, r: 255, g: 255, b: 255 },
+] as const;
+
 const filters: {
 	value: FilterType;
 	label: string;
@@ -103,21 +111,15 @@ function generatePixelPreview(img: HTMLImageElement, filter: FilterType): string
 		}
 		ctx.putImageData(imageData, 0, 0);
 	} else if (filter === "thermal") {
-		const gradient = [
-			{ pos: 0, r: 0, g: 0, b: 0 }, { pos: 0.15, r: 20, g: 0, b: 80 },
-			{ pos: 0.3, r: 80, g: 0, b: 120 }, { pos: 0.45, r: 180, g: 0, b: 60 },
-			{ pos: 0.6, r: 255, g: 80, b: 0 }, { pos: 0.75, r: 255, g: 180, b: 0 },
-			{ pos: 0.9, r: 255, g: 255, b: 100 }, { pos: 1, r: 255, g: 255, b: 255 },
-		];
 		const getColor = (t: number) => {
-			for (let j = 0; j < gradient.length - 1; j++) {
-				const c1 = gradient[j], c2 = gradient[j + 1];
+			for (let j = 0; j < THERMAL_GRADIENT.length - 1; j++) {
+				const c1 = THERMAL_GRADIENT[j], c2 = THERMAL_GRADIENT[j + 1];
 				if (t >= c1.pos && t <= c2.pos) {
 					const f = (t - c1.pos) / (c2.pos - c1.pos);
 					return { r: c1.r + (c2.r - c1.r) * f, g: c1.g + (c2.g - c1.g) * f, b: c1.b + (c2.b - c1.b) * f };
 				}
 			}
-			return gradient[gradient.length - 1];
+			return THERMAL_GRADIENT[THERMAL_GRADIENT.length - 1];
 		};
 		for (let i = 0; i < data.length; i += 4) {
 			const lum = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
@@ -244,17 +246,12 @@ export default function ImageFiltersPage() {
 					}
 					ctx.putImageData(imageData, 0, 0);
 				} else if (selectedFilter === "thermal") {
-					const gradient = [
-						{ pos: 0, r: 0, g: 0, b: 0 }, { pos: 0.15, r: 20, g: 0, b: 80 }, { pos: 0.3, r: 80, g: 0, b: 120 },
-						{ pos: 0.45, r: 180, g: 0, b: 60 }, { pos: 0.6, r: 255, g: 80, b: 0 }, { pos: 0.75, r: 255, g: 180, b: 0 },
-						{ pos: 0.9, r: 255, g: 255, b: 100 }, { pos: 1, r: 255, g: 255, b: 255 },
-					];
 					const thermalLUT = new Uint8Array(256 * 3);
 					for (let i = 0; i < 256; i++) {
 						const t = i / 255;
 						let r = 255, g = 255, b = 255;
-						for (let j = 0; j < gradient.length - 1; j++) {
-							const c1 = gradient[j], c2 = gradient[j + 1];
+						for (let j = 0; j < THERMAL_GRADIENT.length - 1; j++) {
+							const c1 = THERMAL_GRADIENT[j], c2 = THERMAL_GRADIENT[j + 1];
 							if (t >= c1.pos && t <= c2.pos) {
 								const f = (t - c1.pos) / (c2.pos - c1.pos);
 								r = c1.r + (c2.r - c1.r) * f; g = c1.g + (c2.g - c1.g) * f; b = c1.b + (c2.b - c1.b) * f;

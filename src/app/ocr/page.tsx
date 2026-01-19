@@ -18,6 +18,22 @@ import { downloadBlob } from "@/lib/pdf-utils";
 
 type OCRMode = "searchable" | "extract";
 
+// Static data hoisted outside component to avoid recreation on each render
+const LANGUAGES = [
+	{ code: "eng", name: "English" },
+	{ code: "spa", name: "Spanish" },
+	{ code: "fra", name: "French" },
+	{ code: "deu", name: "German" },
+	{ code: "ita", name: "Italian" },
+	{ code: "por", name: "Portuguese" },
+	{ code: "chi_sim", name: "Chinese (Simplified)" },
+	{ code: "chi_tra", name: "Chinese (Traditional)" },
+	{ code: "jpn", name: "Japanese" },
+	{ code: "kor", name: "Korean" },
+	{ code: "ara", name: "Arabic" },
+	{ code: "rus", name: "Russian" },
+] as const;
+
 export default function OcrPage() {
 	const { isInstant, isLoaded } = useInstantMode();
 	const [file, setFile] = useState<File | null>(null);
@@ -30,21 +46,6 @@ export default function OcrPage() {
 
 	// Use custom hook for processing state
 	const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } = useFileProcessing();
-
-	const languages = [
-		{ code: "eng", name: "English" },
-		{ code: "spa", name: "Spanish" },
-		{ code: "fra", name: "French" },
-		{ code: "deu", name: "German" },
-		{ code: "ita", name: "Italian" },
-		{ code: "por", name: "Portuguese" },
-		{ code: "chi_sim", name: "Chinese (Simplified)" },
-		{ code: "chi_tra", name: "Chinese (Traditional)" },
-		{ code: "jpn", name: "Japanese" },
-		{ code: "kor", name: "Korean" },
-		{ code: "ara", name: "Arabic" },
-		{ code: "rus", name: "Russian" },
-	];
 
 	const processFile = useCallback(
 		async (fileToProcess: File, ocrMode: OCRMode, lang: string) => {
@@ -411,7 +412,7 @@ export default function OcrPage() {
 					<div className="p-6 bg-card border-2 border-foreground space-y-4">
 						<span className="input-label">Language</span>
 						<div className="flex flex-wrap gap-2">
-							{languages.slice(0, 6).map((lang) => (
+							{LANGUAGES.slice(0, 6).map((lang) => (
 								<button
 									type="button"
 									key={lang.code}
@@ -433,7 +434,7 @@ export default function OcrPage() {
 								More languages...
 							</summary>
 							<div className="flex flex-wrap gap-2 mt-3">
-								{languages.slice(6).map((lang) => (
+								{LANGUAGES.slice(6).map((lang) => (
 									<button
 										type="button"
 										key={lang.code}

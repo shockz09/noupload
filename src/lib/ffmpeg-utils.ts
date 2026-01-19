@@ -1,9 +1,17 @@
-// FFmpeg WASM utilities - lazy loaded to avoid initial page load impact
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile } from "@ffmpeg/util";
+// FFmpeg WASM utilities - fully lazy loaded to avoid initial page load impact
+// All imports are dynamic to keep FFmpeg out of the initial bundle
+
+// Type-only import doesn't add to bundle (stripped at compile time)
+import type { FFmpeg } from "@ffmpeg/ffmpeg";
 
 let ffmpeg: FFmpeg | null = null;
 let loadPromise: Promise<FFmpeg> | null = null;
+
+// Lazy load fetchFile utility
+const getFetchFile = async () => {
+	const { fetchFile } = await import("@ffmpeg/util");
+	return fetchFile;
+};
 
 // Version for cache busting - update when upgrading FFmpeg
 const FFMPEG_VERSION = "0.12.10";
@@ -42,6 +50,7 @@ export async function getFFmpeg(
 	if (loadPromise) return loadPromise;
 
 	loadPromise = (async () => {
+		const { FFmpeg } = await import("@ffmpeg/ffmpeg");
 		ffmpeg = new FFmpeg();
 
 		const baseURL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VERSION}/dist/umd`;
@@ -113,7 +122,7 @@ export async function extractAudioFromVideo(
 		const inputName = `input${getExtension(file.name)}`;
 		const outputName = `output.${outputFormat}`;
 
-		await ffmpegInstance.writeFile(inputName, await fetchFile(file));
+		await ffmpegInstance.writeFile(inputName, await (await getFetchFile())(file));
 
 		// Build ffmpeg args based on format
 		const args = ["-i", inputName, "-vn"]; // -vn = no video
@@ -176,7 +185,7 @@ export async function denoiseAudio(
 		const inputName = `input${getExtension(file.name)}`;
 		const outputName = "output.wav"; // Output as WAV for quality
 
-		await ffmpegInstance.writeFile(inputName, await fetchFile(file));
+		await ffmpegInstance.writeFile(inputName, await (await getFetchFile())(file));
 
 		// Build filter based on strength
 		let filter: string;
@@ -237,7 +246,7 @@ export async function convertAudioFFmpeg(
 		const inputName = `input${getExtension(file.name)}`;
 		const outputName = `output.${outputFormat}`;
 
-		await ffmpegInstance.writeFile(inputName, await fetchFile(file));
+		await ffmpegInstance.writeFile(inputName, await (await getFetchFile())(file));
 
 		const args = ["-i", inputName];
 
@@ -285,7 +294,7 @@ export async function getVideoDuration(file: File): Promise<number> {
 	const ffmpegInstance = await getFFmpeg();
 
 	const inputName = `input${getExtension(file.name)}`;
-	await ffmpegInstance.writeFile(inputName, await fetchFile(file));
+	await ffmpegInstance.writeFile(inputName, await (await getFetchFile())(file));
 
 	let duration = 0;
 
@@ -346,7 +355,7 @@ export async function normalizeAudio(
 		const inputName = `input${getExtension(file.name)}`;
 		const outputName = "output.wav";
 
-		await ffmpegInstance.writeFile(inputName, await fetchFile(file));
+		await ffmpegInstance.writeFile(inputName, await (await getFetchFile())(file));
 
 		// EBU R128 loudness targets (LUFS)
 		const targets: Record<NormalizePreset, string> = {
@@ -399,7 +408,7 @@ export async function removeSilence(
 		const inputName = `input${getExtension(file.name)}`;
 		const outputName = "output.wav";
 
-		await ffmpegInstance.writeFile(inputName, await fetchFile(file));
+		await ffmpegInstance.writeFile(inputName, await (await getFetchFile())(file));
 
 		let filter: string;
 		if (mode === "trim-ends") {
@@ -453,7 +462,7 @@ export async function mergeAudio(
 
 			// First convert each file to wav for consistent format
 			const tempInput = `temp${i}${getExtension(files[i].name)}`;
-			await ffmpegInstance.writeFile(tempInput, await fetchFile(files[i]));
+			await ffmpegInstance.writeFile(tempInput, await (await getFetchFile())(files[i]));
 			await ffmpegInstance.exec([
 				"-i",
 				tempInput,
