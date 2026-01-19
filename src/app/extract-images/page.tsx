@@ -74,10 +74,9 @@ export default function ExtractImagesPage() {
 		document.body.removeChild(a);
 	}, []);
 
-	const handleDownloadAll = useCallback(async () => {
+	const handleDownloadAll = useCallback(() => {
 		for (const image of images) {
 			handleDownloadOne(image);
-			await new Promise((resolve) => setTimeout(resolve, 200));
 		}
 	}, [images, handleDownloadOne]);
 

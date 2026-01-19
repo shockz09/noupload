@@ -107,10 +107,9 @@ export default function BulkCompressPage() {
 		downloadImage(item.blob, item.filename);
 	}, []);
 
-	const handleDownloadAll = useCallback(async () => {
+	const handleDownloadAll = useCallback(() => {
 		for (const item of results) {
 			downloadImage(item.blob, item.filename);
-			await new Promise((resolve) => setTimeout(resolve, 200));
 		}
 	}, [results]);
 

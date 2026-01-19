@@ -132,22 +132,22 @@ export default function BulkQRGeneratePage() {
 		setError(null);
 
 		try {
-			for (let i = 0; i < items.length; i++) {
-				const text = items[i].trim();
-				let blob: Blob;
+			const blobs = await Promise.all(
+				items.map(async (item) => {
+					const text = item.trim();
+					if (logo) {
+						return generateQRBlobWithLogo(text, logo, {
+							width: 600,
+							...colorOptions,
+							logoPadding,
+						});
+					}
+					return generateQRBlob(text, { width: 600, ...colorOptions });
+				})
+			);
 
-				if (logo) {
-					blob = await generateQRBlobWithLogo(text, logo, {
-						width: 600,
-						...colorOptions,
-						logoPadding,
-					});
-				} else {
-					blob = await generateQRBlob(text, { width: 600, ...colorOptions });
-				}
-
-				downloadQR(blob, `qrcode-${i + 1}.png`);
-				await new Promise((resolve) => setTimeout(resolve, 200));
+			for (let i = 0; i < blobs.length; i++) {
+				downloadQR(blobs[i], `qrcode-${i + 1}.png`);
 			}
 		} catch (err) {
 			setError(

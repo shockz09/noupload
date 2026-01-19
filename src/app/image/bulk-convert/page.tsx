@@ -97,10 +97,9 @@ export default function BulkConvertPage() {
 
 	const handleDownloadOne = (item: ConvertedItem) =>
 		downloadImage(item.blob, item.filename);
-	const handleDownloadAll = async () => {
+	const handleDownloadAll = () => {
 		for (const item of results) {
 			downloadImage(item.blob, item.filename);
-			await new Promise((resolve) => setTimeout(resolve, 200));
 		}
 	};
 	const handleStartOver = () => {
