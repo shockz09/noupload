@@ -862,9 +862,9 @@ export default function MarkdownToPdfPage() {
 			const { PDFDocument } = await getPdfLib();
 			const pdfDoc = await PDFDocument.create();
 
-			// Fetch the image data
-			const imageResponse = await fetch(dataUrl);
-			const imageBytes = await imageResponse.arrayBuffer();
+			// Convert data URL to bytes directly (avoid fetch which CSP blocks)
+			const base64Data = dataUrl.split(",")[1];
+			const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
 			const pngImage = await pdfDoc.embedPng(imageBytes);
 
 			// Calculate dimensions (A4-ish proportions)

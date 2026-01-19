@@ -141,7 +141,7 @@ export default function HtmlToPdfPage() {
 								srcDoc={htmlWithPrintStyles}
 								title="HTML Preview"
 								className="w-full h-full border-none"
-								sandbox="allow-same-origin"
+								sandbox="allow-same-origin allow-modals"
 							/>
 						</div>
 					</div>
