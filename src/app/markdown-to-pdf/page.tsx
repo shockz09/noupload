@@ -113,6 +113,20 @@ function getPdfStyles(theme: Theme, fontSize: number) {
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
+  @page {
+    size: auto;
+    margin: 10mm 15mm;
+  }
+
+  @media print {
+    html, body {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+  }
+
   * {
     margin: 0;
     padding: 0;
@@ -790,112 +804,88 @@ export default function MarkdownToPdfPage() {
 		setError(null);
 
 		try {
-			// Dynamically import html-to-image
-			const { toPng } = await import("html-to-image");
-
-			setProgress(20);
-
-			// Render markdown with math
-			const html = await renderMarkdownWithMath(markdown);
-			const themeConfig = THEMES.find(t => t.id === theme) || THEMES[0];
+			// Dynamic import html2pdf.js
+			const html2pdf = (await import("html2pdf.js")).default;
 
 			setProgress(30);
 
-			// Create a hidden div for rendering (no external CSS to avoid CORS)
+			// Get rendered HTML with styles
+			const html = await renderMarkdownWithMath(markdown);
+			const themeConfig = THEMES.find(t => t.id === theme) || THEMES[0];
+
+			// Create container with full styling (fixed + off-screen, won't affect layout)
 			const container = document.createElement("div");
-			container.style.position = "absolute";
-			container.style.left = "-9999px";
-			container.style.top = "0";
-			container.style.width = "800px";
-			container.style.padding = "40px 50px";
-			container.style.background = themeConfig.bg;
-			container.style.color = themeConfig.text;
-			container.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-			container.style.fontSize = `${fontSize}px`;
-			container.style.lineHeight = "1.7";
+			container.style.cssText = `
+				position: fixed;
+				left: -9999px;
+				top: 0;
+				width: 800px;
+				background: ${themeConfig.bg};
+				color: ${themeConfig.text};
+				font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+				font-size: ${fontSize}px;
+				line-height: 1.7;
+				padding: 40px 50px;
+				pointer-events: none;
+				z-index: -1;
+			`;
 			container.innerHTML = html;
 			document.body.appendChild(container);
 
-			// Apply inline styles for common elements
-			const style = document.createElement("style");
-			style.textContent = `
-				h1, h2, h3, h4, h5, h6 { font-weight: 600; margin-top: 1.5em; margin-bottom: 0.5em; line-height: 1.3; }
+			// Apply styles
+			const styleEl = document.createElement("style");
+			styleEl.textContent = `
+				h1, h2, h3, h4, h5, h6 { font-weight: 600; margin-top: 1.5em; margin-bottom: 0.5em; }
 				h1 { font-size: 2em; border-bottom: 2px solid ${themeConfig.text}20; padding-bottom: 0.3em; }
 				h2 { font-size: 1.5em; border-bottom: 1px solid ${themeConfig.text}20; padding-bottom: 0.2em; }
-				h3 { font-size: 1.25em; }
 				p { margin: 1em 0; }
 				a { color: ${themeConfig.accent}; }
-				code { font-family: 'JetBrains Mono', monospace; font-size: 0.9em; background: ${themeConfig.text}10; padding: 0.2em 0.4em; border-radius: 4px; }
+				code { font-family: monospace; font-size: 0.9em; background: ${themeConfig.text}15; padding: 0.2em 0.4em; border-radius: 4px; }
 				pre { background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 1em 0; }
-				pre code { background: none; padding: 0; color: inherit; }
-				blockquote { border-left: 4px solid ${themeConfig.accent}; padding-left: 16px; margin: 1em 0; color: ${themeConfig.text}99; font-style: italic; }
+				pre code { background: none; padding: 0; }
+				blockquote { border-left: 4px solid ${themeConfig.accent}; padding-left: 16px; margin: 1em 0; font-style: italic; }
 				ul, ol { margin: 1em 0; padding-left: 2em; }
 				li { margin: 0.3em 0; }
 				table { width: 100%; border-collapse: collapse; margin: 1em 0; }
 				th, td { border: 1px solid ${themeConfig.text}20; padding: 10px 14px; text-align: left; }
 				th { background: ${themeConfig.text}08; font-weight: 600; }
-				hr { border: none; border-top: 1px solid ${themeConfig.text}20; margin: 2em 0; }
 				.math-block { display: flex; justify-content: center; margin: 1.5em 0; }
-				.katex { font-size: 1.1em; }
 			`;
-			container.appendChild(style);
-
-			// Wait for content to render
-			await new Promise(resolve => setTimeout(resolve, 300));
+			container.appendChild(styleEl);
 
 			setProgress(50);
 
-			// Convert to image
-			const dataUrl = await toPng(container, {
-				quality: 1,
-				pixelRatio: 2,
-				backgroundColor: themeConfig.bg,
-				skipAutoScale: true,
-			});
+			// Generate PDF using html2pdf.js
+			const opt = {
+				margin: [10, 15, 10, 15],
+				filename: `${docTitle.replace(/[^a-z0-9]/gi, "_")}.pdf`,
+				image: { type: "jpeg", quality: 0.98 },
+				html2canvas: {
+					scale: 2,
+					useCORS: true,
+					backgroundColor: themeConfig.bg,
+					scrollX: 0,
+					scrollY: 0,
+					windowWidth: 800,
+					x: 0,
+					y: 0,
+				},
+				jsPDF: {
+					unit: "mm",
+					format: "a4",
+					orientation: "portrait"
+				},
+			};
 
-			// Cleanup
-			document.body.removeChild(container);
-
-			setProgress(70);
-
-			// Create PDF
-			const { PDFDocument } = await getPdfLib();
-			const pdfDoc = await PDFDocument.create();
-
-			// Convert data URL to bytes directly (avoid fetch which CSP blocks)
-			const base64Data = dataUrl.split(",")[1];
-			const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-			const pngImage = await pdfDoc.embedPng(imageBytes);
-
-			// Calculate dimensions (A4-ish proportions)
-			const pageWidth = 612; // Letter width in points
-			const scale = pageWidth / pngImage.width;
-			const pageHeight = pngImage.height * scale;
-
-			// Add page with image
-			const page = pdfDoc.addPage([pageWidth, pageHeight]);
-			page.drawImage(pngImage, {
-				x: 0,
-				y: 0,
-				width: pageWidth,
-				height: pageHeight,
-			});
-
-			setProgress(90);
-
-			// Save PDF
-			const pdfBytes = await pdfDoc.save();
-			const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
+			try {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				await (html2pdf as any)(container, opt);
+			} finally {
+				// Always cleanup
+				document.body.removeChild(container);
+			}
 
 			setProgress(100);
-
-			// Download directly
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `${docTitle.replace(/[^a-z0-9]/gi, "_")}.pdf`;
-			a.click();
-			URL.revokeObjectURL(url);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Conversion failed");
 		} finally {
@@ -2017,7 +2007,7 @@ $$\int_0^1 x^2 dx$$ for block math"
 									ref={previewRef}
 									className="w-full h-full"
 									title="Preview"
-									sandbox="allow-same-origin"
+									sandbox="allow-same-origin allow-modals"
 								/>
 							</div>
 						</div>
