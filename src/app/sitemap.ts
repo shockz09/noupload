@@ -3,12 +3,12 @@ import type { MetadataRoute } from "next";
 export default function sitemap(): MetadataRoute.Sitemap {
 	const baseUrl = "https://noupload.xyz";
 
-	// PDF Tools
+	// PDF Tools (25)
 	const pdfTools = [
 		"",
+		"/compress",
 		"/merge",
 		"/split",
-		"/compress",
 		"/rotate",
 		"/sign",
 		"/organize",
@@ -24,9 +24,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		"/pdf-to-text",
 		"/duplicate",
 		"/delete",
+		"/edit",
+		"/metadata",
+		"/grayscale",
+		"/pdf-to-pdfa",
+		"/extract-images",
+		"/html-to-pdf",
+		"/markdown-to-pdf",
 	];
 
-	// Image Tools
+	// Image Tools (21)
 	const imageTools = [
 		"/image",
 		"/image/compress",
@@ -45,9 +52,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		"/image/bulk-resize",
 		"/image/bulk-compress",
 		"/image/bulk-convert",
+		"/image/blur",
+		"/image/collage",
+		"/image/palette",
+		"/image/remove-bg",
+		"/image/screenshot",
 	];
 
-	// Audio Tools
+	// Audio Tools (14)
 	const audioTools = [
 		"/audio",
 		"/audio/trim",
@@ -62,17 +74,34 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		"/audio/normalize",
 		"/audio/remove-silence",
 		"/audio/waveform",
+		"/audio/metadata",
+		"/audio/record",
 	];
 
-	// Other
-	const otherPages = ["/qr"];
+	// QR Tools (4)
+	const qrTools = [
+		"/qr",
+		"/qr/generate",
+		"/qr/scan",
+		"/qr/bulk",
+		"/qr/barcode",
+	];
 
-	const allPages = [...pdfTools, ...imageTools, ...audioTools, ...otherPages];
+	// Other pages
+	const otherPages = ["/privacy"];
+
+	const allPages = [
+		...pdfTools,
+		...imageTools,
+		...audioTools,
+		...qrTools,
+		...otherPages,
+	];
 
 	return allPages.map((route) => ({
 		url: `${baseUrl}${route}`,
 		lastModified: new Date(),
 		changeFrequency: "weekly" as const,
-		priority: route === "" ? 1 : 0.8,
+		priority: route === "" ? 1 : route.split("/").length === 2 ? 0.9 : 0.8,
 	}));
 }
