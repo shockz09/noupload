@@ -13,20 +13,19 @@ export default function Icon() {
 				alignItems: "center",
 				justifyContent: "center",
 				background: "#1A1612",
-				borderRadius: "50%",
 			}}
 		>
 			<div
 				style={{
-					width: 26,
-					height: 26,
+					width: 20,
+					height: 20,
 					background: "#C84C1C",
-					borderRadius: "50%",
+					border: "1.5px solid #FAF7F2",
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
 					fontFamily: "Georgia, serif",
-					fontSize: 11,
+					fontSize: 9,
 					fontWeight: "bold",
 					color: "#FAF7F2",
 				}}
