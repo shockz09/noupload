@@ -13,6 +13,7 @@ import {
 } from "@/components/audio/shared";
 import { ConvertIcon, DownloadIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { FormatSelector } from "@/components/shared";
 import { useAudioResult, useVideoToAudio } from "@/hooks";
 import {
 	type AudioFormat,
@@ -249,32 +250,13 @@ export default function AudioConvertPage() {
 					/>
 
 					<div className="border-2 border-foreground p-4 bg-card space-y-4">
-						<div className="space-y-2">
-							<span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-								Output Format
-							</span>
-							<div className="grid grid-cols-3 gap-2">
-								{outputFormats.map((fmt) => (
-									<button
-										type="button"
-										key={fmt.value}
-										onClick={() => setOutputFormat(fmt.value)}
-										className={`p-2 border-2 text-center transition-all ${
-											outputFormat === fmt.value
-												? "border-foreground bg-foreground text-background"
-												: "border-foreground/30 hover:border-foreground"
-										}`}
-									>
-										<span className="block font-bold text-sm">{fmt.label}</span>
-										<span
-											className={`block text-xs ${outputFormat === fmt.value ? "text-background/70" : "text-muted-foreground"}`}
-										>
-											{fmt.desc}
-										</span>
-									</button>
-								))}
-							</div>
-						</div>
+						<FormatSelector
+							label="Output Format"
+							formats={outputFormats}
+							value={outputFormat}
+							onChange={(v) => setOutputFormat(v as OutputFormat)}
+							columns={3}
+						/>
 
 						{!isLossless && (
 							<div className="space-y-2 pt-2 border-t border-foreground/10">

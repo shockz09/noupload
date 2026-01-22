@@ -299,3 +299,145 @@ export const SavingsBadge = memo(function SavingsBadge({ savings }: SavingsBadge
 		</div>
 	);
 });
+
+// ============ Quality Slider ============
+interface QualitySliderProps {
+	label: string;
+	value: number;
+	onChange: (value: number) => void;
+	min?: number;
+	max?: number;
+	unit?: string;
+	minLabel?: string;
+	maxLabel?: string;
+}
+
+export const QualitySlider = memo(function QualitySlider({
+	label,
+	value,
+	onChange,
+	min = 10,
+	max = 100,
+	unit = "%",
+	minLabel = "Smaller file",
+	maxLabel = "Better quality",
+}: QualitySliderProps) {
+	return (
+		<div className="space-y-3">
+			<div className="flex items-center justify-between">
+				<span className="input-label">{label}</span>
+				<span className="text-sm font-bold">
+					{value}
+					{unit}
+				</span>
+			</div>
+			<input
+				type="range"
+				min={min}
+				max={max}
+				value={value}
+				onChange={(e) => onChange(Number(e.target.value))}
+				className="w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-foreground [&::-webkit-slider-thumb]:cursor-pointer"
+			/>
+			<div className="flex justify-between text-xs text-muted-foreground font-medium">
+				<span>{minLabel}</span>
+				<span>{maxLabel}</span>
+			</div>
+		</div>
+	);
+});
+
+// ============ Format Selector ============
+interface FormatOption {
+	value: string;
+	label: string;
+	desc?: string;
+}
+
+interface FormatSelectorProps {
+	label?: string;
+	formats: FormatOption[];
+	value: string;
+	onChange: (value: string) => void;
+	columns?: 2 | 3 | 4;
+}
+
+export const FormatSelector = memo(function FormatSelector({
+	label,
+	formats,
+	value,
+	onChange,
+	columns = 3,
+}: FormatSelectorProps) {
+	const gridCols = {
+		2: "grid-cols-2",
+		3: "grid-cols-3",
+		4: "grid-cols-4",
+	};
+
+	return (
+		<div className="space-y-2">
+			{label && (
+				<span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+					{label}
+				</span>
+			)}
+			<div className={`grid ${gridCols[columns]} gap-2`}>
+				{formats.map((fmt) => (
+					<button
+						type="button"
+						key={fmt.value}
+						onClick={() => onChange(fmt.value)}
+						className={`p-2 border-2 text-center transition-all ${
+							value === fmt.value
+								? "border-foreground bg-foreground text-background"
+								: "border-foreground/30 hover:border-foreground"
+						}`}
+					>
+						<span className="block font-bold text-sm">{fmt.label}</span>
+						{fmt.desc && (
+							<span
+								className={`block text-xs ${
+									value === fmt.value
+										? "text-background/70"
+										: "text-muted-foreground"
+								}`}
+							>
+								{fmt.desc}
+							</span>
+						)}
+					</button>
+				))}
+			</div>
+		</div>
+	);
+});
+
+// ============ Info Box ============
+interface InfoBoxProps {
+	title: string;
+	children: ReactNode;
+}
+
+export const InfoBox = memo(function InfoBox({ title, children }: InfoBoxProps) {
+	return (
+		<div className="info-box">
+			<svg
+				aria-hidden="true"
+				className="w-5 h-5 mt-0.5 shrink-0"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+			>
+				<circle cx="12" cy="12" r="10" />
+				<path d="M12 16v-4" />
+				<path d="M12 8h.01" />
+			</svg>
+			<div className="text-sm">
+				<p className="font-bold text-foreground mb-1">{title}</p>
+				<p className="text-muted-foreground">{children}</p>
+			</div>
+		</div>
+	);
+});

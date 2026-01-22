@@ -12,6 +12,7 @@ import {
 	SavingsBadge,
 	SuccessCard,
 } from "@/components/image/shared";
+import { InfoBox, QualitySlider } from "@/components/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import {
@@ -104,10 +105,6 @@ export default function ImageCompressPage() {
 		clearResult();
 	}, [revokePreview, clearResult]);
 
-	const handleQualityChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-		setQuality(Number(e.target.value));
-	}, []);
-
 	const savings = useMemo(() => result?.metadata
 		? Math.round((1 - result.metadata.compressedSize / result.metadata.originalSize) * 100)
 		: 0, [result]);
@@ -150,30 +147,11 @@ export default function ImageCompressPage() {
 						title="Drop your image here"
 						subtitle="or click to browse · Ctrl+V to paste"
 					/>
-					<div className="info-box">
-						<svg
-							aria-hidden="true"
-							className="w-5 h-5 mt-0.5"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-						>
-							<circle cx="12" cy="12" r="10" />
-							<path d="M12 16v-4" />
-							<path d="M12 8h.01" />
-						</svg>
-						<div className="text-sm">
-							<p className="font-bold text-foreground mb-1">
-								{isInstant ? "Instant compression" : "About compression"}
-							</p>
-							<p className="text-muted-foreground">
-								{isInstant
-									? "Drop an image and it will be compressed at 80% quality automatically."
-									: "Compresses images using JPEG encoding. Adjust the quality slider to balance file size and visual quality."}
-							</p>
-						</div>
-					</div>
+					<InfoBox title={isInstant ? "Instant compression" : "About compression"}>
+						{isInstant
+							? "Drop an image and it will be compressed at 80% quality automatically."
+							: "Compresses images using JPEG encoding. Adjust the quality slider to balance file size and visual quality."}
+					</InfoBox>
 				</div>
 			) : (
 				<div className="space-y-6">
@@ -196,24 +174,11 @@ export default function ImageCompressPage() {
 						icon={<ImageIcon className="w-5 h-5" />}
 					/>
 
-					<div className="space-y-3">
-						<div className="flex items-center justify-between">
-							<span className="input-label">Quality</span>
-							<span className="text-sm font-bold">{quality}%</span>
-						</div>
-						<input
-							type="range"
-							min="10"
-							max="100"
-							value={quality}
-							onChange={handleQualityChange}
-							className="w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-foreground [&::-webkit-slider-thumb]:cursor-pointer"
-						/>
-						<div className="flex justify-between text-xs text-muted-foreground font-medium">
-							<span>Smaller file</span>
-							<span>Better quality</span>
-						</div>
-					</div>
+					<QualitySlider
+						label="Quality"
+						value={quality}
+						onChange={setQuality}
+					/>
 
 					{error && <ErrorBox message={error} />}
 					{isProcessing && (
