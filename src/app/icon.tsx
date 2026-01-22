@@ -12,20 +12,21 @@ export default function Icon() {
 				display: "flex",
 				alignItems: "center",
 				justifyContent: "center",
-				background: "#FAF7F2",
+				background: "#1A1612",
+				borderRadius: "50%",
 			}}
 		>
 			<div
 				style={{
-					width: 28,
-					height: 28,
+					width: 26,
+					height: 26,
 					background: "#C84C1C",
-					border: "2px solid #1A1612",
+					borderRadius: "50%",
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
 					fontFamily: "Georgia, serif",
-					fontSize: 12,
+					fontSize: 11,
 					fontWeight: "bold",
 					color: "#FAF7F2",
 				}}
