@@ -110,7 +110,7 @@ export default function QRScanPage() {
 		};
 	}, []);
 
-	// Shared function to process a QR image file
+	// Shared function to process a QR image file using jsQR
 	const processQRFile = useCallback(async (file: File) => {
 		// Stop camera if running
 		if (scannerRef.current) {
@@ -125,14 +125,43 @@ export default function QRScanPage() {
 		setIsProcessingFile(true);
 
 		try {
-			// Lazy load html5-qrcode only when needed
-			const { Html5Qrcode } = await import("html5-qrcode");
-			const html5QrCode = new Html5Qrcode("qr-file-scanner");
-			const result = await html5QrCode.scanFile(file, true);
-			setScanResult(result);
-			html5QrCode.clear();
-		} catch {
-			setError("No QR code found in image. Try another image.");
+			// Use jsQR for file scanning - more reliable than html5-qrcode
+			const jsQR = (await import("jsqr")).default;
+
+			// Load image and draw to canvas to get pixel data
+			const img = new Image();
+			const imageUrl = URL.createObjectURL(file);
+
+			await new Promise<void>((resolve, reject) => {
+				img.onload = () => resolve();
+				img.onerror = () => reject(new Error("Failed to load image"));
+				img.src = imageUrl;
+			});
+
+			// Create canvas and draw image
+			const canvas = document.createElement("canvas");
+			canvas.width = img.width;
+			canvas.height = img.height;
+			const ctx = canvas.getContext("2d");
+			if (!ctx) throw new Error("Could not get canvas context");
+
+			ctx.drawImage(img, 0, 0);
+			const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+			// Clean up object URL
+			URL.revokeObjectURL(imageUrl);
+
+			// Scan for QR code
+			const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+			if (code) {
+				setScanResult(code.data);
+			} else {
+				setError("No QR code found in image. Try another image.");
+			}
+		} catch (err) {
+			console.error("QR scan error:", err);
+			setError("Failed to process image. Try another image.");
 		} finally {
 			setIsProcessingFile(false);
 		}
@@ -245,8 +274,7 @@ export default function QRScanPage() {
 				</div>
 			</div>
 
-			{/* Hidden elements */}
-			<div id="qr-file-scanner" className="hidden" />
+			{/* Hidden file input */}
 			<input
 				ref={fileInputRef}
 				type="file"
