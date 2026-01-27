@@ -126,18 +126,17 @@ export default function QRScanPage() {
 
 		try {
 			// Lazy load html5-qrcode only when needed
-			const { Html5Qrcode } = await import("html5-qrcode");
-			const html5QrCode = new Html5Qrcode("qr-file-scanner");
+			const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
+			const html5QrCode = new Html5Qrcode("qr-file-scanner", {
+				formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+				verbose: false,
+			});
 			const result = await html5QrCode.scanFile(file, /* showImage */ true);
 			setScanResult(result);
 			html5QrCode.clear();
 		} catch (err) {
 			console.error("QR scan error:", err);
-			setError(
-				err instanceof Error && err.message.includes("No QR code")
-					? "No QR code found in image. Try another image."
-					: "Failed to scan image. Please try a clearer image."
-			);
+			setError("No QR code found in image. Try another image.");
 		} finally {
 			setIsProcessingFile(false);
 		}
