@@ -83,8 +83,6 @@ export default function QRScanPage() {
 	const [isProcessingFile, setIsProcessingFile] = useState(false);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const scannerRef = useRef<any>(null);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const fileScannerRef = useRef<any>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -99,17 +97,10 @@ export default function QRScanPage() {
 		}
 
 		return () => {
-			// Cleanup camera scanner
+			// Cleanup scanner
 			if (scannerRef.current) {
 				scannerRef.current.stop().catch(() => {});
 				scannerRef.current = null;
-			}
-			// Cleanup file scanner
-			if (fileScannerRef.current) {
-				try {
-					fileScannerRef.current.clear();
-				} catch {}
-				fileScannerRef.current = null;
 			}
 			// Remove scanner element
 			const el = document.getElementById(SCANNER_ID);
@@ -134,41 +125,14 @@ export default function QRScanPage() {
 		setIsProcessingFile(true);
 
 		try {
-			const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
-
-			// Clear previous file scanner state if exists
-			if (fileScannerRef.current) {
-				try {
-					fileScannerRef.current.clear();
-				} catch {}
-				fileScannerRef.current = null;
-			}
-
-			// Create fresh instance for each scan
-			const fileScanner = new Html5Qrcode("qr-file-scanner", {
-				formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-				verbose: false,
-			});
-			fileScannerRef.current = fileScanner;
-
-			const result = await fileScanner.scanFile(file, /* showImage */ true);
+			// Lazy load html5-qrcode only when needed
+			const { Html5Qrcode } = await import("html5-qrcode");
+			const html5QrCode = new Html5Qrcode("qr-file-scanner");
+			const result = await html5QrCode.scanFile(file, true);
 			setScanResult(result);
-
-			// Clean up after successful scan
-			try {
-				fileScanner.clear();
-			} catch {}
-			fileScannerRef.current = null;
-		} catch (err) {
-			console.error("QR scan error:", err);
+			html5QrCode.clear();
+		} catch {
 			setError("No QR code found in image. Try another image.");
-			// Clean up on error too
-			if (fileScannerRef.current) {
-				try {
-					fileScannerRef.current.clear();
-				} catch {}
-				fileScannerRef.current = null;
-			}
 		} finally {
 			setIsProcessingFile(false);
 		}
@@ -282,7 +246,7 @@ export default function QRScanPage() {
 			</div>
 
 			{/* Hidden elements */}
-			<div id="qr-file-scanner" aria-hidden="true" style={{ position: 'fixed', left: '-9999px', top: 0, width: '400px', height: '400px', opacity: 0, pointerEvents: 'none' }} />
+			<div id="qr-file-scanner" className="hidden" />
 			<input
 				ref={fileInputRef}
 				type="file"
