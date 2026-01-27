@@ -128,11 +128,16 @@ export default function QRScanPage() {
 			// Lazy load html5-qrcode only when needed
 			const { Html5Qrcode } = await import("html5-qrcode");
 			const html5QrCode = new Html5Qrcode("qr-file-scanner");
-			const result = await html5QrCode.scanFile(file, false);
+			const result = await html5QrCode.scanFile(file, /* showImage */ true);
 			setScanResult(result);
 			html5QrCode.clear();
-		} catch {
-			setError("No QR code found in image. Try another image.");
+		} catch (err) {
+			console.error("QR scan error:", err);
+			setError(
+				err instanceof Error && err.message.includes("No QR code")
+					? "No QR code found in image. Try another image."
+					: "Failed to scan image. Please try a clearer image."
+			);
 		} finally {
 			setIsProcessingFile(false);
 		}
@@ -246,7 +251,7 @@ export default function QRScanPage() {
 			</div>
 
 			{/* Hidden elements */}
-			<div id="qr-file-scanner" style={{ position: 'absolute', left: '-9999px', width: '300px', height: '300px' }} />
+			<div id="qr-file-scanner" aria-hidden="true" style={{ position: 'fixed', left: '-9999px', top: 0, width: '400px', height: '400px', opacity: 0, pointerEvents: 'none' }} />
 			<input
 				ref={fileInputRef}
 				type="file"
