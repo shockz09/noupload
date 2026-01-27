@@ -128,7 +128,7 @@ export default function QRScanPage() {
 			// Lazy load html5-qrcode only when needed
 			const { Html5Qrcode } = await import("html5-qrcode");
 			const html5QrCode = new Html5Qrcode("qr-file-scanner");
-			const result = await html5QrCode.scanFile(file, true);
+			const result = await html5QrCode.scanFile(file, false);
 			setScanResult(result);
 			html5QrCode.clear();
 		} catch {
@@ -246,7 +246,7 @@ export default function QRScanPage() {
 			</div>
 
 			{/* Hidden elements */}
-			<div id="qr-file-scanner" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} />
+			<div id="qr-file-scanner" style={{ position: 'absolute', left: '-9999px', width: '300px', height: '300px' }} />
 			<input
 				ref={fileInputRef}
 				type="file"
