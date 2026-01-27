@@ -246,7 +246,7 @@ export default function QRScanPage() {
 			</div>
 
 			{/* Hidden elements */}
-			<div id="qr-file-scanner" className="hidden" />
+			<div id="qr-file-scanner" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} />
 			<input
 				ref={fileInputRef}
 				type="file"
