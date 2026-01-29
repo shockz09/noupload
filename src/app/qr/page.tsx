@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowLeftIcon, BarcodeIcon } from "@/components/icons";
+import { ToolSearch } from "@/components/shared/ToolSearch";
 
 function QRIcon({ className }: { className?: string }) {
 	return (
@@ -59,6 +62,47 @@ function BulkIcon({ className }: { className?: string }) {
 	);
 }
 
+const tools = [
+	{
+		title: "Generate QR",
+		description: "Create QR codes for text, URLs, WiFi, UPI, and more",
+		href: "/qr/generate",
+		icon: QRIcon,
+		category: "create",
+		colorClass: "tool-qr-generate",
+	},
+	{
+		title: "Scan QR",
+		description: "Use your camera to read any QR code instantly",
+		href: "/qr/scan",
+		icon: ScanIcon,
+		category: "read",
+		colorClass: "tool-qr-scan",
+	},
+	{
+		title: "Bulk Generate",
+		description: "Create multiple QR codes at once",
+		href: "/qr/bulk",
+		icon: BulkIcon,
+		category: "batch",
+		colorClass: "tool-qr-bulk",
+	},
+	{
+		title: "Barcode",
+		description: "Generate UPC, EAN, Code 128, and more",
+		href: "/qr/barcode",
+		icon: BarcodeIcon,
+		category: "create",
+		colorClass: "tool-barcode",
+	},
+];
+
+const categoryLabels: Record<string, string> = {
+	create: "Create",
+	read: "Read",
+	batch: "Batch",
+};
+
 export default function QRPage() {
 	return (
 		<div className="page-enter space-y-12">
@@ -116,103 +160,11 @@ export default function QRPage() {
 					<div className="flex-1 h-0.5 bg-foreground" />
 				</div>
 
-				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
-					<Link href="/qr/generate">
-						<article className="tool-card tool-qr-generate group h-full cursor-pointer">
-							<span className="category-tag">Create</span>
-							<div className="space-y-4">
-								<div className="tool-icon">
-									<QRIcon className="w-6 h-6" />
-								</div>
-								<div className="space-y-2 pr-16">
-									<h3 className="text-xl font-bold text-foreground">Generate QR</h3>
-									<p className="text-sm text-muted-foreground leading-relaxed">
-										Create QR codes for text, URLs, WiFi, UPI, and more
-									</p>
-								</div>
-								<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
-									<span>Use tool</span>
-									<svg aria-hidden="true" className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-										<path d="M5 12h14" />
-										<path d="m12 5 7 7-7 7" />
-									</svg>
-								</div>
-							</div>
-						</article>
-					</Link>
-
-					<Link href="/qr/scan">
-						<article className="tool-card tool-qr-scan group h-full cursor-pointer">
-							<span className="category-tag">Read</span>
-							<div className="space-y-4">
-								<div className="tool-icon">
-									<ScanIcon className="w-6 h-6" />
-								</div>
-								<div className="space-y-2 pr-16">
-									<h3 className="text-xl font-bold text-foreground">Scan QR</h3>
-									<p className="text-sm text-muted-foreground leading-relaxed">
-										Use your camera to read any QR code instantly
-									</p>
-								</div>
-								<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
-									<span>Use tool</span>
-									<svg aria-hidden="true" className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-										<path d="M5 12h14" />
-										<path d="m12 5 7 7-7 7" />
-									</svg>
-								</div>
-							</div>
-						</article>
-					</Link>
-
-					<Link href="/qr/bulk">
-						<article className="tool-card tool-qr-bulk group h-full cursor-pointer">
-							<span className="category-tag">Batch</span>
-							<div className="space-y-4">
-								<div className="tool-icon">
-									<BulkIcon className="w-6 h-6" />
-								</div>
-								<div className="space-y-2 pr-16">
-									<h3 className="text-xl font-bold text-foreground">Bulk Generate</h3>
-									<p className="text-sm text-muted-foreground leading-relaxed">
-										Create multiple QR codes at once
-									</p>
-								</div>
-								<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
-									<span>Use tool</span>
-									<svg aria-hidden="true" className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-										<path d="M5 12h14" />
-										<path d="m12 5 7 7-7 7" />
-									</svg>
-								</div>
-							</div>
-						</article>
-					</Link>
-
-					<Link href="/qr/barcode">
-						<article className="tool-card tool-barcode group h-full cursor-pointer">
-							<span className="category-tag">Create</span>
-							<div className="space-y-4">
-								<div className="tool-icon">
-									<BarcodeIcon className="w-6 h-6" />
-								</div>
-								<div className="space-y-2 pr-16">
-									<h3 className="text-xl font-bold text-foreground">Barcode</h3>
-									<p className="text-sm text-muted-foreground leading-relaxed">
-										Generate UPC, EAN, Code 128, and more
-									</p>
-								</div>
-								<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
-									<span>Use tool</span>
-									<svg aria-hidden="true" className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-										<path d="M5 12h14" />
-										<path d="m12 5 7 7-7 7" />
-									</svg>
-								</div>
-							</div>
-						</article>
-					</Link>
-				</div>
+				<ToolSearch
+					tools={tools}
+					categoryLabels={categoryLabels}
+					placeholder="Search QR tools..."
+				/>
 			</section>
 
 			{/* Features Section */}

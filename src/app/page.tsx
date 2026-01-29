@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
 	ArchiveIcon,
@@ -26,6 +28,7 @@ import {
 	UnlockIcon,
 	WatermarkIcon,
 } from "@/components/icons";
+import { ToolSearch } from "@/components/shared/ToolSearch";
 
 const tools = [
 	{
@@ -309,55 +312,11 @@ export default function Home() {
 					<div className="flex-1 h-0.5 bg-foreground" />
 				</div>
 
-				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
-					{tools.map((tool) => {
-						const Icon = tool.icon;
-
-						return (
-							<Link key={tool.href} href={tool.href}>
-								<article
-									className={`tool-card ${tool.colorClass} group h-full cursor-pointer`}
-								>
-									<span className="category-tag">
-										{categoryLabels[tool.category]}
-									</span>
-
-									<div className="space-y-4">
-										<div className="tool-icon">
-											<Icon className="w-6 h-6" />
-										</div>
-
-										<div className="space-y-2 pr-16">
-											<h3 className="text-xl font-bold text-foreground">
-												{tool.title}
-											</h3>
-											<p className="text-sm text-muted-foreground leading-relaxed">
-												{tool.description}
-											</p>
-										</div>
-
-										<div className="flex items-center gap-2 text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity pt-2">
-											<span>Use tool</span>
-											<svg
-												aria-hidden="true"
-												className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="2.5"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-											>
-												<path d="M5 12h14" />
-												<path d="m12 5 7 7-7 7" />
-											</svg>
-										</div>
-									</div>
-								</article>
-							</Link>
-						);
-					})}
-				</div>
+				<ToolSearch
+					tools={tools}
+					categoryLabels={categoryLabels}
+					placeholder="Search PDF tools..."
+				/>
 			</section>
 
 			{/* Features Section */}
