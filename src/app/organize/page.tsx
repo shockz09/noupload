@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import {
 	GripIcon,
 	LoaderIcon,
+	NumbersIcon,
 	OrganizeIcon,
 	TrashIcon,
 } from "@/components/icons";
@@ -18,7 +19,7 @@ import {
 	ProgressBar,
 	SuccessCard,
 } from "@/components/pdf/shared";
-import { downloadBlob, organizePDF } from "@/lib/pdf-utils";
+import { addPageNumbers, downloadBlob, organizePDF } from "@/lib/pdf-utils";
 import { getFileBaseName } from "@/lib/utils";
 
 interface OrganizeResult {
@@ -46,6 +47,11 @@ export default function OrganizePage() {
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 	const [settledIndex, setSettledIndex] = useState<number | null>(null);
+
+	// Page numbering options
+	const [addNumbers, setAddNumbers] = useState(false);
+	const [numberPosition, setNumberPosition] = useState<"bottom-center" | "bottom-left" | "bottom-right" | "top-center">("bottom-center");
+	const [numberFormat, setNumberFormat] = useState("{n}");
 
 	const { pages, loading, progress } = usePdfPages(file, 0.5);
 
@@ -179,7 +185,26 @@ export default function OrganizePage() {
 		try {
 			// Get the new page order (original page numbers)
 			const pageOrder = pageItems.map((item) => item.id);
-			const data = await organizePDF(file, pageOrder);
+			let data = await organizePDF(file, pageOrder);
+
+			// Add page numbers if enabled
+			if (addNumbers) {
+				const positionMap = {
+					"bottom-center": { x: 50, y: 5 },
+					"bottom-left": { x: 10, y: 5 },
+					"bottom-right": { x: 90, y: 5 },
+					"top-center": { x: 50, y: 95 },
+				};
+				const pos = positionMap[numberPosition];
+
+				// Convert Uint8Array to File for addPageNumbers
+				const tempFile = new File([new Uint8Array(data)], "temp.pdf", { type: "application/pdf" });
+				data = await addPageNumbers(tempFile, {
+					format: numberFormat,
+					x: pos.x,
+					y: pos.y,
+				});
+			}
 
 			const baseName = getFileBaseName(file.name);
 			setResult({
@@ -378,6 +403,78 @@ export default function OrganizePage() {
 							))}
 						</div>
 					)}
+
+					{/* Page Numbers Option */}
+					<div className="p-4 bg-card border-2 border-foreground space-y-4">
+						<label className="flex items-center gap-3 cursor-pointer">
+							<input
+								type="checkbox"
+								checked={addNumbers}
+								onChange={(e) => setAddNumbers(e.target.checked)}
+								className="w-5 h-5 accent-primary"
+							/>
+							<div className="flex items-center gap-2">
+								<NumbersIcon className="w-5 h-5" />
+								<span className="font-bold">Add page numbers</span>
+							</div>
+						</label>
+
+						{addNumbers && (
+							<div className="pl-8 space-y-4">
+								{/* Position */}
+								<div className="space-y-2">
+									<span className="text-sm font-medium text-muted-foreground">Position</span>
+									<div className="flex flex-wrap gap-2">
+										{[
+											{ value: "bottom-center", label: "Bottom Center" },
+											{ value: "bottom-left", label: "Bottom Left" },
+											{ value: "bottom-right", label: "Bottom Right" },
+											{ value: "top-center", label: "Top Center" },
+										].map((pos) => (
+											<button
+												key={pos.value}
+												type="button"
+												onClick={() => setNumberPosition(pos.value as typeof numberPosition)}
+												className={`px-3 py-1.5 text-xs font-bold border-2 border-foreground transition-colors ${
+													numberPosition === pos.value
+														? "bg-primary text-white"
+														: "bg-muted hover:bg-accent"
+												}`}
+											>
+												{pos.label}
+											</button>
+										))}
+									</div>
+								</div>
+
+								{/* Format */}
+								<div className="space-y-2">
+									<span className="text-sm font-medium text-muted-foreground">Format</span>
+									<div className="flex flex-wrap gap-2">
+										{[
+											{ value: "{n}", label: "1, 2, 3" },
+											{ value: "Page {n}", label: "Page 1" },
+											{ value: "{n} / {total}", label: "1 / 10" },
+											{ value: "- {n} -", label: "- 1 -" },
+										].map((fmt) => (
+											<button
+												key={fmt.value}
+												type="button"
+												onClick={() => setNumberFormat(fmt.value)}
+												className={`px-3 py-1.5 text-xs font-bold border-2 border-foreground transition-colors ${
+													numberFormat === fmt.value
+														? "bg-primary text-white"
+														: "bg-muted hover:bg-accent"
+												}`}
+											>
+												{fmt.label}
+											</button>
+										))}
+									</div>
+								</div>
+							</div>
+						)}
+					</div>
 
 					{/* Info */}
 					<div className="info-box">
