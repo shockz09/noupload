@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, memo, useCallback } from "react";
+import { getPdfjsWorkerSrc } from "@/lib/pdfjs-config";
 
 interface PageThumbnail {
 	pageNumber: number;
@@ -37,7 +38,7 @@ export function usePdfPages(file: File | null, scale: number = 0.5) {
 
 			try {
 				const pdfjsLib = await import("pdfjs-dist");
-				pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+				pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
 
 				if (!file) return;
 				const arrayBuffer = await file.arrayBuffer();

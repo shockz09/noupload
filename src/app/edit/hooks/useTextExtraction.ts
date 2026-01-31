@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { getPdfjsWorkerSrc } from "@/lib/pdfjs-config";
 
 export interface TextRegion {
 	id: string;
@@ -248,7 +249,7 @@ async function extractNativeText(
 	scale: number
 ): Promise<TextRegion[]> {
 	const pdfjsLib = await import("pdfjs-dist");
-	pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+	pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
 
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -382,7 +383,7 @@ async function extractOCRText(
 	targetScale: number
 ): Promise<TextRegion[]> {
 	const pdfjsLib = await import("pdfjs-dist");
-	pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+	pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
 
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

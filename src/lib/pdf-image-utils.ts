@@ -1,4 +1,5 @@
 import { downloadImage } from "@/lib/image-utils";
+import { getPdfjsWorkerSrc } from "@/lib/pdfjs-config";
 
 // Re-export downloadImage from image-utils for backwards compatibility
 export { downloadImage };
@@ -78,7 +79,7 @@ export async function pdfToImages(
 	const concurrency = isLowEnd ? 2 : 4;
 
 	const pdfjsLib = await import("pdfjs-dist");
-	pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+	pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
 
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

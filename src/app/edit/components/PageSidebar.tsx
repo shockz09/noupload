@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import type { PageState } from "../page";
+import { getPdfjsWorkerSrc } from "@/lib/pdfjs-config";
 
 interface PageThumbnail {
 	pageNumber: number;
@@ -42,7 +43,7 @@ export function PageSidebar({
 
 			try {
 				const pdfjsLib = await import("pdfjs-dist");
-				pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+				pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
 
 				const arrayBuffer = await file.arrayBuffer();
 				const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

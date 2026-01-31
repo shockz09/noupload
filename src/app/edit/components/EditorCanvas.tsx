@@ -7,6 +7,7 @@ import type { FormField } from "../hooks/useFormFields";
 import type { StampData } from "./EditorToolbar";
 import { useTextExtraction, type TextRegion } from "../hooks/useTextExtraction";
 import { useBackgroundRemoval } from "@/lib/background-removal/useBackgroundRemoval";
+import { getPdfjsWorkerSrc } from "@/lib/pdfjs-config";
 
 // Scale factor for PDF rendering (PDF internal coords to display coords)
 const PDF_SCALE = 1.5;
@@ -203,7 +204,7 @@ export function EditorCanvas({
 		async function loadPdf() {
 			try {
 				const pdfjsLib = await import("pdfjs-dist");
-				pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+				pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
 
 				const arrayBuffer = await file.arrayBuffer();
 				const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

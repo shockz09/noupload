@@ -11,6 +11,7 @@ import {
 } from "@/components/pdf/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
+import { getPdfjsWorkerSrc } from "@/lib/pdfjs-config";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface ExtractResult {
@@ -24,7 +25,7 @@ async function extractTextFromPDF(
 	file: File,
 ): Promise<{ text: string; pageCount: number }> {
 	const pdfjsLib = await import("pdfjs-dist");
-	pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+	pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
 
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
