@@ -47,3 +47,4 @@ specs/
 # Test reports
 *.report.html
 *.report.json
+test-results/
