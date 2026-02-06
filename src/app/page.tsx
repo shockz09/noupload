@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
 	ArchiveIcon,
 	ArrowRightIcon,
+	BookIcon,
 	CompressIcon,
 	DeletePagesIcon,
 	DuplicateIcon,
@@ -230,6 +231,14 @@ const tools = [
 		icon: ExtractImageIcon,
 		category: "convert",
 		colorClass: "tool-extract-images",
+	},
+	{
+		title: "PDF → EPUB",
+		description: "Convert PDFs to ebook format",
+		href: "/pdf-to-epub",
+		icon: BookIcon,
+		category: "convert",
+		colorClass: "tool-convert",
 	},
 ];
 
