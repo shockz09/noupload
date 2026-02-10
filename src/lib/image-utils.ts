@@ -126,6 +126,11 @@ export async function compressImage(
 		canvas.height = height;
 
 		const ctx = canvas.getContext("2d")!;
+
+		// Fill white background since JPEG doesn't support transparency
+		ctx.fillStyle = "#FFFFFF";
+		ctx.fillRect(0, 0, width, height);
+
 		ctx.drawImage(img, 0, 0, width, height);
 
 		// Use JPEG for compression (better compression than PNG)

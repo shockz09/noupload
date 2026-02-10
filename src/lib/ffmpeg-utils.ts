@@ -50,23 +50,30 @@ export async function getFFmpeg(
 	if (loadPromise) return loadPromise;
 
 	loadPromise = (async () => {
-		const { FFmpeg } = await import("@ffmpeg/ffmpeg");
-		ffmpeg = new FFmpeg();
+		try {
+			const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+			ffmpeg = new FFmpeg();
 
-		const baseURL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VERSION}/dist/umd`;
+			const baseURL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VERSION}/dist/umd`;
 
-		await ffmpeg.load({
-			coreURL: await cachedToBlobURL(
-				`${baseURL}/ffmpeg-core.js`,
-				"text/javascript",
-			),
-			wasmURL: await cachedToBlobURL(
-				`${baseURL}/ffmpeg-core.wasm`,
-				"application/wasm",
-			),
-		});
+			await ffmpeg.load({
+				coreURL: await cachedToBlobURL(
+					`${baseURL}/ffmpeg-core.js`,
+					"text/javascript",
+				),
+				wasmURL: await cachedToBlobURL(
+					`${baseURL}/ffmpeg-core.wasm`,
+					"application/wasm",
+				),
+			});
 
-		return ffmpeg;
+			return ffmpeg;
+		} catch (error) {
+			// Reset so subsequent calls can retry instead of returning the rejected promise
+			ffmpeg = null;
+			loadPromise = null;
+			throw error;
+		}
 	})();
 
 	return loadPromise;

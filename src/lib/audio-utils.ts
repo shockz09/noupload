@@ -46,7 +46,7 @@ export async function getWaveformDataFromUrl(
 
 	// Normalize to 0-1 range
 	const max = Math.max(...waveform);
-	if (max === 0) return waveform.map(() => 0.1); // Avoid division by zero
+	if (max === 0) return waveform.map(() => 0); // Avoid division by zero
 	return waveform.map((v) => v / max);
 }
 
@@ -303,6 +303,7 @@ export async function getWaveformData(
 
 	// Normalize to 0-1 range
 	const max = Math.max(...waveform);
+	if (max === 0) return waveform.map(() => 0); // Avoid division by zero for silent audio
 	return waveform.map((v) => v / max);
 }
 
@@ -336,12 +337,13 @@ export async function generateWaveformImage(
 		ctx.fillRect(i, centerY - barHeight / 2, 1, barHeight);
 	}
 
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		canvas.toBlob((blob) => {
 			// Clean up canvas to free memory
 			canvas.width = 0;
 			canvas.height = 0;
-			resolve(blob!);
+			if (blob) resolve(blob);
+			else reject(new Error("Failed to create waveform image"));
 		}, "image/png");
 	});
 }
