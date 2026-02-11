@@ -28,17 +28,19 @@ export function useGhostscript(): UseGhostscriptResult {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const pendingRef = useRef<Map<string, {
-    resolve: (data: Uint8Array) => void;
-    reject: (error: Error) => void;
-  }>>(new Map());
+  const pendingRef = useRef<
+    Map<
+      string,
+      {
+        resolve: (data: Uint8Array) => void;
+        reject: (error: Error) => void;
+      }
+    >
+  >(new Map());
 
   // Initialize worker
   useEffect(() => {
-    workerRef.current = new Worker(
-      new URL("./ghostscript.worker.ts", import.meta.url),
-      { type: "module" },
-    );
+    workerRef.current = new Worker(new URL("./ghostscript.worker.ts", import.meta.url), { type: "module" });
 
     workerRef.current.onmessage = (event: MessageEvent<GsWorkerResponse>) => {
       const { id, success, data, error: errorMsg, progress: progressMsg } = event.data;

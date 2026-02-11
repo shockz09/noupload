@@ -11,21 +11,21 @@
  * Base result interface for any file processing operation.
  */
 export interface BaseProcessingResult {
-	filename: string;
+  filename: string;
 }
 
 /**
  * Result with Blob data (for images, audio, etc.)
  */
 export interface BlobResult extends BaseProcessingResult {
-	blob: Blob;
+  blob: Blob;
 }
 
 /**
  * Result with Uint8Array data (for PDF-lib operations)
  */
 export interface DataResult extends BaseProcessingResult {
-	data: Uint8Array;
+  data: Uint8Array;
 }
 
 // =============================================================================
@@ -36,35 +36,35 @@ export interface DataResult extends BaseProcessingResult {
  * Result from PDF split operation.
  */
 export interface SplitResult {
-	files: Array<{
-		data: Uint8Array;
-		filename: string;
-		pageCount: number;
-	}>;
-	originalPageCount: number;
+  files: Array<{
+    data: Uint8Array;
+    filename: string;
+    pageCount: number;
+  }>;
+  originalPageCount: number;
 }
 
 /**
  * Result from PDF rotation operation.
  */
 export interface RotateResult extends DataResult {
-	rotationDegrees: number;
-	pageCount?: number;
+  rotationDegrees: number;
+  pageCount?: number;
 }
 
 /**
  * Result from PDF compression operation.
  */
 export interface CompressResult extends DataResult {
-	originalSize: number;
-	compressedSize: number;
+  originalSize: number;
+  compressedSize: number;
 }
 
 /**
  * Result from PDF watermark operation.
  */
 export interface WatermarkResult extends DataResult {
-	pageCount: number;
+  pageCount: number;
 }
 
 // =============================================================================
@@ -75,55 +75,55 @@ export interface WatermarkResult extends DataResult {
  * Result from image compression operation.
  */
 export interface ImageCompressResult extends BlobResult {
-	originalSize: number;
-	compressedSize: number;
+  originalSize: number;
+  compressedSize: number;
 }
 
 /**
  * Result from image resize operation.
  */
 export interface ImageResizeResult extends BlobResult {
-	originalWidth: number;
-	originalHeight: number;
-	newWidth: number;
-	newHeight: number;
+  originalWidth: number;
+  originalHeight: number;
+  newWidth: number;
+  newHeight: number;
 }
 
 /**
  * Result from image conversion operation.
  */
 export interface ImageConvertResult extends BlobResult {
-	originalFormat: string;
-	newFormat: string;
+  originalFormat: string;
+  newFormat: string;
 }
 
 /**
  * Result from image filter/adjust operation.
  */
 export interface ImageFilterResult extends BlobResult {
-	filter?: string;
-	adjustments?: {
-		brightness?: number;
-		contrast?: number;
-		saturation?: number;
-	};
+  filter?: string;
+  adjustments?: {
+    brightness?: number;
+    contrast?: number;
+    saturation?: number;
+  };
 }
 
 /**
  * Result from image rotation operation.
  */
 export interface ImageRotateResult extends BlobResult {
-	rotation: number;
-	flipH: boolean;
-	flipV: boolean;
+  rotation: number;
+  flipH: boolean;
+  flipV: boolean;
 }
 
 /**
  * Result from image border addition.
  */
 export interface ImageBorderResult extends BlobResult {
-	borderWidth: number;
-	borderColor: string;
+  borderWidth: number;
+  borderColor: string;
 }
 
 // =============================================================================
@@ -134,17 +134,17 @@ export interface ImageBorderResult extends BlobResult {
  * Result from audio conversion operation.
  */
 export interface AudioConvertResult extends BlobResult {
-	originalFormat: string;
-	newFormat: string;
-	duration?: number;
+  originalFormat: string;
+  newFormat: string;
+  duration?: number;
 }
 
 /**
  * Result from audio extraction from video.
  */
 export interface AudioExtractResult extends BlobResult {
-	sourceVideo: string;
-	duration?: number;
+  sourceVideo: string;
+  duration?: number;
 }
 
 // =============================================================================
@@ -155,17 +155,17 @@ export interface AudioExtractResult extends BlobResult {
  * Result from QR code generation.
  */
 export interface QrGenerateResult extends BlobResult {
-	data: string;
-	format: string;
+  data: string;
+  format: string;
 }
 
 /**
  * Result from QR code scan.
  */
 export interface QrScanResult {
-	text: string;
-	format: string;
-	isUrl: boolean;
+  text: string;
+  format: string;
+  isUrl: boolean;
 }
 
 // =============================================================================
@@ -176,33 +176,33 @@ export interface QrScanResult {
  * Generic file item with ID for list operations.
  */
 export interface FileItem {
-	file: File;
-	id: string;
+  file: File;
+  id: string;
 }
 
 /**
  * File item with preview URL.
  */
 export interface FileItemWithPreview extends FileItem {
-	preview?: string;
+  preview?: string;
 }
 
 /**
  * Page item for PDF page manipulation.
  */
 export interface PageItem {
-	id: string;
-	pageNumber: number;
-	preview?: string;
-	selected?: boolean;
+  id: string;
+  pageNumber: number;
+  preview?: string;
+  selected?: boolean;
 }
 
 /**
  * Duplicate page item for PDF duplication.
  */
 export interface DuplicatePageItem extends PageItem {
-	isDuplicate: boolean;
-	originalPageNumber: number;
+  isDuplicate: boolean;
+  originalPageNumber: number;
 }
 
 // =============================================================================
@@ -213,35 +213,35 @@ export interface DuplicatePageItem extends PageItem {
  * Image compression options.
  */
 export interface ImageCompressOptions {
-	quality: number; // 0-100
-	format?: "jpeg" | "png" | "webp";
+  quality: number; // 0-100
+  format?: "jpeg" | "png" | "webp";
 }
 
 /**
  * Image resize options.
  */
 export interface ImageResizeOptions {
-	width?: number;
-	height?: number;
-	maintainAspectRatio?: boolean;
-	fit?: "contain" | "cover" | "fill";
+  width?: number;
+  height?: number;
+  maintainAspectRatio?: boolean;
+  fit?: "contain" | "cover" | "fill";
 }
 
 /**
  * PDF compression options.
  */
 export interface PdfCompressOptions {
-	quality?: "low" | "medium" | "high";
-	removeMetadata?: boolean;
+  quality?: "low" | "medium" | "high";
+  removeMetadata?: boolean;
 }
 
 /**
  * Audio conversion options.
  */
 export interface AudioConvertOptions {
-	format: string;
-	bitrate?: number;
-	sampleRate?: number;
+  format: string;
+  bitrate?: number;
+  sampleRate?: number;
 }
 
 // =============================================================================
@@ -252,23 +252,23 @@ export interface AudioConvertOptions {
  * Common processing state.
  */
 export interface ProcessingState {
-	isProcessing: boolean;
-	progress: number;
-	error: string | null;
+  isProcessing: boolean;
+  progress: number;
+  error: string | null;
 }
 
 /**
  * File selection state.
  */
 export interface FileSelectionState {
-	file: File | null;
-	preview: string | null;
+  file: File | null;
+  preview: string | null;
 }
 
 /**
  * Multi-file selection state.
  */
 export interface MultiFileSelectionState {
-	files: FileItem[];
-	previews: Map<string, string>;
+  files: FileItem[];
+  previews: Map<string, string>;
 }

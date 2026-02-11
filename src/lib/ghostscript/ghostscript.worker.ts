@@ -69,7 +69,7 @@ async function initGs(id: string): Promise<void> {
       // 2. Remove dynamic import of "module" (Node.js only)
       scriptText = scriptText.replace(
         /if\(l\)\{const\s*\{createRequire:a\}=await import\("module"\);var require=a\([^)]+\)\}/g,
-        "if(l){}"
+        "if(l){}",
       );
 
       // 3. Remove export statements (exact match for minified code)
@@ -94,7 +94,8 @@ async function initGs(id: string): Promise<void> {
       URL.revokeObjectURL(blobUrl);
 
       // Get the Module factory from global scope
-      const createModule = (self as unknown as { GsModule: (options?: Record<string, unknown>) => Promise<GsModule> }).GsModule;
+      const createModule = (self as unknown as { GsModule: (options?: Record<string, unknown>) => Promise<GsModule> })
+        .GsModule;
 
       if (!createModule || typeof createModule !== "function") {
         throw new Error("Failed to load Ghostscript module");
@@ -125,13 +126,16 @@ async function initGs(id: string): Promise<void> {
 }
 
 // Quality settings for each compression level
-const QUALITY_SETTINGS: Record<GsCompressionPreset, {
-  imageQuality: number;
-  resolution: number;
-}> = {
-  printer: { imageQuality: 90, resolution: 200 },  // Light: ~30-50%
-  ebook: { imageQuality: 70, resolution: 120 },    // Balanced: ~50-80%
-  screen: { imageQuality: 40, resolution: 72 },    // Maximum: ~80-95%
+const QUALITY_SETTINGS: Record<
+  GsCompressionPreset,
+  {
+    imageQuality: number;
+    resolution: number;
+  }
+> = {
+  printer: { imageQuality: 90, resolution: 200 }, // Light: ~30-50%
+  ebook: { imageQuality: 70, resolution: 120 }, // Balanced: ~50-80%
+  screen: { imageQuality: 40, resolution: 72 }, // Maximum: ~80-95%
   prepress: { imageQuality: 95, resolution: 300 }, // Unused but defined
 };
 
@@ -175,11 +179,7 @@ async function executeGs(
 }
 
 // Compress PDF
-async function compressPdf(
-  id: string,
-  inputData: Uint8Array,
-  preset: GsCompressionPreset,
-): Promise<Uint8Array> {
+async function compressPdf(id: string, inputData: Uint8Array, preset: GsCompressionPreset): Promise<Uint8Array> {
   const settings = QUALITY_SETTINGS[preset];
 
   const args = [
@@ -213,10 +213,7 @@ async function compressPdf(
 }
 
 // Convert PDF to Grayscale
-async function toGrayscale(
-  id: string,
-  inputData: Uint8Array,
-): Promise<Uint8Array> {
+async function toGrayscale(id: string, inputData: Uint8Array): Promise<Uint8Array> {
   const args = [
     "-sDEVICE=pdfwrite",
     "-sColorConversionStrategy=Gray",
@@ -233,11 +230,7 @@ async function toGrayscale(
 }
 
 // Convert PDF to PDF/A
-async function toPdfA(
-  id: string,
-  inputData: Uint8Array,
-  level: PdfALevel,
-): Promise<Uint8Array> {
+async function toPdfA(id: string, inputData: Uint8Array, level: PdfALevel): Promise<Uint8Array> {
   const levelNum = level === "2b" ? 2 : level === "3b" ? 3 : 1;
 
   const args = [
@@ -265,11 +258,7 @@ self.onmessage = async (event: MessageEvent<GsWorkerMessage>) => {
 
     switch (operation) {
       case "compress":
-        result = await compressPdf(
-          id,
-          new Uint8Array(inputData),
-          options?.preset ?? "ebook",
-        );
+        result = await compressPdf(id, new Uint8Array(inputData), options?.preset ?? "ebook");
         break;
 
       case "grayscale":
@@ -277,11 +266,7 @@ self.onmessage = async (event: MessageEvent<GsWorkerMessage>) => {
         break;
 
       case "pdfa":
-        result = await toPdfA(
-          id,
-          new Uint8Array(inputData),
-          options?.pdfaLevel ?? "1b",
-        );
+        result = await toPdfA(id, new Uint8Array(inputData), options?.pdfaLevel ?? "1b");
         break;
 
       default:

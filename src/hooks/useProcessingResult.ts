@@ -6,17 +6,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * Generic processing result with blob data.
  */
 export interface ProcessingResult<TMetadata = Record<string, unknown>> {
-	blob: Blob;
-	filename: string;
-	url: string;
-	metadata?: TMetadata;
+  blob: Blob;
+  filename: string;
+  url: string;
+  metadata?: TMetadata;
 }
 
 interface UseProcessingResultReturn<TMetadata> {
-	result: ProcessingResult<TMetadata> | null;
-	setResult: (blob: Blob, filename: string, metadata?: TMetadata) => void;
-	clearResult: () => void;
-	download: () => void;
+  result: ProcessingResult<TMetadata> | null;
+  setResult: (blob: Blob, filename: string, metadata?: TMetadata) => void;
+  clearResult: () => void;
+  download: () => void;
 }
 
 /**
@@ -39,102 +39,95 @@ interface UseProcessingResultReturn<TMetadata> {
  * </SuccessCard>
  * ```
  */
-export function useProcessingResult<
-	TMetadata = Record<string, unknown>,
->(): UseProcessingResultReturn<TMetadata> {
-	const [result, setResultState] = useState<ProcessingResult<TMetadata> | null>(
-		null,
-	);
-	const urlRef = useRef<string | null>(null);
+export function useProcessingResult<TMetadata = Record<string, unknown>>(): UseProcessingResultReturn<TMetadata> {
+  const [result, setResultState] = useState<ProcessingResult<TMetadata> | null>(null);
+  const urlRef = useRef<string | null>(null);
 
-	// Cleanup URL on unmount
-	useEffect(() => {
-		return () => {
-			if (urlRef.current) {
-				URL.revokeObjectURL(urlRef.current);
-				urlRef.current = null;
-			}
-		};
-	}, []);
+  // Cleanup URL on unmount
+  useEffect(() => {
+    return () => {
+      if (urlRef.current) {
+        URL.revokeObjectURL(urlRef.current);
+        urlRef.current = null;
+      }
+    };
+  }, []);
 
-	const setResult = useCallback(
-		(blob: Blob, filename: string, metadata?: TMetadata) => {
-			// Revoke previous URL if exists
-			if (urlRef.current) {
-				URL.revokeObjectURL(urlRef.current);
-			}
+  const setResult = useCallback((blob: Blob, filename: string, metadata?: TMetadata) => {
+    // Revoke previous URL if exists
+    if (urlRef.current) {
+      URL.revokeObjectURL(urlRef.current);
+    }
 
-			const url = URL.createObjectURL(blob);
-			urlRef.current = url;
-			setResultState({ blob, filename, url, metadata });
-		},
-		[],
-	);
+    const url = URL.createObjectURL(blob);
+    urlRef.current = url;
+    setResultState({ blob, filename, url, metadata });
+  }, []);
 
-	const clearResult = useCallback(() => {
-		if (urlRef.current) {
-			URL.revokeObjectURL(urlRef.current);
-			urlRef.current = null;
-		}
-		setResultState(null);
-	}, []);
+  const clearResult = useCallback(() => {
+    if (urlRef.current) {
+      URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    }
+    setResultState(null);
+  }, []);
 
-	const download = useCallback(() => {
-		if (!result) return;
+  const download = useCallback(() => {
+    if (!result) return;
 
-		const a = document.createElement("a");
-		a.href = result.url;
-		a.download = result.filename;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-	}, [result]);
+    const a = document.createElement("a");
+    a.href = result.url;
+    a.download = result.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }, [result]);
 
-	return { result, setResult, clearResult, download };
+  return { result, setResult, clearResult, download };
 }
 
 /**
  * Specialized version for image processing results.
  */
 export interface ImageResultMetadata {
-	originalSize: number;
-	newSize: number;
-	width?: number;
-	height?: number;
-	format?: string;
+  originalSize: number;
+  newSize: number;
+  width?: number;
+  height?: number;
+  format?: string;
 }
 
 export function useImageResult() {
-	return useProcessingResult<ImageResultMetadata>();
+  return useProcessingResult<ImageResultMetadata>();
 }
 
 /**
  * Specialized version for PDF processing results.
  */
 export interface PdfResultMetadata {
-	originalSize?: number;
-	pageCount?: number;
-	originalPageCount?: number;
+  originalSize?: number;
+  pageCount?: number;
+  originalPageCount?: number;
 }
 
 export function usePdfResult() {
-	return useProcessingResult<PdfResultMetadata>();
+  return useProcessingResult<PdfResultMetadata>();
 }
 
 /**
  * Version that uses Uint8Array for PDF-lib compatibility.
  */
 export interface PdfDataResult<TMetadata = Record<string, unknown>> {
-	data: Uint8Array;
-	filename: string;
-	metadata?: TMetadata;
+  data: Uint8Array;
+  filename: string;
+  metadata?: TMetadata;
 }
 
 interface UsePdfDataResultReturn<TMetadata> {
-	result: PdfDataResult<TMetadata> | null;
-	setResult: (data: Uint8Array, filename: string, metadata?: TMetadata) => void;
-	clearResult: () => void;
-	download: () => void;
+  result: PdfDataResult<TMetadata> | null;
+  setResult: (data: Uint8Array, filename: string, metadata?: TMetadata) => void;
+  clearResult: () => void;
+  download: () => void;
 }
 
 /**
@@ -151,37 +144,30 @@ interface UsePdfDataResultReturn<TMetadata> {
  * <button onClick={download}>Download</button>
  * ```
  */
-export function usePdfDataResult<
-	TMetadata = Record<string, unknown>,
->(): UsePdfDataResultReturn<TMetadata> {
-	const [result, setResultState] = useState<PdfDataResult<TMetadata> | null>(
-		null,
-	);
+export function usePdfDataResult<TMetadata = Record<string, unknown>>(): UsePdfDataResultReturn<TMetadata> {
+  const [result, setResultState] = useState<PdfDataResult<TMetadata> | null>(null);
 
-	const setResult = useCallback(
-		(data: Uint8Array, filename: string, metadata?: TMetadata) => {
-			setResultState({ data, filename, metadata });
-		},
-		[],
-	);
+  const setResult = useCallback((data: Uint8Array, filename: string, metadata?: TMetadata) => {
+    setResultState({ data, filename, metadata });
+  }, []);
 
-	const clearResult = useCallback(() => {
-		setResultState(null);
-	}, []);
+  const clearResult = useCallback(() => {
+    setResultState(null);
+  }, []);
 
-	const download = useCallback(() => {
-		if (!result) return;
+  const download = useCallback(() => {
+    if (!result) return;
 
-		const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = result.filename;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
-	}, [result]);
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = result.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [result]);
 
-	return { result, setResult, clearResult, download };
+  return { result, setResult, clearResult, download };
 }

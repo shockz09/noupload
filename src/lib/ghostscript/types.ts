@@ -12,9 +12,9 @@ export type PdfALevel = "1b" | "2b" | "3b";
 
 // Map user-friendly levels to Ghostscript presets
 export const COMPRESSION_PRESET_MAP: Record<CompressionLevel, GsCompressionPreset> = {
-  light: "printer",    // 300 DPI - minimal quality loss
-  balanced: "ebook",   // 150 DPI - good balance
-  maximum: "screen",   // 72 DPI - smallest file
+  light: "printer", // 300 DPI - minimal quality loss
+  balanced: "ebook", // 150 DPI - good balance
+  maximum: "screen", // 72 DPI - smallest file
 };
 
 // Preset descriptions for UI

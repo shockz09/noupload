@@ -21,44 +21,44 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * ```
  */
 export function useObjectURL() {
-	const [url, setUrl] = useState<string | null>(null);
-	const urlRef = useRef<string | null>(null);
+  const [url, setUrl] = useState<string | null>(null);
+  const urlRef = useRef<string | null>(null);
 
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => {
-			if (urlRef.current) {
-				URL.revokeObjectURL(urlRef.current);
-				urlRef.current = null;
-			}
-		};
-	}, []);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (urlRef.current) {
+        URL.revokeObjectURL(urlRef.current);
+        urlRef.current = null;
+      }
+    };
+  }, []);
 
-	const setSource = useCallback((source: Blob | File | null) => {
-		// Revoke previous URL if exists
-		if (urlRef.current) {
-			URL.revokeObjectURL(urlRef.current);
-			urlRef.current = null;
-		}
+  const setSource = useCallback((source: Blob | File | null) => {
+    // Revoke previous URL if exists
+    if (urlRef.current) {
+      URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    }
 
-		if (source) {
-			const newUrl = URL.createObjectURL(source);
-			urlRef.current = newUrl;
-			setUrl(newUrl);
-		} else {
-			setUrl(null);
-		}
-	}, []);
+    if (source) {
+      const newUrl = URL.createObjectURL(source);
+      urlRef.current = newUrl;
+      setUrl(newUrl);
+    } else {
+      setUrl(null);
+    }
+  }, []);
 
-	const revoke = useCallback(() => {
-		if (urlRef.current) {
-			URL.revokeObjectURL(urlRef.current);
-			urlRef.current = null;
-		}
-		setUrl(null);
-	}, []);
+  const revoke = useCallback(() => {
+    if (urlRef.current) {
+      URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    }
+    setUrl(null);
+  }, []);
 
-	return { url, setSource, revoke };
+  return { url, setSource, revoke };
 }
 
 /**
@@ -82,49 +82,49 @@ export function useObjectURL() {
  * ```
  */
 export function useObjectURLs() {
-	const [urls, setUrls] = useState<Map<string, string>>(new Map());
-	const urlsRef = useRef<Map<string, string>>(new Map());
+  const [urls, setUrls] = useState<Map<string, string>>(new Map());
+  const urlsRef = useRef<Map<string, string>>(new Map());
 
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => {
-			urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-			urlsRef.current.clear();
-		};
-	}, []);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      urlsRef.current.clear();
+    };
+  }, []);
 
-	const addSource = useCallback((id: string, source: Blob | File) => {
-		// Revoke existing URL for this ID if any
-		const existing = urlsRef.current.get(id);
-		if (existing) {
-			URL.revokeObjectURL(existing);
-		}
+  const addSource = useCallback((id: string, source: Blob | File) => {
+    // Revoke existing URL for this ID if any
+    const existing = urlsRef.current.get(id);
+    if (existing) {
+      URL.revokeObjectURL(existing);
+    }
 
-		const newUrl = URL.createObjectURL(source);
-		urlsRef.current.set(id, newUrl);
-		setUrls(new Map(urlsRef.current));
+    const newUrl = URL.createObjectURL(source);
+    urlsRef.current.set(id, newUrl);
+    setUrls(new Map(urlsRef.current));
 
-		return newUrl;
-	}, []);
+    return newUrl;
+  }, []);
 
-	const removeSource = useCallback((id: string) => {
-		const existing = urlsRef.current.get(id);
-		if (existing) {
-			URL.revokeObjectURL(existing);
-			urlsRef.current.delete(id);
-			setUrls(new Map(urlsRef.current));
-		}
-	}, []);
+  const removeSource = useCallback((id: string) => {
+    const existing = urlsRef.current.get(id);
+    if (existing) {
+      URL.revokeObjectURL(existing);
+      urlsRef.current.delete(id);
+      setUrls(new Map(urlsRef.current));
+    }
+  }, []);
 
-	const clear = useCallback(() => {
-		urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-		urlsRef.current.clear();
-		setUrls(new Map());
-	}, []);
+  const clear = useCallback(() => {
+    urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    urlsRef.current.clear();
+    setUrls(new Map());
+  }, []);
 
-	const getUrl = useCallback((id: string) => {
-		return urlsRef.current.get(id) ?? null;
-	}, []);
+  const getUrl = useCallback((id: string) => {
+    return urlsRef.current.get(id) ?? null;
+  }, []);
 
-	return { urls, addSource, removeSource, clear, getUrl };
+  return { urls, addSource, removeSource, clear, getUrl };
 }

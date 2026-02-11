@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { getPdfjsWorkerSrc } from "@/lib/pdfjs-config";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { loadPdfjs } from "@/lib/pdfjs-config";
+import { parseFontName, mapToWebFont } from "@/lib/font";
+import { cleanupCanvas } from "@/lib/canvas";
 
 export interface TextRegion {
 	id: string;
@@ -28,11 +30,7 @@ interface UseTextExtractionReturn {
 	extractionSource: "native" | "ocr" | null;
 }
 
-export function useTextExtraction({
-	file,
-	pageNumber,
-	zoom,
-}: UseTextExtractionOptions): UseTextExtractionReturn {
+export function useTextExtraction({ file, pageNumber, zoom }: UseTextExtractionOptions): UseTextExtractionReturn {
 	const [regions, setRegions] = useState<TextRegion[]>([]);
 	const [isExtracting, setIsExtracting] = useState(false);
 	const [extractionSource, setExtractionSource] = useState<"native" | "ocr" | null>(null);
@@ -95,94 +93,6 @@ export function useTextExtraction({
 }
 
 /**
- * Parse font name to extract style info
- */
-function parseFontName(pdfFontName: string): {
-	fontFamily: string;
-	fontWeight: string;
-	fontStyle: string;
-} {
-	const name = pdfFontName.toLowerCase();
-
-	// Detect weight - check more patterns
-	// Common patterns: "Bold", "-Bold", "_Bold", "BD", "-BD", "Bd", "BoldMT", "BoldItalicMT"
-	let fontWeight = "normal";
-	if (
-		name.includes("bold") ||
-		name.includes("-bd") ||
-		name.includes("_bd") ||
-		name.includes(",bold") ||
-		/\bbd\b/.test(name) ||
-		name.endsWith("bd")
-	) {
-		fontWeight = "bold";
-	} else if (name.includes("black") || name.includes("heavy") || name.includes("ultra")) {
-		fontWeight = "900";
-	} else if (name.includes("extrabold") || name.includes("extra bold") || name.includes("extra-bold")) {
-		fontWeight = "800";
-	} else if (name.includes("semibold") || name.includes("semi bold") || name.includes("semi-bold") || name.includes("demibold") || name.includes("demi")) {
-		fontWeight = "600";
-	} else if (name.includes("medium") || name.includes("-md") || name.includes("_md") || /\bmd\b/.test(name)) {
-		fontWeight = "500";
-	} else if (name.includes("light") || name.includes("-lt") || name.includes("_lt") || /\blt\b/.test(name)) {
-		fontWeight = "300";
-	} else if (name.includes("extralight") || name.includes("extra light") || name.includes("ultra light")) {
-		fontWeight = "200";
-	} else if (name.includes("thin") || name.includes("hairline")) {
-		fontWeight = "100";
-	}
-
-	// Detect style - check more patterns
-	// Common: "Italic", "-Italic", "_Italic", "It", "-It", "Oblique", "Obl"
-	let fontStyle = "normal";
-	if (
-		name.includes("italic") ||
-		name.includes("oblique") ||
-		name.includes("-it") ||
-		name.includes("_it") ||
-		name.includes(",italic") ||
-		/\bit\b/.test(name) ||
-		name.endsWith("it") ||
-		name.includes("ital")
-	) {
-		fontStyle = "italic";
-	}
-
-	// Detect font family
-	let fontFamily = "Arial, Helvetica, sans-serif";
-
-	// Serif fonts
-	if (name.includes("times") || name.includes("georgia") || name.includes("garamond") ||
-		name.includes("palatino") || name.includes("book") || name.includes("cambria") ||
-		(name.includes("serif") && !name.includes("sans"))) {
-		fontFamily = "Times New Roman, Times, serif";
-	}
-	// Monospace fonts
-	else if (name.includes("courier") || name.includes("mono") || name.includes("consolas") ||
-		name.includes("menlo") || name.includes("code") || name.includes("fixed")) {
-		fontFamily = "Courier New, Courier, monospace";
-	}
-	// Sans-serif fonts (check specific ones)
-	else if (name.includes("arial")) {
-		fontFamily = "Arial, Helvetica, sans-serif";
-	} else if (name.includes("helvetica")) {
-		fontFamily = "Helvetica, Arial, sans-serif";
-	} else if (name.includes("verdana")) {
-		fontFamily = "Verdana, Geneva, sans-serif";
-	} else if (name.includes("tahoma")) {
-		fontFamily = "Tahoma, Geneva, sans-serif";
-	} else if (name.includes("calibri")) {
-		fontFamily = "Calibri, Arial, sans-serif";
-	} else if (name.includes("roboto")) {
-		fontFamily = "Roboto, Arial, sans-serif";
-	} else if (name.includes("open") && name.includes("sans")) {
-		fontFamily = "'Open Sans', Arial, sans-serif";
-	}
-
-	return { fontFamily, fontWeight, fontStyle };
-}
-
-/**
  * Convert RGB components (0-1) to hex color
  */
 function rgbToHex(r: number, g: number, b: number): string {
@@ -198,7 +108,7 @@ function rgbToHex(r: number, g: number, b: number): string {
  */
 async function extractTextColors(
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	page: any
+	page: any,
 ): Promise<Map<number, string>> {
 	const colorMap = new Map<number, string>();
 
@@ -243,13 +153,8 @@ async function extractTextColors(
 /**
  * Extract text using PDF.js with color and font style info
  */
-async function extractNativeText(
-	file: File,
-	pageNumber: number,
-	scale: number
-): Promise<TextRegion[]> {
-	const pdfjsLib = await import("pdfjs-dist");
-	pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
+async function extractNativeText(file: File, pageNumber: number, scale: number): Promise<TextRegion[]> {
+	const pdfjsLib = await loadPdfjs();
 
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -260,7 +165,11 @@ async function extractNativeText(
 
 	// Get styles dictionary from textContent
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const styles = (textContent as any).styles as Record<string, { fontFamily?: string; ascent?: number; descent?: number; vertical?: boolean }> || {};
+	const styles =
+		((textContent as any).styles as Record<
+			string,
+			{ fontFamily?: string; ascent?: number; descent?: number; vertical?: boolean }
+		>) || {};
 
 	// Extract colors from operatorList
 	const colorMap = await extractTextColors(page);
@@ -320,7 +229,7 @@ async function extractNativeText(
 				x,
 				y: adjustedY,
 				width: Math.max(width, 10),
-				height: Math.max(height, 8)
+				height: Math.max(height, 8),
 			},
 			fontSize,
 			fontFamily,
@@ -336,54 +245,10 @@ async function extractNativeText(
 }
 
 /**
- * Map PDF font family to closest web-safe font
- */
-function mapToWebFont(pdfFontFamily: string): string {
-	const name = pdfFontFamily.toLowerCase();
-
-	// Check for common font families
-	if (name.includes("arial")) return "Arial, Helvetica, sans-serif";
-	if (name.includes("helvetica")) return "Helvetica, Arial, sans-serif";
-	if (name.includes("times")) return "Times New Roman, Times, serif";
-	if (name.includes("georgia")) return "Georgia, Times, serif";
-	if (name.includes("courier")) return "Courier New, Courier, monospace";
-	if (name.includes("verdana")) return "Verdana, Geneva, sans-serif";
-	if (name.includes("tahoma")) return "Tahoma, Geneva, sans-serif";
-	if (name.includes("trebuchet")) return "Trebuchet MS, sans-serif";
-	if (name.includes("impact")) return "Impact, sans-serif";
-	if (name.includes("comic")) return "Comic Sans MS, cursive";
-	if (name.includes("calibri")) return "Calibri, Arial, sans-serif";
-	if (name.includes("cambria")) return "Cambria, Georgia, serif";
-	if (name.includes("consolas")) return "Consolas, Monaco, monospace";
-	if (name.includes("roboto")) return "Roboto, Arial, sans-serif";
-	if (name.includes("open sans") || name.includes("opensans")) return "'Open Sans', Arial, sans-serif";
-	if (name.includes("lato")) return "Lato, Arial, sans-serif";
-	if (name.includes("montserrat")) return "Montserrat, Arial, sans-serif";
-	if (name.includes("source")) return "'Source Sans Pro', Arial, sans-serif";
-	if (name.includes("palatino")) return "Palatino Linotype, Book Antiqua, serif";
-	if (name.includes("garamond")) return "Garamond, Georgia, serif";
-	if (name.includes("bookman")) return "Bookman Old Style, Georgia, serif";
-
-	// Serif detection
-	if (name.includes("serif") && !name.includes("sans")) return "Times New Roman, Times, serif";
-
-	// Monospace detection
-	if (name.includes("mono") || name.includes("code") || name.includes("fixed")) return "Courier New, Courier, monospace";
-
-	// Default to sans-serif
-	return "Arial, Helvetica, sans-serif";
-}
-
-/**
  * Extract text using Tesseract OCR
  */
-async function extractOCRText(
-	file: File,
-	pageNumber: number,
-	targetScale: number
-): Promise<TextRegion[]> {
-	const pdfjsLib = await import("pdfjs-dist");
-	pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
+async function extractOCRText(file: File, pageNumber: number, targetScale: number): Promise<TextRegion[]> {
+	const pdfjsLib = await loadPdfjs();
 
 	const arrayBuffer = await file.arrayBuffer();
 	const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -446,8 +311,7 @@ async function extractOCRText(
 		}
 	}
 
-	canvas.width = 0;
-	canvas.height = 0;
+	cleanupCanvas(canvas);
 
 	return regions;
 }
