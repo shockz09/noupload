@@ -6,9 +6,9 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar } from "@/components/pdf/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
-import { loadPdfjs } from "@/lib/pdfjs-config";
 import { downloadText } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
+import { loadPdfjs } from "@/lib/pdfjs-config";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface ExtractResult {

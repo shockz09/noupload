@@ -1,6 +1,6 @@
-import { loadPdfjs } from "@/lib/pdfjs-config";
-import { downloadBlob } from "@/lib/download";
 import { cleanupCanvas } from "@/lib/canvas";
+import { downloadBlob } from "@/lib/download";
+import { loadPdfjs } from "@/lib/pdfjs-config";
 
 // Lazy load pdf-lib (~23MB)
 const getPdfLib = async () => import("pdf-lib");

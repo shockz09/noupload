@@ -7,10 +7,10 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
-import { createSearchablePDF } from "@/lib/ocr-utils";
-import { pdfToImages } from "@/lib/pdf-image-utils";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
+import { createSearchablePDF } from "@/lib/ocr-utils";
+import { pdfToImages } from "@/lib/pdf-image-utils";
 
 type OCRMode = "searchable" | "extract";
 

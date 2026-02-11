@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBackgroundRemoval } from "@/lib/background-removal/useBackgroundRemoval";
-import { getPdfjsWorkerSrc } from "@/lib/pdfjs-config";
+import { loadPdfjs } from "@/lib/pdfjs-config";
 import type { FormField } from "../hooks/useFormFields";
 import { type TextRegion, useTextExtraction } from "../hooks/useTextExtraction";
 import type { PageState, Tool } from "../page";
@@ -203,8 +203,7 @@ export function EditorCanvas({
 
     async function loadPdf() {
       try {
-        const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
+        const pdfjsLib = await loadPdfjs();
 
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

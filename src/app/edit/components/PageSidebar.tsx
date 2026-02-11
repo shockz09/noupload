@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getPdfjsWorkerSrc } from "@/lib/pdfjs-config";
+import { cleanupCanvas } from "@/lib/canvas";
+import { loadPdfjs } from "@/lib/pdfjs-config";
 import type { PageState } from "../page";
 
 interface PageThumbnail {
@@ -42,8 +43,7 @@ export function PageSidebar({
       setLoading(true);
 
       try {
-        const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
+        const pdfjsLib = await loadPdfjs();
 
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -78,8 +78,7 @@ export function PageSidebar({
           });
 
           // Cleanup canvas
-          canvas.width = 0;
-          canvas.height = 0;
+          cleanupCanvas(canvas);
         }
 
         if (!cancelled) {

@@ -14,8 +14,9 @@ import {
 } from "@/components/pdf/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 import { COMPRESSION_DESCRIPTIONS, type CompressionLevel, useGhostscript } from "@/lib/ghostscript/useGhostscript";
-import { downloadBlob } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface CompressResult {
@@ -51,7 +52,7 @@ export default function CompressPage() {
           compressedSize: compressed.length,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to compress PDF");
+        setError(getErrorMessage(err, "Failed to compress PDF"));
       } finally {
         stopProcessing();
       }

@@ -1,6 +1,6 @@
-import { loadPdfjs } from "@/lib/pdfjs-config";
-import { parseFontFlags } from "@/lib/font";
 import { cleanupCanvas } from "@/lib/canvas";
+import { parseFontFlags } from "@/lib/font";
+import { loadPdfjs } from "@/lib/pdfjs-config";
 
 // ============ Types ============
 

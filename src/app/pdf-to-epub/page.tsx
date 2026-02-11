@@ -6,9 +6,9 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProcessButton, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
-import { convertPdfToEpub } from "@/lib/pdf-to-epub";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
+import { convertPdfToEpub } from "@/lib/pdf-to-epub";
 import { formatFileSize } from "@/lib/utils";
 
 interface ConvertResult {

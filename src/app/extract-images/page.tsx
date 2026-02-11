@@ -5,9 +5,9 @@ import { DownloadIcon, ExtractImageIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar } from "@/components/pdf/shared";
 import { useFileProcessing } from "@/hooks";
-import { extractImagesFromPDF } from "@/lib/pdf-utils";
 import { downloadFile } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
+import { extractImagesFromPDF } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface ExtractedImage {
