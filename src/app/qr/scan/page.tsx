@@ -5,6 +5,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon, LoaderIcon } from "@/components/icons";
 import { ErrorBox } from "@/components/shared";
 import { useImagePaste } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 
 const ScanIcon = memo(function ScanIcon({ className }: { className?: string }) {
   return (
@@ -181,7 +182,7 @@ export default function QRScanPage() {
       setIsScanning(true);
     } catch (err) {
       scannerRef.current = null;
-      setError(err instanceof Error ? err.message : "Failed to access camera. Please allow camera permissions.");
+      setError(getErrorMessage(err, "Failed to access camera. Please allow camera permissions."));
     }
   }, []);
 

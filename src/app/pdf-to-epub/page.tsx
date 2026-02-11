@@ -7,6 +7,8 @@ import { ErrorBox, PdfFileInfo, PdfPageHeader, ProcessButton, ProgressBar, Succe
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
 import { convertPdfToEpub } from "@/lib/pdf-to-epub";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 import { formatFileSize } from "@/lib/utils";
 
 interface ConvertResult {
@@ -14,17 +16,6 @@ interface ConvertResult {
   filename: string;
   chapterCount: number;
   pageCount: number;
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 export default function PdfToEpubPage() {
@@ -51,7 +42,7 @@ export default function PdfToEpubPage() {
         });
         setProgress(100);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to convert PDF to EPUB");
+        setError(getErrorMessage(err, "Failed to convert PDF to EPUB"));
       } finally {
         stopProcessing();
       }

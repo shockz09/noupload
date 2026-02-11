@@ -9,7 +9,8 @@ import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
 import { createSearchablePDF } from "@/lib/ocr-utils";
 import { pdfToImages } from "@/lib/pdf-image-utils";
-import { downloadBlob } from "@/lib/pdf-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 
 type OCRMode = "searchable" | "extract";
 
@@ -104,7 +105,7 @@ export default function OcrPage() {
         }
         setProgress(100);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "OCR processing failed");
+        setError(getErrorMessage(err, "OCR processing failed"));
       } finally {
         stopProcessing();
         setStatusText("");
@@ -149,15 +150,8 @@ export default function OcrPage() {
   }, [extractedText]);
 
   const handleDownloadText = useCallback(() => {
-    const blob = new Blob([extractedText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file ? `${file.name.replace(/\.[^.]+$/, "")}_ocr.txt` : "extracted_text.txt";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const filename = file ? `${file.name.replace(/\.[^.]+$/, "")}_ocr.txt` : "extracted_text.txt";
+    downloadBlob(new Blob([extractedText], { type: "text/plain" }), filename);
   }, [extractedText, file]);
 
   const handleDownloadSearchablePdf = useCallback(() => {

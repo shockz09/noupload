@@ -6,6 +6,8 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar } from "@/components/pdf/shared";
 import { useFileProcessing } from "@/hooks";
 import { extractImagesFromPDF } from "@/lib/pdf-utils";
+import { downloadFile } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface ExtractedImage {
@@ -53,7 +55,7 @@ export default function ExtractImagesPage() {
           setError("No extractable images found in this PDF");
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to extract images");
+        setError(getErrorMessage(err, "Failed to extract images"));
       } finally {
         stopProcessing();
       }
@@ -69,12 +71,7 @@ export default function ExtractImagesPage() {
   }, [images]);
 
   const handleDownloadOne = useCallback((image: ExtractedImage) => {
-    const a = document.createElement("a");
-    a.href = image.url;
-    a.download = image.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    downloadFile(image.url, image.name);
   }, []);
 
   const handleDownloadAll = useCallback(() => {
