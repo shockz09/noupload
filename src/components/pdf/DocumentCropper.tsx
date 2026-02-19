@@ -22,148 +22,139 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
   const imageRef = useRef<HTMLImageElement>(null);
   const [corners, setCorners] = useState<Point[]>([]);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageRect, setImageRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
+  const [isReady, setIsReady] = useState(false);
 
-  // Calculate the actual displayed image rectangle within the container
-  const calculateImageRect = useCallback(() => {
-    if (!containerRef.current || !imageRef.current) return null;
+  // Calculate image display rect based on object-contain logic
+  const getImageRect = useCallback(() => {
+    if (!containerRef.current || imageNaturalSize.width === 0) return null;
 
     const container = containerRef.current.getBoundingClientRect();
-    const img = imageRef.current;
-    const imgNatural = {
-      width: img.naturalWidth,
-      height: img.naturalHeight,
-    };
-
-    // Calculate how the image is displayed (object-contain behavior)
     const containerRatio = container.width / container.height;
-    const imageRatio = imgNatural.width / imgNatural.height;
+    const imageRatio = imageNaturalSize.width / imageNaturalSize.height;
 
-    let displayWidth, displayHeight, offsetX, offsetY;
+    let displayWidth: number, displayHeight: number, offsetX: number, offsetY: number;
 
     if (imageRatio > containerRatio) {
-      // Image is wider relative to container - fit to width
+      // Image is wider - fit to width
       displayWidth = container.width;
       displayHeight = container.width / imageRatio;
       offsetX = 0;
       offsetY = (container.height - displayHeight) / 2;
     } else {
-      // Image is taller relative to container - fit to height
+      // Image is taller - fit to height
       displayHeight = container.height;
       displayWidth = container.height * imageRatio;
       offsetX = (container.width - displayWidth) / 2;
       offsetY = 0;
     }
 
-    return {
-      x: offsetX,
-      y: offsetY,
-      width: displayWidth,
-      height: displayHeight,
-    };
-  }, []);
+    return { x: offsetX, y: offsetY, width: displayWidth, height: displayHeight };
+  }, [imageNaturalSize]);
 
-  // Initialize corners when image loads
-  useEffect(() => {
-    const rect = calculateImageRect();
-    if (!rect) return;
-    setImageRect(rect);
+  // Initialize everything when image loads
+  const handleImageLoad = useCallback(() => {
+    if (!imageRef.current || !containerRef.current) return;
+
+    const img = imageRef.current;
+    const container = containerRef.current.getBoundingClientRect();
+
+    setImageNaturalSize({
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    });
+    setContainerSize({ width: container.width, height: container.height });
+
+    // Calculate initial corner positions
+    const imgRatio = img.naturalWidth / img.naturalHeight;
+    const containerRatio = container.width / container.height;
+
+    let displayWidth: number, displayHeight: number, offsetX: number, offsetY: number;
+
+    if (imgRatio > containerRatio) {
+      displayWidth = container.width;
+      displayHeight = container.width / imgRatio;
+      offsetX = 0;
+      offsetY = (container.height - displayHeight) / 2;
+    } else {
+      displayHeight = container.height;
+      displayWidth = container.height * imgRatio;
+      offsetX = (container.width - displayWidth) / 2;
+      offsetY = 0;
+    }
 
     if (detectedCorners && detectedCorners.length === 4) {
-      // Convert image-relative coordinates to display-relative
+      // Use detected corners
       const displayCorners = detectedCorners.map((corner) => ({
-        x: rect.x + corner.x * rect.width,
-        y: rect.y + corner.y * rect.height,
+        x: offsetX + corner.x * displayWidth,
+        y: offsetY + corner.y * displayHeight,
       }));
       setCorners(displayCorners);
     } else {
-      // Default corners - inset from image edges
-      const inset = 20; // pixels from edge
+      // Default corners with inset
+      const inset = Math.min(displayWidth, displayHeight) * 0.1;
       setCorners([
-        { x: rect.x + inset, y: rect.y + inset },
-        { x: rect.x + rect.width - inset, y: rect.y + inset },
-        { x: rect.x + rect.width - inset, y: rect.y + rect.height - inset },
-        { x: rect.x + inset, y: rect.y + rect.height - inset },
+        { x: offsetX + inset, y: offsetY + inset },
+        { x: offsetX + displayWidth - inset, y: offsetY + inset },
+        { x: offsetX + displayWidth - inset, y: offsetY + displayHeight - inset },
+        { x: offsetX + inset, y: offsetY + displayHeight - inset },
       ]);
     }
-    setImageLoaded(true);
-  }, [detectedCorners, calculateImageRect]);
 
-  // Update image rect on resize
+    setIsReady(true);
+  }, [detectedCorners]);
+
+  // Handle resize
   useEffect(() => {
     const handleResize = () => {
-      if (!imageLoaded) return;
-      const newRect = calculateImageRect();
-      if (newRect && imageRect) {
-        // Scale existing corners to new rect
-        const scaleX = newRect.width / imageRect.width;
-        const scaleY = newRect.height / imageRect.height;
-        const offsetX = newRect.x - imageRect.x;
-        const offsetY = newRect.y - imageRect.y;
+      if (!isReady || !containerRef.current) return;
+
+      const oldRect = getImageRect();
+      const container = containerRef.current.getBoundingClientRect();
+      setContainerSize({ width: container.width, height: container.height });
+
+      // Recalculate with new size
+      const newRect = getImageRect();
+      if (oldRect && newRect) {
+        const scaleX = newRect.width / oldRect.width;
+        const scaleY = newRect.height / oldRect.height;
 
         setCorners((prev) =>
           prev.map((corner) => ({
-            x: (corner.x - imageRect.x) * scaleX + newRect.x + offsetX,
-            y: (corner.y - imageRect.y) * scaleY + newRect.y + offsetY,
+            x: (corner.x - oldRect.x) * scaleX + newRect.x,
+            y: (corner.y - oldRect.y) * scaleY + newRect.y,
           }))
         );
-        setImageRect(newRect);
       }
     };
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [imageLoaded, imageRect, calculateImageRect]);
+  }, [isReady, getImageRect]);
 
-  const handleImageLoad = useCallback(() => {
-    // Trigger the effect above
-    const rect = calculateImageRect();
-    if (rect) {
-      setImageRect(rect);
-    }
-  }, [calculateImageRect]);
+  const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggingIndex(index);
+  }, []);
 
-  const getMousePos = useCallback(
-    (e: React.MouseEvent | React.TouchEvent): Point | null => {
-      if (!containerRef.current) return null;
-
-      const rect = containerRef.current.getBoundingClientRect();
-      const clientX = "touches" in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-      const clientY = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-
-      return {
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-      };
-    },
-    []
-  );
-
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent | React.TouchEvent, index: number) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDraggingIndex(index);
-    },
-    []
-  );
-
-  // Global mouse/touch handlers for dragging
+  // Global drag handlers
   useEffect(() => {
     if (draggingIndex === null) return;
 
-    const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
-      if (!containerRef.current || !imageRect) return;
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      const imageRect = getImageRect();
+      if (!imageRect || !containerRef.current) return;
 
-      const rect = containerRef.current.getBoundingClientRect();
-      const clientX = e instanceof TouchEvent ? e.touches[0].clientX : e.clientX;
-      const clientY = e instanceof TouchEvent ? e.touches[0].clientY : e.clientY;
+      const container = containerRef.current.getBoundingClientRect();
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
 
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
+      const x = clientX - container.left;
+      const y = clientY - container.top;
 
-      // Constrain to image rectangle
+      // Constrain to image bounds
       const constrainedX = Math.max(imageRect.x, Math.min(imageRect.x + imageRect.width, x));
       const constrainedY = Math.max(imageRect.y, Math.min(imageRect.y + imageRect.height, y));
 
@@ -174,60 +165,41 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
       });
     };
 
-    const handleGlobalUp = () => {
-      setDraggingIndex(null);
-    };
+    const handleUp = () => setDraggingIndex(null);
 
-    window.addEventListener("mousemove", handleGlobalMove);
-    window.addEventListener("mouseup", handleGlobalUp);
-    window.addEventListener("touchmove", handleGlobalMove);
-    window.addEventListener("touchend", handleGlobalUp);
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("touchmove", handleMove);
+    window.addEventListener("touchend", handleUp);
 
     return () => {
-      window.removeEventListener("mousemove", handleGlobalMove);
-      window.removeEventListener("mouseup", handleGlobalUp);
-      window.removeEventListener("touchmove", handleGlobalMove);
-      window.removeEventListener("touchend", handleGlobalUp);
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleUp);
     };
-  }, [draggingIndex, imageRect]);
+  }, [draggingIndex, getImageRect]);
 
   const handleConfirm = useCallback(() => {
-    if (!imageRef.current || !imageRect) return;
+    if (!imageRef.current) return;
 
-    // Convert display coordinates back to image-relative coordinates (0-1)
-    const imageRelativeCorners = corners.map((corner) => ({
+    const imageRect = getImageRect();
+    if (!imageRect) return;
+
+    // Convert display coordinates to image-relative (0-1)
+    const relativeCorners = corners.map((corner) => ({
       x: (corner.x - imageRect.x) / imageRect.width,
       y: (corner.y - imageRect.y) / imageRect.height,
     }));
 
     // Convert to absolute pixel coordinates
-    const absoluteCorners = imageRelativeCorners.map((corner) => ({
-      x: Math.round(corner.x * imageRef.current!.naturalWidth),
-      y: Math.round(corner.y * imageRef.current!.naturalHeight),
+    const absoluteCorners = relativeCorners.map((corner) => ({
+      x: Math.round(corner.x * imageNaturalSize.width),
+      y: Math.round(corner.y * imageNaturalSize.height),
     }));
 
     onConfirm(absoluteCorners);
-  }, [corners, imageRect, onConfirm]);
-
-  if (!imageLoaded) {
-    return (
-      <div className="border-2 border-foreground bg-card overflow-hidden">
-        <div className="p-4 border-b-2 border-foreground">
-          <span className="font-bold">Loading image...</span>
-        </div>
-        <div ref={containerRef} className="relative bg-black min-h-[300px]">
-          <img
-            ref={imageRef}
-            src={imageSrc}
-            alt="Document to crop"
-            className="w-full h-auto max-h-[70vh] object-contain"
-            onLoad={handleImageLoad}
-            draggable={false}
-          />
-        </div>
-      </div>
-    );
-  }
+  }, [corners, getImageRect, imageNaturalSize, onConfirm]);
 
   return (
     <div className="border-2 border-foreground bg-card overflow-hidden">
@@ -243,88 +215,80 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
         </button>
       </div>
 
-      {/* Image with overlay */}
+      {/* Image container */}
       <div
         ref={containerRef}
         className="relative bg-black select-none"
-        style={{ touchAction: "none", minHeight: "300px" }}
+        style={{ touchAction: "none", minHeight: "300px", height: "50vh" }}
       >
         <img
           ref={imageRef}
           src={imageSrc}
           alt="Document to crop"
-          className="w-full h-auto max-h-[70vh] object-contain"
+          className="w-full h-full object-contain"
+          onLoad={handleImageLoad}
           draggable={false}
         />
 
-        {/* SVG Overlay - positioned absolutely over the image */}
-        {imageRect && (
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-            }}
-          >
-            {/* Dark overlay outside crop area */}
-            <defs>
-              <mask id="cropMask">
-                <rect width="100%" height="100%" fill="white" />
-                <polygon
-                  points={corners.map((c) => `${c.x},${c.y}`).join(" ")}
-                  fill="black"
-                />
-              </mask>
-            </defs>
-            <rect width="100%" height="100%" fill="rgba(0,0,0,0.5)" mask="url(#cropMask)" />
-
-            {/* Crop border */}
-            <polygon
-              points={corners.map((c) => `${c.x},${c.y}`).join(" ")}
-              fill="none"
-              stroke="#C84C1C"
-              strokeWidth="2"
-              strokeDasharray="5,5"
-            />
-          </svg>
-        )}
-
-        {/* Draggable corners - HTML elements positioned absolutely */}
-        {imageRect &&
-          corners.map((corner, index) => (
-            <div
-              key={index}
-              className={`absolute cursor-move z-10 transition-transform ${
-                draggingIndex === index ? "scale-125 z-20" : "hover:scale-110"
-              }`}
-              style={{
-                left: `${corner.x}px`,
-                top: `${corner.y}px`,
-                width: `${CORNER_HIT_AREA}px`,
-                height: `${CORNER_HIT_AREA}px`,
-                marginLeft: `-${CORNER_HIT_AREA / 2}px`,
-                marginTop: `-${CORNER_HIT_AREA / 2}px`,
-              }}
-              onMouseDown={(e) => handleMouseDown(e, index)}
-              onTouchStart={(e) => handleMouseDown(e, index)}
+        {isReady && corners.length === 4 && (
+          <>
+            {/* SVG overlay for lines and dark area */}
+            <svg
+              className="absolute inset-0 pointer-events-none"
+              style={{ width: containerSize.width, height: containerSize.height }}
             >
-              {/* Visual corner marker */}
-              <div
-                className={`absolute rounded-full border-2 border-foreground shadow-lg ${
-                  draggingIndex === index ? "bg-primary" : "bg-white"
-                }`}
-                style={{
-                  width: `${CORNER_SIZE}px`,
-                  height: `${CORNER_SIZE}px`,
-                  left: `${(CORNER_HIT_AREA - CORNER_SIZE) / 2}px`,
-                  top: `${(CORNER_HIT_AREA - CORNER_SIZE) / 2}px`,
-                }}
+              <defs>
+                <mask id="cropMask">
+                  <rect width="100%" height="100%" fill="white" />
+                  <polygon points={corners.map((c) => `${c.x},${c.y}`).join(" ")} fill="black" />
+                </mask>
+              </defs>
+
+              {/* Dark overlay */}
+              <rect width="100%" height="100%" fill="rgba(0,0,0,0.5)" mask="url(#cropMask)" />
+
+              {/* Border lines */}
+              <polygon
+                points={corners.map((c) => `${c.x},${c.y}`).join(" ")}
+                fill="none"
+                stroke="#C84C1C"
+                strokeWidth="3"
+                strokeDasharray="8,4"
               />
-            </div>
-          ))}
+            </svg>
+
+            {/* Corner handles */}
+            {corners.map((corner, index) => (
+              <div
+                key={index}
+                className={`absolute cursor-move ${draggingIndex === index ? "z-30" : "z-20"}`}
+                style={{
+                  left: corner.x - CORNER_HIT_AREA / 2,
+                  top: corner.y - CORNER_HIT_AREA / 2,
+                  width: CORNER_HIT_AREA,
+                  height: CORNER_HIT_AREA,
+                  transition: draggingIndex === null ? "transform 0.1s" : "none",
+                  transform: draggingIndex === index ? "scale(1.3)" : "scale(1)",
+                }}
+                onMouseDown={(e) => handleMouseDown(e, index)}
+                onTouchStart={(e) => handleMouseDown(e, index)}
+              >
+                <div
+                  className={`absolute rounded-full border-3 border-foreground shadow-xl ${
+                    draggingIndex === index ? "bg-primary" : "bg-white"
+                  }`}
+                  style={{
+                    width: CORNER_SIZE,
+                    height: CORNER_SIZE,
+                    left: (CORNER_HIT_AREA - CORNER_SIZE) / 2,
+                    top: (CORNER_HIT_AREA - CORNER_SIZE) / 2,
+                    borderWidth: "3px",
+                  }}
+                />
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Controls */}
@@ -335,13 +299,7 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
             onClick={onRetake}
             className="flex items-center justify-center gap-2 px-6 h-12 border-2 border-foreground font-bold transition-all hover:bg-accent whitespace-nowrap"
           >
-            <svg
-              className="w-5 h-5 flex-shrink-0"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
+            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="23 4 23 10 17 10" />
               <polyline points="1 20 1 14 7 14" />
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -352,22 +310,17 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
           <button
             type="button"
             onClick={handleConfirm}
-            className="flex items-center justify-center gap-2 px-6 h-12 bg-primary text-white border-2 border-foreground font-bold transition-all hover:opacity-90 whitespace-nowrap"
+            disabled={!isReady}
+            className="flex items-center justify-center gap-2 px-6 h-12 bg-primary text-white border-2 border-foreground font-bold transition-all hover:opacity-90 whitespace-nowrap disabled:opacity-50"
           >
-            <svg
-              className="w-5 h-5 flex-shrink-0"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
+            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             Confirm & Add
           </button>
         </div>
 
-        <p className="text-center text-sm text-muted-foreground mt-4">Drag the corners to adjust the document boundaries</p>
+        <p className="text-center text-sm text-muted-foreground mt-4">Drag the white circles to adjust the document boundaries</p>
       </div>
     </div>
   );
