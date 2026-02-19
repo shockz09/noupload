@@ -249,7 +249,7 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
       </div>
 
       {/* Viewfinder */}
-      <div className="relative bg-black">
+      <div className="relative bg-black" style={{ height: '50vh', minHeight: '300px' }}>
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
             <LoaderIcon className="w-8 h-8 animate-spin text-white" />
@@ -261,7 +261,7 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
           autoPlay
           playsInline
           muted
-          className="w-full h-auto max-h-[70vh] object-contain"
+          className="w-full h-full object-contain"
           onLoadedMetadata={() => setIsLoading(false)}
         />
       </div>

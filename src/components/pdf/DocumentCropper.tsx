@@ -219,7 +219,7 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
       <div
         ref={containerRef}
         className="relative bg-black select-none"
-        style={{ touchAction: "none", minHeight: "300px", height: "50vh" }}
+        style={{ touchAction: "none", height: "50vh", minHeight: "300px" }}
       >
         <img
           ref={imageRef}
