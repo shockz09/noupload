@@ -1,8 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertIcon, CheckIcon, LoaderIcon, RefreshIcon, XIcon } from "@/components/icons";
-import { processScannedDocument } from "@/lib/document-scanner";
+import { AlertIcon, LoaderIcon, XIcon } from "@/components/icons";
+import { DocumentCropper } from "@/components/pdf/DocumentCropper";
+import { detectDocument } from "@/lib/document-scanner";
+
+interface Point {
+  x: number;
+  y: number;
+}
 
 interface CameraCaptureProps {
   onCapture: (blob: Blob) => void;
@@ -14,12 +20,13 @@ interface CameraCaptureProps {
 export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [detectedCorners, setDetectedCorners] = useState<Point[] | undefined>(undefined);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const remainingSlots = maxImages - currentCount;
 
   const stopCamera = useCallback(() => {
@@ -61,7 +68,7 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
     return () => stopCamera();
   }, [startCamera, stopCamera]);
 
-  const handleCapture = useCallback(() => {
+  const handleCapture = useCallback(async () => {
     if (!videoRef.current || remainingSlots <= 0) return;
 
     const video = videoRef.current;
@@ -73,6 +80,7 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
     if (!ctx) return;
 
     ctx.drawImage(video, 0, 0);
+    canvasRef.current = canvas;
 
     // Stop camera to save battery while reviewing
     stopCamera();
@@ -80,45 +88,93 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
     // Show preview
     const previewUrl = canvas.toDataURL("image/jpeg", 0.92);
     setCapturedImage(previewUrl);
-    canvasRef.current = canvas;
+
+    // Auto-detect document corners
+    setIsDetecting(true);
+    try {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const detected = await detectDocument(imageData);
+      
+      if (detected && detected.confidence > 0.3) {
+        // Convert absolute coordinates to relative (0-1)
+        const relativeCorners = detected.corners.map(corner => ({
+          x: corner.x / canvas.width,
+          y: corner.y / canvas.height,
+        }));
+        setDetectedCorners(relativeCorners);
+      } else {
+        // No document detected, use default corners
+        setDetectedCorners(undefined);
+      }
+    } catch (err) {
+      console.error("Document detection failed:", err);
+      setDetectedCorners(undefined);
+    } finally {
+      setIsDetecting(false);
+    }
   }, [remainingSlots, stopCamera]);
 
-  const handleProcess = useCallback(async () => {
-    if (!canvasRef.current) return;
+  const handleConfirmCrop = useCallback(async (corners: Point[]) => {
+    if (!canvasRef.current || !capturedImage) return;
 
-    setIsProcessing(true);
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    try {
-      const processedBlob = await processScannedDocument(canvasRef.current, true, true);
-      onCapture(processedBlob);
-      setCapturedImage(null);
-      canvasRef.current = null;
-      // Restart camera for next capture
-      startCamera();
-    } catch (err) {
-      console.error("Processing error:", err);
-      // Fallback: just use the raw capture
-      if (canvasRef.current) {
-        canvasRef.current.toBlob(
-          (blob) => {
-            if (blob) {
-              onCapture(blob);
-              setCapturedImage(null);
-              canvasRef.current = null;
-              startCamera();
-            }
-          },
-          "image/jpeg",
-          0.92
-        );
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [onCapture, startCamera]);
+    // Create output canvas for perspective transform
+    const outputCanvas = document.createElement("canvas");
+    outputCanvas.width = 800;
+    outputCanvas.height = 1100;
+    const outputCtx = outputCanvas.getContext("2d");
+    if (!outputCtx) return;
+
+    // Sort corners: top-left, top-right, bottom-right, bottom-left
+    const sorted = sortCorners(corners);
+
+    // Calculate source dimensions
+    const srcWidth = Math.max(
+      Math.hypot(sorted[1].x - sorted[0].x, sorted[1].y - sorted[0].y),
+      Math.hypot(sorted[2].x - sorted[3].x, sorted[2].y - sorted[3].y)
+    );
+    const srcHeight = Math.max(
+      Math.hypot(sorted[3].x - sorted[0].x, sorted[3].y - sorted[0].y),
+      Math.hypot(sorted[2].x - sorted[1].x, sorted[2].y - sorted[1].y)
+    );
+
+    // Draw the transformed image
+    outputCtx.drawImage(
+      canvas,
+      sorted[0].x, sorted[0].y,
+      srcWidth, srcHeight,
+      0, 0,
+      outputCanvas.width, outputCanvas.height
+    );
+
+    // Apply enhancement
+    const imageData = outputCtx.getImageData(0, 0, outputCanvas.width, outputCanvas.height);
+    enhanceDocument(imageData);
+    outputCtx.putImageData(imageData, 0, 0);
+
+    // Convert to blob
+    outputCanvas.toBlob(
+      (blob) => {
+        if (blob) {
+          onCapture(blob);
+          // Reset for next capture
+          setCapturedImage(null);
+          setDetectedCorners(undefined);
+          canvasRef.current = null;
+          startCamera();
+        }
+      },
+      "image/jpeg",
+      0.92
+    );
+  }, [capturedImage, onCapture, startCamera]);
 
   const handleRetake = useCallback(() => {
     setCapturedImage(null);
+    setDetectedCorners(undefined);
     canvasRef.current = null;
     startCamera();
   }, [startCamera]);
@@ -155,6 +211,26 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
     );
   }
 
+  // Show cropper if we have a captured image
+  if (capturedImage) {
+    return (
+      <>
+        {isDetecting && (
+          <div className="border-2 border-foreground bg-card p-8 text-center space-y-4">
+            <LoaderIcon className="w-10 h-10 animate-spin mx-auto" />
+            <p className="font-medium">Detecting document edges...</p>
+          </div>
+        )}
+        <DocumentCropper
+          imageSrc={capturedImage}
+          detectedCorners={detectedCorners}
+          onConfirm={handleConfirmCrop}
+          onRetake={handleRetake}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="border-2 border-foreground bg-card overflow-hidden">
       {/* Header */}
@@ -172,138 +248,108 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
         </button>
       </div>
 
-      {/* Viewfinder or Preview */}
+      {/* Viewfinder */}
       <div className="relative bg-black">
-        {!capturedImage ? (
-          <>
-            {isLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
-                <LoaderIcon className="w-8 h-8 animate-spin text-white" />
-              </div>
-            )}
-
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full aspect-[4/3] object-cover"
-              onLoadedMetadata={() => setIsLoading(false)}
-            />
-          </>
-        ) : (
-          <div className="relative">
-            <img
-              src={capturedImage}
-              alt="Captured"
-              className="w-full aspect-[4/3] object-contain bg-black"
-            />
-            {isProcessing && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70">
-                <LoaderIcon className="w-10 h-10 animate-spin text-white mb-2" />
-                <p className="text-white font-medium">Processing document...</p>
-              </div>
-            )}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
+            <LoaderIcon className="w-8 h-8 animate-spin text-white" />
           </div>
         )}
+
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-full aspect-[4/3] object-cover"
+          onLoadedMetadata={() => setIsLoading(false)}
+        />
       </div>
 
       {/* Controls */}
       <div className="p-6 bg-card border-t-2 border-foreground">
-        {!capturedImage ? (
-          <>
-            <div className="flex items-center justify-center gap-6">
-              {/* Flash toggle */}
-              <button
-                type="button"
-                onClick={toggleFlash}
-                className={`w-12 h-12 rounded-full border-2 border-foreground flex items-center justify-center transition-all
-                  ${flashEnabled ? "bg-primary text-white" : "bg-muted hover:bg-accent"}
-                `}
-                title="Toggle flash"
-              >
-                <svg
-                  aria-hidden="true"
-                  className="w-5 h-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                </svg>
-              </button>
+        <div className="flex items-center justify-center gap-6">
+          {/* Flash toggle */}
+          <button
+            type="button"
+            onClick={toggleFlash}
+            className={`w-12 h-12 rounded-full border-2 border-foreground flex items-center justify-center transition-all
+              ${flashEnabled ? "bg-primary text-white" : "bg-muted hover:bg-accent"}
+            `}
+            title="Toggle flash"
+          >
+            <svg
+              aria-hidden="true"
+              className="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </button>
 
-              {/* Shutter button */}
-              <button
-                type="button"
-                onClick={handleCapture}
-                disabled={remainingSlots <= 0 || isLoading}
-                className={`w-20 h-20 rounded-full border-4 border-foreground flex items-center justify-center transition-all
-                  ${remainingSlots > 0 && !isLoading
-                    ? "bg-white hover:scale-105 active:scale-95"
-                    : "bg-muted cursor-not-allowed"
-                  }
-                `}
-              >
-                <div className={`w-16 h-16 rounded-full ${remainingSlots > 0 ? "bg-primary" : "bg-muted-foreground"}`} />
-              </button>
+          {/* Shutter button */}
+          <button
+            type="button"
+            onClick={handleCapture}
+            disabled={remainingSlots <= 0 || isLoading}
+            className={`w-20 h-20 rounded-full border-4 border-foreground flex items-center justify-center transition-all
+              ${remainingSlots > 0 && !isLoading
+                ? "bg-white hover:scale-105 active:scale-95"
+                : "bg-muted cursor-not-allowed"
+              }
+            `}
+          >
+            <div className={`w-16 h-16 rounded-full ${remainingSlots > 0 ? "bg-primary" : "bg-muted-foreground"}`} />
+          </button>
 
-              {/* Spacer for alignment */}
-              <div className="w-12" />
-            </div>
+          {/* Spacer for alignment */}
+          <div className="w-12" />
+        </div>
 
-            {remainingSlots <= 0 && (
-              <p className="text-center text-sm font-medium text-destructive mt-4">
-                Maximum {maxImages} pages reached
-              </p>
-            )}
-
-            <p className="text-center text-sm text-muted-foreground mt-4">
-              Position document in frame and tap to capture
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center justify-center gap-4">
-              {/* Retake button */}
-              <button
-                type="button"
-                onClick={handleRetake}
-                disabled={isProcessing}
-                className="flex items-center gap-2 px-6 py-3 border-2 border-foreground font-bold transition-all hover:bg-accent disabled:opacity-50"
-              >
-                <RefreshIcon className="w-5 h-5" />
-                Retake
-              </button>
-
-              {/* Process/Add button */}
-              <button
-                type="button"
-                onClick={handleProcess}
-                disabled={isProcessing}
-                className="flex items-center gap-2 px-6 py-3 bg-primary text-white border-2 border-foreground font-bold transition-all hover:opacity-90 disabled:opacity-50"
-              >
-                {isProcessing ? (
-                  <>
-                    <LoaderIcon className="w-5 h-5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CheckIcon className="w-5 h-5" />
-                    Add Page
-                  </>
-                )}
-              </button>
-            </div>
-
-            <p className="text-center text-sm text-muted-foreground mt-4">
-              Auto-cropping and enhancement will be applied
-            </p>
-          </>
+        {remainingSlots <= 0 && (
+          <p className="text-center text-sm font-medium text-destructive mt-4">
+            Maximum {maxImages} pages reached
+          </p>
         )}
+
+        <p className="text-center text-sm text-muted-foreground mt-4">
+          Position document in frame and tap to capture
+        </p>
       </div>
     </div>
   );
+}
+
+// Helper functions
+function sortCorners(corners: Point[]): Point[] {
+  // Calculate centroid
+  const centroid = corners.reduce(
+    (acc, corner) => ({ x: acc.x + corner.x / 4, y: acc.y + corner.y / 4 }),
+    { x: 0, y: 0 }
+  );
+
+  // Sort by angle from centroid
+  return [...corners].sort((a, b) => {
+    const angleA = Math.atan2(a.y - centroid.y, a.x - centroid.x);
+    const angleB = Math.atan2(b.y - centroid.y, b.x - centroid.x);
+    return angleA - angleB;
+  });
+}
+
+function enhanceDocument(imageData: ImageData): void {
+  const data = imageData.data;
+  const length = data.length;
+
+  // Apply adaptive contrast
+  const contrast = 1.3;
+  const intercept = 128 * (1 - contrast);
+
+  for (let i = 0; i < length; i += 4) {
+    for (let j = 0; j < 3; j++) {
+      data[i + j] = Math.max(0, Math.min(255, data[i + j] * contrast + intercept));
+    }
+  }
 }
