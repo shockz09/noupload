@@ -18,6 +18,7 @@ import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useVideoToAudio } from "@/hooks";
 import { formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { isFFmpegLoaded, removeSilence, type SilenceMode } from "@/lib/ffmpeg-utils";
 import { getFileBaseName } from "@/lib/utils";
 
@@ -83,7 +84,7 @@ export default function RemoveSilencePage() {
         setResult(blob, `${baseName}_trimmed.wav`);
         setUsedMode(silenceMode);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to remove silence");
+        setError(getErrorMessage(err, "Failed to remove silence"));
       } finally {
         setProcessingState("idle");
         processingRef.current = false;

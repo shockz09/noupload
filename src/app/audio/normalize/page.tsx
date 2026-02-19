@@ -18,6 +18,7 @@ import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useVideoToAudio } from "@/hooks";
 import { formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { isFFmpegLoaded, type NormalizePreset, normalizeAudio } from "@/lib/ffmpeg-utils";
 import { getFileBaseName } from "@/lib/utils";
 
@@ -88,7 +89,7 @@ export default function NormalizeAudioPage() {
         setResult(blob, `${baseName}_normalized.wav`);
         setUsedPreset(targetPreset);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to normalize audio");
+        setError(getErrorMessage(err, "Failed to normalize audio"));
       } finally {
         setProcessingState("idle");
         processingRef.current = false;

@@ -12,6 +12,8 @@ import {
   getAudioInfo,
   getWaveformData,
 } from "@/lib/audio-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
 
 // Waveform color presets
@@ -127,14 +129,9 @@ export default function WaveformPage() {
       const blob = await generateWaveformImage(file, exportSize.width, exportSize.height, waveformColor, bgColor);
 
       const baseName = getFileBaseName(file.name);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${baseName}_waveform.png`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `${baseName}_waveform.png`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate waveform");
+      setError(getErrorMessage(err, "Failed to generate waveform"));
     } finally {
       stopProcessing();
     }

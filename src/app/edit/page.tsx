@@ -3,7 +3,9 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PdfPageHeader } from "@/components/pdf/shared";
-import { downloadBlob } from "@/lib/pdf-utils";
+import { ErrorBox } from "@/components/shared";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
 import { DraftRecoveryDialog } from "./components/DraftRecoveryDialog";
 import { EditorCanvas } from "./components/EditorCanvas";
@@ -77,6 +79,7 @@ export default function EditPdfPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [showRedactionDialog, setShowRedactionDialog] = useState(false);
   const [redactionCount, setRedactionCount] = useState(0);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Form fields state
   const [formFields, setFormFields] = useState<FormField[]>([]);
@@ -303,7 +306,7 @@ export default function EditPdfPage() {
       await clearDraft();
     } catch (err) {
       console.error("Export failed:", err);
-      alert("Failed to export PDF. Please try again.");
+      setExportError(getErrorMessage(err, "Failed to export PDF. Please try again."));
     } finally {
       setIsExporting(false);
     }
@@ -400,6 +403,13 @@ export default function EditPdfPage() {
                 onToolChange={setActiveTool}
                 onTextFormattingChange={handleTextFormattingChange}
               />
+
+              {/* Export Error */}
+              {exportError && (
+                <div className="px-4 py-2">
+                  <ErrorBox message={exportError} />
+                </div>
+              )}
 
               {/* Zoom controls */}
               <ZoomControls

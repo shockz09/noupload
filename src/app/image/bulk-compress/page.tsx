@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { BulkIcon, DownloadIcon, ImageIcon, LoaderIcon } from "@/components/icons";
 import { ErrorBox, ImagePageHeader, ProgressBar, SavingsBadge } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { getErrorMessage } from "@/lib/error";
 import { compressImage, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 
 interface FileItem {
@@ -80,7 +81,7 @@ export default function BulkCompressPage() {
 
       setResults(compressed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to compress images");
+      setError(getErrorMessage(err, "Failed to compress images"));
     } finally {
       setIsProcessing(false);
     }
@@ -146,7 +147,7 @@ export default function BulkCompressPage() {
             {results.map((item, i) => {
               const savings = Math.round((1 - item.blob.size / item.original.size) * 100);
               return (
-                <div key={i} className="flex items-center justify-between p-3 border-2 border-foreground bg-background">
+                <div key={item.filename} className="flex items-center justify-between p-3 border-2 border-foreground bg-background">
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm truncate">{item.filename}</p>
                     <p className="text-xs text-muted-foreground">

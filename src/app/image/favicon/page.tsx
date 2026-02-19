@@ -4,8 +4,10 @@ import { useCallback, useState } from "react";
 import { DownloadIcon, FaviconIcon, ImageIcon, LoaderIcon } from "@/components/icons";
 import { ErrorBox, ImageFileInfo, ImagePageHeader } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing, useImagePaste, useObjectURL } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { downloadImage, type FaviconSet, formatFileSize, generateFavicons } from "@/lib/image-utils";
 
 interface FaviconResult {
@@ -38,7 +40,7 @@ export default function FaviconPage() {
         const favicons = await generateFavicons(fileToProcess);
         setResult({ favicons, hasSvg: !!favicons.svg });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to generate favicons");
+        setError(getErrorMessage(err, "Failed to generate favicons"));
       } finally {
         stopProcessing();
       }
@@ -227,28 +229,11 @@ export default function FaviconPage() {
             subtitle="Square images work best · Ctrl+V to paste"
           />
 
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">{isInstant ? "Instant generation" : "Tip"}</p>
-              <p className="text-muted-foreground">
-                {isInstant
-                  ? "Drop a square image and all favicon sizes will be generated automatically."
-                  : "Use a square image for best results. We'll generate all sizes for browsers, iOS, and Android."}
-              </p>
-            </div>
-          </div>
+          <InfoBox title={isInstant ? "Instant generation" : "Tip"}>
+            {isInstant
+              ? "Drop a square image and all favicon sizes will be generated automatically."
+              : "Use a square image for best results. We'll generate all sizes for browsers, iOS, and Android."}
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

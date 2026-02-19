@@ -5,6 +5,7 @@ import { FiltersIcon, LoaderIcon } from "@/components/icons";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import {
   applyFilter,
   copyImageToClipboard,
@@ -350,7 +351,7 @@ export default function ImageFiltersPage() {
       const filtered = await applyFilter(file, selectedFilter);
       setResult(filtered, getOutputFilename(file.name, undefined, `_${selectedFilter}`), { filter: selectedFilter });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to apply filter");
+      setError(getErrorMessage(err, "Failed to apply filter"));
     } finally {
       stopProcessing();
     }

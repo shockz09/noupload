@@ -17,6 +17,7 @@ import { FormatSelector } from "@/components/shared";
 import { useAudioResult, useVideoToAudio } from "@/hooks";
 import { type AudioFormat, convertAudioFormat, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_BITRATES, AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { type ConvertOutputFormat, convertAudioFFmpeg, isFFmpegLoaded } from "@/lib/ffmpeg-utils";
 import { getFileBaseName } from "@/lib/utils";
 
@@ -103,7 +104,7 @@ export default function AudioConvertPage() {
       const baseName = getFileBaseName(file.name);
       setResult(blob, `${baseName}.${outputFormat}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Conversion failed");
+      setError(getErrorMessage(err, "Conversion failed"));
     } finally {
       setProcessingState("idle");
     }

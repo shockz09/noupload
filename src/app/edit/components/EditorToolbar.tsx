@@ -329,6 +329,7 @@ export function EditorToolbar({
 
         {/* Stroke Color Picker (for draw & shapes) */}
         <label
+          aria-label="Stroke color"
           className="relative w-8 h-8 cursor-pointer border-2 border-foreground/20 hover:border-foreground/50 transition-colors flex items-center justify-center"
           title="Stroke color (Draw & Shapes)"
         >
@@ -494,6 +495,7 @@ export function EditorToolbar({
 
         {/* Image Tool */}
         <label
+          aria-label="Insert image"
           className={`w-8 h-8 flex items-center justify-center border-2 cursor-pointer transition-colors ${
             activeTool === "image"
               ? "bg-primary text-white border-primary"

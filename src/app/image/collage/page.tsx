@@ -4,7 +4,9 @@ import { useCallback, useMemo, useState } from "react";
 import { CollageIcon, XIcon } from "@/components/icons";
 import { ErrorBox, ImagePageHeader, ProgressBar, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { InfoBox } from "@/components/shared";
 import { useFileProcessing, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { type CollageLayout, copyImageToClipboard, createCollage, formatFileSize } from "@/lib/image-utils";
 
 interface FileItem {
@@ -108,7 +110,7 @@ export default function CollagePage() {
       setPreviewSource(blob);
       setProgress(100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create collage");
+      setError(getErrorMessage(err, "Failed to create collage"));
     } finally {
       stopProcessing();
     }
@@ -201,26 +203,9 @@ export default function CollagePage() {
                 title="Drop your images here"
                 subtitle="Select 2-12 images"
               />
-              <div className="info-box">
-                <svg
-                  aria-hidden="true"
-                  className="w-5 h-5 mt-0.5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 16v-4" />
-                  <path d="M12 8h.01" />
-                </svg>
-                <div className="text-sm">
-                  <p className="font-bold text-foreground mb-1">Collage Maker</p>
-                  <p className="text-muted-foreground">
-                    Drop 2-12 images and choose a layout. Images will be automatically arranged and sized to fit.
-                  </p>
-                </div>
-              </div>
+              <InfoBox title="Collage Maker">
+                Drop 2-12 images and choose a layout. Images will be automatically arranged and sized to fit.
+              </InfoBox>
             </>
           ) : (
             <>

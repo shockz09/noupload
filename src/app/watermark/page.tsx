@@ -5,7 +5,10 @@ import { LoaderIcon, WatermarkIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
-import { addWatermark, downloadBlob } from "@/lib/pdf-utils";
+import { InfoBox } from "@/components/shared";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { addWatermark } from "@/lib/pdf-utils";
 import { getFileBaseName } from "@/lib/utils";
 
 interface WatermarkResult {
@@ -141,7 +144,7 @@ export default function WatermarkPage() {
         filename: `${baseName}_watermarked.pdf`,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add watermark");
+      setError(getErrorMessage(err, "Failed to add watermark"));
     } finally {
       setIsProcessing(false);
     }
@@ -258,6 +261,8 @@ export default function WatermarkPage() {
             ) : previewPage ? (
               <div
                 ref={previewRef}
+                role="application"
+                aria-label="Watermark position editor"
                 className={`relative border-2 border-foreground bg-white cursor-crosshair select-none overflow-hidden ${
                   isDragging ? "cursor-grabbing" : ""
                 }`}
@@ -421,23 +426,7 @@ export default function WatermarkPage() {
             </div>
 
             {/* Info */}
-            <div className="info-box">
-              <svg
-                aria-hidden="true"
-                className="w-5 h-5 mt-0.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4" />
-                <path d="M12 8h.01" />
-              </svg>
-              <span className="text-sm">
-                Watermark will be applied to all {pages.length} pages at the same position.
-              </span>
-            </div>
+            <InfoBox>Watermark will be applied to all {pages.length} pages at the same position.</InfoBox>
 
             {error && <ErrorBox message={error} />}
             {isProcessing && <ProgressBar progress={50} label="Adding watermark..." />}

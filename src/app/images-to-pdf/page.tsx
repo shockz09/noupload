@@ -4,8 +4,9 @@ import { useCallback, useRef, useState } from "react";
 import { FileIcon, GripIcon, LoaderIcon, XIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 import { imagesToPdf } from "@/lib/pdf-image-utils";
-import { downloadBlob } from "@/lib/pdf-utils";
 
 interface ImageItem {
   file: File;
@@ -101,7 +102,7 @@ export default function ImagesToPdfPage() {
         pageCount: images.length,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create PDF");
+      setError(getErrorMessage(err, "Failed to create PDF"));
     } finally {
       setIsProcessing(false);
     }

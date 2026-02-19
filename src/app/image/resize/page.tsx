@@ -5,6 +5,7 @@ import { LoaderIcon, ResizeIcon } from "@/components/icons";
 import { ComparisonDisplay, ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import {
   copyImageToClipboard,
   formatFileSize,
@@ -104,7 +105,7 @@ export default function ImageResizePage() {
         newDimensions: { width, height },
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to resize image");
+      setError(getErrorMessage(err, "Failed to resize image"));
     } finally {
       stopProcessing();
     }

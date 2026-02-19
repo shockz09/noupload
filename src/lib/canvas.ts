@@ -52,7 +52,8 @@ export async function renderPageToCanvas(
 
   const { canvas, ctx, cleanup } = createCanvas(viewport.width, viewport.height);
 
-  await page.render({ canvasContext: ctx, viewport }).promise;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await page.render({ canvasContext: ctx, viewport } as any).promise;
   page.cleanup();
 
   return {

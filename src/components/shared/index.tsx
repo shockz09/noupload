@@ -378,28 +378,31 @@ export const FormatSelector = memo(function FormatSelector({
 
 // ============ Info Box ============
 interface InfoBoxProps {
-  title: string;
+  title?: ReactNode;
   children: ReactNode;
+  icon?: ReactNode;
 }
 
-export const InfoBox = memo(function InfoBox({ title, children }: InfoBoxProps) {
+export const InfoBox = memo(function InfoBox({ title, children, icon }: InfoBoxProps) {
   return (
     <div className="info-box">
-      <svg
-        aria-hidden="true"
-        className="w-5 h-5 mt-0.5 shrink-0"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 16v-4" />
-        <path d="M12 8h.01" />
-      </svg>
+      {icon || (
+        <svg
+          aria-hidden="true"
+          className="w-5 h-5 mt-0.5 shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4" />
+          <path d="M12 8h.01" />
+        </svg>
+      )}
       <div className="text-sm">
-        <p className="font-bold text-foreground mb-1">{title}</p>
-        <p className="text-muted-foreground">{children}</p>
+        {title && <p className="font-bold text-foreground mb-1">{title}</p>}
+        <div className="text-muted-foreground">{children}</div>
       </div>
     </div>
   );

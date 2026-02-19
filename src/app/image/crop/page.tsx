@@ -5,6 +5,7 @@ import { CropIcon, ImageIcon, LoaderIcon } from "@/components/icons";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import {
   type CropArea,
   copyImageToClipboard,
@@ -199,7 +200,7 @@ export default function ImageCropPage() {
         height: Math.round(cropArea.height),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to crop image");
+      setError(getErrorMessage(err, "Failed to crop image"));
     } finally {
       stopProcessing();
     }
@@ -325,6 +326,8 @@ export default function ImageCropPage() {
               />
 
               <div
+                role="application"
+                aria-label="Crop region"
                 className="absolute border-2 border-white cursor-move"
                 style={cropBoxStyle}
                 onMouseDown={(e) => handleMouseDown(e)}
@@ -332,6 +335,9 @@ export default function ImageCropPage() {
                 {["nw", "ne", "sw", "se", "n", "s", "e", "w"].map((handle) => (
                   <div
                     key={handle}
+                    role="button"
+                    aria-label={`Resize ${handle}`}
+                    tabIndex={0}
                     className="absolute w-3 h-3 bg-white border border-black"
                     style={{
                       cursor: `${handle}-resize`,

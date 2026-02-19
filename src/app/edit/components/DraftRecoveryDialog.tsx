@@ -47,7 +47,7 @@ export function DraftRecoveryDialog({ open, savedAt, onResume, onDiscard }: Draf
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-row gap-3 sm:justify-stretch">
-          <button type="button" onClick={onResume} className="btn-primary flex-1 py-3" autoFocus>
+          <button type="button" onClick={onResume} className="btn-primary flex-1 py-3">
             Resume Draft
           </button>
           <button type="button" onClick={onDiscard} className="btn-secondary flex-1 py-3">

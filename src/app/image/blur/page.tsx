@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BlurIcon, ImageIcon } from "@/components/icons";
 import { ErrorBox, ImageFileInfo, ImagePageHeader, ProgressBar, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { InfoBox } from "@/components/shared";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import {
   applyBlurRegions,
   type BlurRegion,
@@ -136,7 +138,7 @@ export default function ImageBlurPage() {
       setResult(blob, getOutputFilename(file.name, undefined, "_blurred"));
       setProgress(100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to apply blur");
+      setError(getErrorMessage(err, "Failed to apply blur"));
     } finally {
       stopProcessing();
     }
@@ -223,27 +225,10 @@ export default function ImageBlurPage() {
             title="Drop your image here"
             subtitle="or click to browse · Ctrl+V to paste"
           />
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">Privacy Protection</p>
-              <p className="text-muted-foreground">
-                Draw rectangles over sensitive areas like faces, license plates, or personal information. Choose between
-                blur or pixelate effects.
-              </p>
-            </div>
-          </div>
+          <InfoBox title="Privacy Protection">
+            Draw rectangles over sensitive areas like faces, license plates, or personal information. Choose between
+            blur or pixelate effects.
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

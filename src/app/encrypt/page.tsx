@@ -5,7 +5,9 @@ import { LockIcon, PdfIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PasswordInput } from "@/components/pdf/PasswordInput";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
-import { downloadBlob } from "@/lib/pdf-utils";
+import { InfoBox } from "@/components/shared";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 import { useQpdf } from "@/lib/qpdf";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
@@ -90,7 +92,7 @@ export default function EncryptPage() {
         filename: `${baseName}_protected.pdf`,
       });
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Failed to encrypt PDF");
+      setLocalError(getErrorMessage(err, "Failed to encrypt PDF"));
     } finally {
       processingRef.current = false;
     }
@@ -141,26 +143,9 @@ export default function EncryptPage() {
             title="Drop your PDF file here"
           />
 
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">How it works</p>
-              <p className="text-muted-foreground">
-                Set a password to protect your PDF. Anyone who wants to open the file will need this password.
-              </p>
-            </div>
-          </div>
+          <InfoBox title="How it works">
+            Set a password to protect your PDF. Anyone who wants to open the file will need this password.
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">
@@ -180,7 +165,6 @@ export default function EncryptPage() {
               placeholder="Enter password"
               required
               disabled={isProcessing}
-              autoFocus
             />
           </div>
 

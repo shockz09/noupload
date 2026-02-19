@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { LoaderIcon, RotateIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, PageThumbnailCard, usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
-import { downloadBlob, rotatePDF } from "@/lib/pdf-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { rotatePDF } from "@/lib/pdf-utils";
 import { getFileBaseName } from "@/lib/utils";
 
 interface RotateResult {
@@ -127,7 +129,7 @@ export default function RotatePage() {
         filename: `${baseName}_rotated.pdf`,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to rotate PDF");
+      setError(getErrorMessage(err, "Failed to rotate PDF"));
     } finally {
       setIsProcessing(false);
     }
@@ -151,7 +153,7 @@ export default function RotatePage() {
     setPageRotations({});
   }, []);
 
-  const rotatedCount = useMemo(() => Object.values(pageRotations).filter((r) => r !== 0).length, [pageRotations]);
+  const rotatedCount = Object.values(pageRotations).filter((r) => r !== 0).length;
 
   return (
     <div className="page-enter max-w-5xl mx-auto space-y-8">

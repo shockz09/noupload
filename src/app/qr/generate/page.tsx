@@ -340,8 +340,8 @@ export default function QRGeneratePage() {
           <div className="p-6 bg-card border-2 border-foreground space-y-6">
             {/* Data Type Selection */}
             <div className="space-y-3">
-              <span className="input-label">Content Type</span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <span className="input-label" id="content-type-label">Content Type</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="group" aria-labelledby="content-type-label">
                 {dataTypes.map((type) => {
                   const Icon = type.icon;
                   return (
@@ -423,8 +423,8 @@ export default function QRGeneratePage() {
                     />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <span className="input-label">Security Type</span>
-                    <div className="flex gap-2">
+                    <span className="input-label" id="security-type-label">Security Type</span>
+                    <div className="flex gap-2" role="group" aria-labelledby="security-type-label">
                       {wifiEncryptions.map((enc) => (
                         <button
                           type="button"

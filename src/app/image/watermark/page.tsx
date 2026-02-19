@@ -5,6 +5,7 @@ import { LoaderIcon, WatermarkIcon } from "@/components/icons";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { addWatermark, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 
 type Position = "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -73,7 +74,7 @@ export default function ImageWatermarkPage() {
       });
       setResult(watermarked, getOutputFilename(file.name, undefined, "_watermarked"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add watermark");
+      setError(getErrorMessage(err, "Failed to add watermark"));
     } finally {
       stopProcessing();
     }
@@ -208,25 +209,25 @@ export default function ImageWatermarkPage() {
                 <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Position</span>
                 <div className="grid grid-cols-3 gap-1 w-fit">
                   {(
-                    ["top-left", null, "top-right", null, "center", null, "bottom-left", null, "bottom-right"] as const
-                  ).map((pos, i) =>
-                    pos ? (
+                    [{ pos: "top-left" }, { spacer: "s1" }, { pos: "top-right" }, { spacer: "s2" }, { pos: "center" }, { spacer: "s3" }, { pos: "bottom-left" }, { spacer: "s4" }, { pos: "bottom-right" }] as const
+                  ).map((item) =>
+                    "pos" in item ? (
                       <button
                         type="button"
-                        key={pos}
-                        onClick={() => handlePositionSelect(pos)}
+                        key={item.pos}
+                        onClick={() => handlePositionSelect(item.pos)}
                         className={`w-7 h-7 border-2 transition-all flex items-center justify-center ${
-                          position === pos
+                          position === item.pos
                             ? "border-foreground bg-foreground"
                             : "border-foreground/30 hover:border-foreground bg-muted/50"
                         }`}
                       >
                         <div
-                          className={`w-2 h-2 rounded-full ${position === pos ? "bg-background" : "bg-foreground/40"}`}
+                          className={`w-2 h-2 rounded-full ${position === item.pos ? "bg-background" : "bg-foreground/40"}`}
                         />
                       </button>
                     ) : (
-                      <div key={i} className="w-7 h-7" />
+                      <div key={item.spacer} className="w-7 h-7" />
                     ),
                   )}
                 </div>

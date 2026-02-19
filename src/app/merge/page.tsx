@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { LoaderIcon, MergeIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { FileList } from "@/components/pdf/file-list";
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 import { useFileProcessing, usePdfDataResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { mergePDFs } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
@@ -88,7 +89,7 @@ export default function MergePage() {
       setResult(mergedPdf, `${firstName}_merged.pdf`, { originalCount: files.length, totalSize });
       setProgress(100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to merge PDFs");
+      setError(getErrorMessage(err, "Failed to merge PDFs"));
     } finally {
       stopProcessing();
     }
@@ -108,7 +109,7 @@ export default function MergePage() {
     clearResult();
   }, [clearResult]);
 
-  const buttonLabel = useMemo(() => (files.length > 0 ? `Merge ${files.length} PDFs` : "Merge PDFs"), [files.length]);
+  const buttonLabel = files.length > 0 ? `Merge ${files.length} PDFs` : "Merge PDFs";
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

@@ -5,7 +5,8 @@ import { PdfIcon, UnlockIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PasswordInput } from "@/components/pdf/PasswordInput";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
-import { downloadBlob } from "@/lib/pdf-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 import { useQpdf } from "@/lib/qpdf";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
@@ -65,7 +66,7 @@ export default function DecryptPage() {
         filename: `${baseName}_unlocked.pdf`,
       });
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Failed to decrypt PDF");
+      setLocalError(getErrorMessage(err, "Failed to decrypt PDF"));
     } finally {
       processingRef.current = false;
     }
@@ -138,7 +139,6 @@ export default function DecryptPage() {
               placeholder="Enter password"
               required
               disabled={isProcessing}
-              autoFocus
             />
           </div>
 

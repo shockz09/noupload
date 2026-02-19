@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { ArrowLeftIcon, DownloadIcon, LoaderIcon, OcrIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox } from "@/components/shared";
+import { ErrorBox, InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
@@ -331,8 +331,8 @@ export default function OcrPage() {
 
           {/* Mode Selection */}
           <div className="p-6 bg-card border-2 border-foreground space-y-3">
-            <span className="input-label">Output Mode</span>
-            <div className="flex gap-2">
+            <span className="input-label" id="output-mode-label">Output Mode</span>
+            <div className="flex gap-2" role="group" aria-labelledby="output-mode-label">
               <button
                 type="button"
                 onClick={setModeSearchable}
@@ -419,29 +419,14 @@ export default function OcrPage() {
           </div>
 
           {/* Info Box */}
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm space-y-1">
-              <p className="font-bold text-foreground">About OCR</p>
-              <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                <li>Works best with clear, high-resolution scans</li>
-                <li>Searchable PDF keeps the original look but adds selectable text</li>
-                <li>Processing takes ~5-10 seconds per page</li>
-                <li>First use may take longer while loading language data</li>
-              </ul>
-            </div>
-          </div>
+          <InfoBox title="About OCR">
+            <ul className="list-disc list-inside space-y-0.5">
+              <li>Works best with clear, high-resolution scans</li>
+              <li>Searchable PDF keeps the original look but adds selectable text</li>
+              <li>Processing takes ~5-10 seconds per page</li>
+              <li>First use may take longer while loading language data</li>
+            </ul>
+          </InfoBox>
 
           {error && <ErrorBox message={error} />}
 

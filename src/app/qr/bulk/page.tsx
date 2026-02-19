@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeftIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons";
 import { QRCustomizePanel } from "@/components/qr/customize-panel";
 import { ErrorBox } from "@/components/shared";
+import { getErrorMessage } from "@/lib/error";
 import { copyImageToClipboard } from "@/lib/image-utils";
 import {
   downloadQR,
@@ -132,7 +133,7 @@ export default function BulkQRGeneratePage() {
         downloadQR(blobs[i], `qrcode-${i + 1}.png`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to download QR codes");
+      setError(getErrorMessage(err, "Failed to download QR codes"));
     } finally {
       setIsDownloading(false);
     }
@@ -204,7 +205,7 @@ export default function BulkQRGeneratePage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-3">
                   {previews.map((preview, index) => (
-                    <div key={index} className="space-y-1 group relative">
+                    <div key={preview.text} className="space-y-1 group relative">
                       <div className="bg-white p-2 border border-foreground/20 relative">
                         <img
                           src={preview.dataUrl}

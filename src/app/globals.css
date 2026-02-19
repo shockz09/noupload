@@ -1,4 +1,4 @@
-/* Fonts loaded in layout.tsx with crossorigin for COEP compatibility */
+/* Fonts self-hosted via next/font — no external requests */
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -7,8 +7,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Onest", system-ui, sans-serif;
-  --font-display: "Instrument Serif", Georgia, serif;
+  --font-sans: var(--font-onest), system-ui, sans-serif;
+  --font-display: var(--font-instrument-serif), Georgia, serif;
   --font-mono: ui-monospace, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -281,18 +281,20 @@
 /* Stagger children */
 .stagger-children > * {
   opacity: 0;
-  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Stagger first 9 cards (3 rows), rest appear instantly */
 .stagger-children > *:nth-child(1) { animation-delay: 0.0s; }
-.stagger-children > *:nth-child(2) { animation-delay: 0.06s; }
-.stagger-children > *:nth-child(3) { animation-delay: 0.12s; }
-.stagger-children > *:nth-child(4) { animation-delay: 0.18s; }
-.stagger-children > *:nth-child(5) { animation-delay: 0.24s; }
-.stagger-children > *:nth-child(6) { animation-delay: 0.30s; }
-.stagger-children > *:nth-child(7) { animation-delay: 0.36s; }
-.stagger-children > *:nth-child(8) { animation-delay: 0.42s; }
-.stagger-children > *:nth-child(9) { animation-delay: 0.48s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.03s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.06s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.09s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.12s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.15s; }
+.stagger-children > *:nth-child(7) { animation-delay: 0.18s; }
+.stagger-children > *:nth-child(8) { animation-delay: 0.21s; }
+.stagger-children > *:nth-child(9) { animation-delay: 0.24s; }
+.stagger-children > *:nth-child(n+10) { animation-delay: 0.24s; }
 
 /* ============================================
    HEADER

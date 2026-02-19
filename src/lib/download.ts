@@ -4,9 +4,10 @@
  */
 
 /**
- * Download a Blob as a file
+ * Download a Blob or Uint8Array as a file
  */
-export function downloadBlob(blob: Blob, filename: string): void {
+export function downloadBlob(data: Blob | Uint8Array, filename: string, type = "application/pdf"): void {
+  const blob = data instanceof Blob ? data : new Blob([data as BlobPart], { type });
   const url = URL.createObjectURL(blob);
   try {
     const a = document.createElement("a");
@@ -43,9 +44,12 @@ export function downloadFile(url: string, filename: string): void {
 /**
  * Trigger download with stagger for multiple files (prevents browser blocking)
  */
-export async function downloadMultiple(items: Array<{ blob: Blob; filename: string }>, delay = 100): Promise<void> {
-  for (const { blob, filename } of items) {
-    downloadBlob(blob, filename);
+export async function downloadMultiple(
+  items: Array<{ data: Blob | Uint8Array; filename: string }>,
+  delay = 100,
+): Promise<void> {
+  for (const { data, filename } of items) {
+    downloadBlob(data, filename);
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
 }

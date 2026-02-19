@@ -16,6 +16,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useVideoToAudio } from "@/hooks";
 import { formatFileSize } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { isFFmpegLoaded, type MergeOutputFormat, mergeAudio } from "@/lib/ffmpeg-utils";
 
 const outputFormats: {
@@ -99,7 +100,7 @@ export default function MergeAudioPage() {
 
       setResult(blob, `merged_audio.${outputFormat}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to merge audio");
+      setError(getErrorMessage(err, "Failed to merge audio"));
     } finally {
       setProcessingState("idle");
     }
@@ -161,7 +162,7 @@ export default function MergeAudioPage() {
               <div className="divide-y divide-foreground/10">
                 {files.map((file, index) => (
                   <div
-                    key={`${file.name}-${index}`}
+                    key={`${file.name}-${file.size}-${file.lastModified}`}
                     draggable
                     onDragStart={() => handleDragStart(index)}
                     onDragOver={(e) => handleDragOver(e, index)}

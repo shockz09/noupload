@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioPageHeader,
@@ -14,6 +14,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { formatDuration, formatFileSize, getAudioInfo, getWaveformData, trimAudio } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
 
 export default function TrimAudioPage() {
@@ -114,7 +115,7 @@ export default function TrimAudioPage() {
       const baseName = getFileBaseName(file.name);
       setResult(trimmed, `${baseName}_trimmed.wav`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to trim audio");
+      setError(getErrorMessage(err, "Failed to trim audio"));
     } finally {
       stopProcessing();
     }
@@ -164,7 +165,7 @@ export default function TrimAudioPage() {
         const regionDuration = endTime - startTime;
         const newStart = Math.max(0, Math.min(time - regionDuration / 2, duration - regionDuration));
         setStartTime(newStart);
-        setEndTime(newStart + regionDuration);
+        setEndTime(() => newStart + regionDuration);
       }
     };
 
@@ -178,10 +179,10 @@ export default function TrimAudioPage() {
     };
   }, [dragging, startTime, endTime, duration, getTimeFromEvent]);
 
-  const startPercent = useMemo(() => (duration > 0 ? (startTime / duration) * 100 : 0), [startTime, duration]);
-  const endPercent = useMemo(() => (duration > 0 ? (endTime / duration) * 100 : 100), [endTime, duration]);
-  const currentPercent = useMemo(() => (duration > 0 ? (currentTime / duration) * 100 : 0), [currentTime, duration]);
-  const selectedDuration = useMemo(() => endTime - startTime, [endTime, startTime]);
+  const startPercent = duration > 0 ? (startTime / duration) * 100 : 0;
+  const endPercent = duration > 0 ? (endTime / duration) * 100 : 100;
+  const currentPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const selectedDuration = endTime - startTime;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -252,8 +253,8 @@ export default function TrimAudioPage() {
             >
               {/* Waveform bars */}
               <div className="absolute inset-0 flex items-center px-1 pointer-events-none">
-                {waveform.map((val, i) => (
-                  <div key={i} className="flex-1 mx-px bg-muted-foreground/30" style={{ height: `${val * 80}%` }} />
+                {waveform.map((val, barIndex) => (
+                  <div key={barIndex} className="flex-1 mx-px bg-muted-foreground/30" style={{ height: `${val * 80}%` }} />
                 ))}
               </div>
 
@@ -269,6 +270,12 @@ export default function TrimAudioPage() {
 
               {/* Selected region (draggable to move) */}
               <div
+                role="slider"
+                aria-label="Selected audio region"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(startPercent)}
+                tabIndex={0}
                 className={`absolute top-0 bottom-0 cursor-grab ${dragging === "region" ? "cursor-grabbing" : ""}`}
                 style={{ left: `${startPercent}%`, width: `${endPercent - startPercent}%` }}
                 onMouseDown={handleMouseDown("region")}
@@ -276,6 +283,12 @@ export default function TrimAudioPage() {
 
               {/* Start handle */}
               <div
+                role="slider"
+                aria-label="Trim start"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(startPercent)}
+                tabIndex={0}
                 className={`absolute top-0 bottom-0 w-3 bg-primary cursor-ew-resize hover:bg-primary/80 flex items-center justify-center ${dragging === "start" ? "bg-primary/80" : ""}`}
                 style={{ left: `calc(${startPercent}% - 6px)` }}
                 onMouseDown={handleMouseDown("start")}
@@ -285,6 +298,12 @@ export default function TrimAudioPage() {
 
               {/* End handle */}
               <div
+                role="slider"
+                aria-label="Trim end"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(endPercent)}
+                tabIndex={0}
                 className={`absolute top-0 bottom-0 w-3 bg-primary cursor-ew-resize hover:bg-primary/80 flex items-center justify-center ${dragging === "end" ? "bg-primary/80" : ""}`}
                 style={{ left: `calc(${endPercent}% - 6px)` }}
                 onMouseDown={handleMouseDown("end")}

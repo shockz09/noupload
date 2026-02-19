@@ -4,8 +4,10 @@ import { useCallback, useState } from "react";
 import { AudioPageHeader } from "@/components/audio/shared";
 import { DownloadIcon, MusicTagIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, ProgressBar } from "@/components/shared";
+import { ErrorBox, InfoBox, ProgressBar } from "@/components/shared";
 import { useFileProcessing, useProcessingResult } from "@/hooks";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface AudioMetadata {
@@ -92,7 +94,7 @@ export default function AudioMetadataPage() {
       setResult(blob, `${getFileBaseName(file.name)}_tagged.mp3`);
       setProgress(100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update audio metadata");
+      setError(getErrorMessage(err, "Failed to update audio metadata"));
     } finally {
       stopProcessing();
     }
@@ -100,15 +102,7 @@ export default function AudioMetadataPage() {
 
   const handleDownload = useCallback(() => {
     if (!result) return;
-
-    const url = URL.createObjectURL(result.blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = result.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadBlob(result.blob, result.filename);
   }, [result]);
 
   const handleClear = useCallback(() => {
@@ -162,27 +156,10 @@ export default function AudioMetadataPage() {
             title="Drop your MP3 here"
             subtitle="to edit ID3 tags"
           />
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">About ID3 Tags</p>
-              <p className="text-muted-foreground">
-                ID3 tags store metadata like title, artist, and album in MP3 files. This information is displayed by
-                music players.
-              </p>
-            </div>
-          </div>
+          <InfoBox title="About ID3 Tags">
+            ID3 tags store metadata like title, artist, and album in MP3 files. This information is displayed by
+            music players.
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

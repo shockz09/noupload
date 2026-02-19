@@ -9,6 +9,8 @@ const getKatex = async () => (await import("katex")).default;
 const getDOMPurify = async () => (await import("dompurify")).default;
 
 import { ErrorBox, PdfPageHeader, ProgressBar } from "@/components/pdf/shared";
+import { downloadBlob, downloadText } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 
 const STORAGE_KEY = "markdown-to-pdf-draft";
 
@@ -479,7 +481,7 @@ export default function MarkdownToPdfPage() {
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
       setIsUndoRedo(true);
-      setHistoryIndex(historyIndex - 1);
+      setHistoryIndex((prev) => prev - 1);
       setMarkdown(history[historyIndex - 1]);
     }
   }, [history, historyIndex]);
@@ -487,7 +489,7 @@ export default function MarkdownToPdfPage() {
   const handleRedo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       setIsUndoRedo(true);
-      setHistoryIndex(historyIndex + 1);
+      setHistoryIndex((prev) => prev + 1);
       setMarkdown(history[historyIndex + 1]);
     }
   }, [history, historyIndex]);
@@ -899,7 +901,7 @@ export default function MarkdownToPdfPage() {
 
       setProgress(100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Conversion failed");
+      setError(getErrorMessage(err, "Conversion failed"));
     } finally {
       setIsProcessing(false);
     }
@@ -923,13 +925,8 @@ export default function MarkdownToPdfPage() {
   };
 
   const handleDownloadMarkdown = () => {
-    const blob = new Blob([markdown], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${docTitle.replace(/[^a-z0-9]/gi, "_")}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const filename = `${docTitle.replace(/[^a-z0-9]/gi, "_")}.md`;
+    downloadText(markdown, filename, "text/markdown");
   };
 
   const handleInsertSnippet = (code: string) => {
@@ -1240,7 +1237,6 @@ export default function MarkdownToPdfPage() {
           }}
           placeholder="Start writing..."
           spellCheck={false}
-          autoFocus
         />
       </div>
     );
@@ -1356,12 +1352,8 @@ export default function MarkdownToPdfPage() {
                     const html = await renderMarkdownWithMath(markdown);
                     const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docTitle}</title>${getPdfStyles(theme, fontSize)}</head><body>${html}</body></html>`;
                     const blob = new Blob([fullHtml], { type: "text/html" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `${docTitle.replace(/[^a-z0-9]/gi, "_")}.html`;
-                    a.click();
-                    URL.revokeObjectURL(url);
+                    const filename = `${docTitle.replace(/[^a-z0-9]/gi, "_")}.html`;
+                    downloadBlob(blob, filename);
                     setShowExport(false);
                   }}
                   className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-muted transition-colors text-left"
@@ -1855,7 +1847,6 @@ export default function MarkdownToPdfPage() {
                           onKeyDown={(e) => e.key === "Enter" && handleFindNext()}
                           placeholder="Find..."
                           className="w-full px-2 py-1.5 text-sm bg-background border border-foreground/20 rounded focus:outline-none focus:border-primary"
-                          autoFocus
                         />
                         {findText && (
                           <span className="text-xs text-muted-foreground mt-1 block">{findCount} found</span>
@@ -1965,9 +1956,9 @@ export default function MarkdownToPdfPage() {
                     {tableOfContents.length === 0 ? (
                       <div className="px-2 py-3 text-sm text-muted-foreground text-center">No headings found</div>
                     ) : (
-                      tableOfContents.map((item, index) => (
+                      tableOfContents.map((item) => (
                         <button
-                          key={index}
+                          key={item.line}
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => jumpToLine(item.line)}
@@ -2122,7 +2113,6 @@ $$\int_0^1 x^2 dx$$ for block math"
                       placeholder="Words"
                       className="w-16 px-1.5 py-0.5 text-xs bg-background border border-foreground/20 rounded focus:outline-none focus:border-primary"
                       min="1"
-                      autoFocus
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           const target = e.target as HTMLInputElement;

@@ -12,7 +12,6 @@ interface PasswordInputProps {
   hint?: string;
   required?: boolean;
   disabled?: boolean;
-  autoFocus?: boolean;
 }
 
 export const PasswordInput = memo(function PasswordInput({
@@ -25,7 +24,6 @@ export const PasswordInput = memo(function PasswordInput({
   hint,
   required = false,
   disabled = false,
-  autoFocus = false,
 }: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -54,7 +52,6 @@ export const PasswordInput = memo(function PasswordInput({
           onChange={handleChange}
           placeholder={placeholder}
           disabled={disabled}
-          autoFocus={autoFocus}
           className={`w-full px-3 py-2 pr-10 border-2 rounded bg-background text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 ${
             error ? "border-red-500" : "border-foreground/20 focus:border-foreground"
           } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -39,9 +40,9 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
           <button type="button" onClick={reset} className="btn-primary w-full">
             Try Again
           </button>
-          <a href="/" className="btn-secondary w-full inline-flex items-center justify-center">
+          <Link href="/" className="btn-secondary w-full inline-flex items-center justify-center">
             Go Home
-          </a>
+          </Link>
         </div>
 
         {process.env.NODE_ENV === "development" && error.message && (

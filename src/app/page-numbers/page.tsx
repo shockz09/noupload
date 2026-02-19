@@ -5,7 +5,10 @@ import { LoaderIcon, NumbersIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
-import { addPageNumbers, downloadBlob } from "@/lib/pdf-utils";
+import { InfoBox } from "@/components/shared";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { addPageNumbers } from "@/lib/pdf-utils";
 import { getFileBaseName } from "@/lib/utils";
 
 interface PageNumbersResult {
@@ -136,7 +139,7 @@ export default function PageNumbersPage() {
         filename: `${baseName}_numbered.pdf`,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add page numbers");
+      setError(getErrorMessage(err, "Failed to add page numbers"));
     } finally {
       setIsProcessing(false);
     }
@@ -272,6 +275,8 @@ export default function PageNumbersPage() {
             ) : previewPage ? (
               <div
                 ref={previewRef}
+                role="application"
+                aria-label="Page number position editor"
                 className={`relative border-2 border-foreground bg-white cursor-crosshair select-none overflow-hidden ${
                   isDragging ? "cursor-grabbing" : ""
                 }`}
@@ -411,21 +416,7 @@ export default function PageNumbersPage() {
             </div>
 
             {/* Info */}
-            <div className="info-box">
-              <svg
-                aria-hidden="true"
-                className="w-5 h-5 mt-0.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4" />
-                <path d="M12 8h.01" />
-              </svg>
-              <span className="text-sm">Numbers will be added to all {pages.length} pages at the same position.</span>
-            </div>
+            <InfoBox>Numbers will be added to all {pages.length} pages at the same position.</InfoBox>
 
             {error && <ErrorBox message={error} />}
             {isProcessing && <ProgressBar progress={50} label="Adding page numbers..." />}

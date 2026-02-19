@@ -135,7 +135,6 @@ export function SignatureModal({ open, onClose, onSignatureCreate }: SignatureMo
                 placeholder="Type your signature"
                 className="w-full border-2 border-foreground/30 px-4 py-3 text-2xl focus:border-primary focus:outline-none"
                 style={{ fontFamily: selectedFont }}
-                autoFocus
               />
               <div className="flex gap-2 flex-wrap">
                 {FONTS.map((font) => (

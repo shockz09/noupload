@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioFileInfo,
@@ -15,6 +15,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { changeSpeed, formatDuration, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
 
 const speedPresets = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -67,7 +68,7 @@ export default function SpeedAudioPage() {
       setResult(processed, `${baseName}_${speed}x.wav`);
       setUsedSpeed(speed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to change speed");
+      setError(getErrorMessage(err, "Failed to change speed"));
     } finally {
       stopProcessing();
     }
@@ -82,8 +83,8 @@ export default function SpeedAudioPage() {
 
   const handleSpeedSelect = useCallback((s: number) => setSpeed(s), []);
 
-  const newDuration = useMemo(() => duration / speed, [duration, speed]);
-  const isDisabled = useMemo(() => speed === 1, [speed]);
+  const newDuration = duration / speed;
+  const isDisabled = speed === 1;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

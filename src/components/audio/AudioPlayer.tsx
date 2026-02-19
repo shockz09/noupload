@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { formatDuration, getWaveformDataFromUrl } from "@/lib/audio-utils";
 
 interface AudioPlayerProps {
@@ -119,8 +119,7 @@ export const AudioPlayer = memo(function AudioPlayer({ src, className = "" }: Au
     };
   }, [isDragging, seekTo]);
 
-  // Memoize progress calculation
-  const progress = useMemo(() => (duration > 0 ? (currentTime / duration) * 100 : 0), [currentTime, duration]);
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   // Get bar height from waveform data or fallback (memoized)
   const getBarHeight = useCallback(

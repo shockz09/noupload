@@ -12,11 +12,12 @@ import {
 } from "@/components/audio/shared";
 import { DownloadIcon, ExtractIcon, LoaderIcon, VideoIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { FormatSelector } from "@/components/shared";
+import { FormatSelector, InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult } from "@/hooks";
 import { formatFileSize } from "@/lib/audio-utils";
 import { AUDIO_BITRATES } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { type ExtractOutputFormat, extractAudioFromVideo, isFFmpegLoaded } from "@/lib/ffmpeg-utils";
 import { getFileBaseName } from "@/lib/utils";
 
@@ -58,7 +59,7 @@ export default function ExtractAudioPage() {
         const baseName = getFileBaseName(fileToProcess.name);
         setResult(blob, `${baseName}.${format}`);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to extract audio");
+        setError(getErrorMessage(err, "Failed to extract audio"));
       } finally {
         setIsProcessing(false);
         processingRef.current = false;
@@ -179,17 +180,11 @@ export default function ExtractAudioPage() {
             subtitle="MP4, MOV, MKV, AVI, WebM, FLV, WMV"
           />
           {!isFFmpegLoaded() && <FFmpegNotice />}
-          <div className="info-box">
-            <VideoIcon className="w-5 h-5 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">{isInstant ? "Instant extraction" : "Manual mode"}</p>
-              <p className="text-muted-foreground">
-                {isInstant
-                  ? "Drop a video and audio will be extracted as MP3 automatically."
-                  : "Drop a video, choose format and quality, then extract."}
-              </p>
-            </div>
-          </div>
+          <InfoBox title={isInstant ? "Instant extraction" : "Manual mode"} icon={<VideoIcon className="w-5 h-5 mt-0.5" />}>
+            {isInstant
+              ? "Drop a video and audio will be extracted as MP3 automatically."
+              : "Drop a video, choose format and quality, then extract."}
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-4">

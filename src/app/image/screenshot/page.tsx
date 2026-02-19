@@ -4,7 +4,9 @@ import { useCallback, useRef, useState } from "react";
 import { CopyIcon, DownloadIcon, LoaderIcon, ScreenshotIcon } from "@/components/icons";
 import { ImagePageHeader } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { ErrorBox } from "@/components/shared";
 import { useImagePaste } from "@/hooks";
+import { downloadFile } from "@/lib/download";
 import { gradientPresets, solidPresets } from "@/lib/gradient-presets";
 import { copyImageToClipboard } from "@/lib/image-utils";
 
@@ -51,6 +53,7 @@ export default function ScreenshotBeautifierPage() {
   const [windowChrome, setWindowChrome] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exported, setExported] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -97,16 +100,12 @@ export default function ScreenshotBeautifierPage() {
         pixelRatio: 2,
       });
 
-      const link = document.createElement("a");
-      link.download = `${fileName.replace(/\.[^.]+$/, "") || "screenshot"}_beautified.png`;
-      link.href = dataUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const filename = `${fileName.replace(/\.[^.]+$/, "") || "screenshot"}_beautified.png`;
+      downloadFile(dataUrl, filename);
       setExported(true);
     } catch (err) {
       console.error("Export failed:", err);
-      alert("Export failed. Try a different image or refresh the page.");
+      setError("Export failed. Try a different image or refresh the page.");
     } finally {
       setIsExporting(false);
     }
@@ -132,6 +131,7 @@ export default function ScreenshotBeautifierPage() {
     setImage(null);
     setFileName("");
     setExported(false);
+    setError(null);
   };
 
   return (
@@ -283,6 +283,8 @@ export default function ScreenshotBeautifierPage() {
               </button>
             </div>
           </div>
+
+          {error && <ErrorBox message={error} />}
 
           <div className="flex gap-2">
             <button

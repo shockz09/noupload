@@ -12,8 +12,10 @@ import {
   SuccessCard,
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { convertFormat, copyImageToClipboard, formatFileSize, type ImageFormat } from "@/lib/image-utils";
 import { getFileBaseName } from "@/lib/utils";
 
@@ -67,7 +69,7 @@ export default function ImageConvertPage() {
         setResult(converted, `${baseName}.${ext}`, { originalFormat: originalExt, newFormat: format });
         setProgress(100);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to convert image");
+        setError(getErrorMessage(err, "Failed to convert image"));
       } finally {
         stopProcessing();
       }
@@ -175,28 +177,11 @@ export default function ImageConvertPage() {
             subtitle="or click to browse · Ctrl+V to paste"
           />
 
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">{isInstant ? "Instant conversion" : "Format guide"}</p>
-              <p className="text-muted-foreground">
-                {isInstant
-                  ? "Drop an image and it will be converted to PNG automatically."
-                  : "JPEG: Best for photos. PNG: Lossless with transparency. WebP: Modern format."}
-              </p>
-            </div>
-          </div>
+          <InfoBox title={isInstant ? "Instant conversion" : "Format guide"}>
+            {isInstant
+              ? "Drop an image and it will be converted to PNG automatically."
+              : "JPEG: Best for photos. PNG: Lossless with transparency. WebP: Modern format."}
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

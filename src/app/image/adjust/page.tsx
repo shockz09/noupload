@@ -5,6 +5,7 @@ import { BrightnessIcon, LoaderIcon } from "@/components/icons";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { adjustImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 
 const sliderClass =
@@ -71,7 +72,7 @@ export default function ImageAdjustPage() {
       });
       setResult(adjusted, getOutputFilename(file.name, undefined, "_adjusted"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to adjust image");
+      setError(getErrorMessage(err, "Failed to adjust image"));
     } finally {
       stopProcessing();
     }

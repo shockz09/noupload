@@ -11,10 +11,12 @@ import {
 } from "@/components/audio/shared";
 import { LoaderIcon, ReverseIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { formatDuration, formatFileSize, getAudioInfo, reverseAudio } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
 
 export default function ReverseAudioPage() {
@@ -39,7 +41,7 @@ export default function ReverseAudioPage() {
         const baseName = getFileBaseName(fileToProcess.name);
         setResult(processed, `${baseName}_reversed.wav`);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to reverse audio");
+        setError(getErrorMessage(err, "Failed to reverse audio"));
       } finally {
         stopProcessing();
       }
@@ -139,17 +141,11 @@ export default function ReverseAudioPage() {
             title="Drop your audio or video file here"
             subtitle="MP3, WAV, OGG, M4A, MP4, MOV, etc."
           />
-          <div className="info-box">
-            <ReverseIcon className="w-5 h-5 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">{isInstant ? "Instant reverse" : "Manual mode"}</p>
-              <p className="text-muted-foreground">
-                {isInstant
-                  ? "Drop an audio file and it will be reversed automatically."
-                  : "Drop an audio file, preview it, then click to reverse."}
-              </p>
-            </div>
-          </div>
+          <InfoBox title={isInstant ? "Instant reverse" : "Manual mode"} icon={<ReverseIcon className="w-5 h-5 mt-0.5" />}>
+            {isInstant
+              ? "Drop an audio file and it will be reversed automatically."
+              : "Drop an audio file, preview it, then click to reverse."}
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

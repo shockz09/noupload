@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { memo, useCallback, useEffect, useState } from "react";
 import { ArrowLeftIcon, BarcodeIcon, CopyIcon, DownloadIcon } from "@/components/icons";
-import { ErrorBox } from "@/components/shared";
+import { ErrorBox, InfoBox } from "@/components/shared";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 
 type BarcodeFormat = "CODE128" | "EAN13" | "EAN8" | "UPC" | "CODE39" | "ITF14";
 
@@ -88,7 +90,7 @@ export default function BarcodePage() {
         });
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Invalid barcode value for this format");
+        setError(getErrorMessage(err, "Invalid barcode value for this format"));
         setBarcodeImage(null);
       }
     }, 300);
@@ -127,14 +129,7 @@ export default function BarcodePage() {
 
       canvas.toBlob((blob) => {
         if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `barcode-${format.toLowerCase()}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        downloadBlob(blob, `barcode-${format.toLowerCase()}.png`);
       }, "image/png");
     };
     img.src = barcodeImage;
@@ -224,8 +219,8 @@ export default function BarcodePage() {
           <div className="p-6 bg-card border-2 border-foreground space-y-6">
             {/* Format Selection */}
             <div className="space-y-3">
-              <span className="input-label">Barcode Format</span>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <span className="input-label" id="barcode-format-label">Barcode Format</span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-labelledby="barcode-format-label">
                 {barcodeFormats.map((f) => (
                   <button
                     type="button"
@@ -282,27 +277,10 @@ export default function BarcodePage() {
           </div>
 
           {/* Info Box */}
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">Format Tips</p>
-              <p className="text-muted-foreground">
-                <strong>EAN/UPC</strong> for retail products. <strong>Code 128</strong> for any text.{" "}
-                <strong>ITF-14</strong> for shipping cartons.
-              </p>
-            </div>
-          </div>
+          <InfoBox title="Format Tips">
+            <strong>EAN/UPC</strong> for retail products. <strong>Code 128</strong> for any text.{" "}
+            <strong>ITF-14</strong> for shipping cartons.
+          </InfoBox>
         </div>
       </div>
     </div>

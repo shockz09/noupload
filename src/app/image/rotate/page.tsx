@@ -5,6 +5,7 @@ import { FlipHorizontalIcon, FlipVerticalIcon, LoaderIcon, RotateIcon } from "@/
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { copyImageToClipboard, flipImage, formatFileSize, getOutputFilename, rotateImage } from "@/lib/image-utils";
 
 type Rotation = 0 | 90 | 180 | 270;
@@ -60,7 +61,7 @@ export default function ImageRotatePage() {
       if (flipV) blob = await flipImage(new File([blob], file.name, { type: blob.type }), "vertical");
       setResult(blob, getOutputFilename(file.name, undefined, "_transformed"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to transform image");
+      setError(getErrorMessage(err, "Failed to transform image"));
     } finally {
       stopProcessing();
     }

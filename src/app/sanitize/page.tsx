@@ -4,9 +4,12 @@ import { useCallback, useState } from "react";
 import { PdfIcon, SanitizeIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
-import { downloadBlob, getPDFMetadata, sanitizePDF } from "@/lib/pdf-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { getPDFMetadata, sanitizePDF } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface SanitizeResult {
@@ -55,7 +58,7 @@ export default function SanitizePage() {
         });
         setProgress(100);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to sanitize PDF");
+        setError(getErrorMessage(err, "Failed to sanitize PDF"));
       } finally {
         stopProcessing();
       }
@@ -161,26 +164,9 @@ export default function SanitizePage() {
             title="Drop your PDF file here"
           />
 
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">What gets removed?</p>
-              <p className="text-muted-foreground">
-                Title, author, subject, keywords, creator, producer, creation date, and modification date.
-              </p>
-            </div>
-          </div>
+          <InfoBox title="What gets removed?">
+            Title, author, subject, keywords, creator, producer, creation date, and modification date.
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

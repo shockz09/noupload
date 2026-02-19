@@ -6,7 +6,9 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";
 import { useFileProcessing } from "@/hooks";
-import { downloadBlob, extractPagesWithRotation } from "@/lib/pdf-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { extractPagesWithRotation } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 function XIcon({ className }: { className?: string }) {
@@ -202,25 +204,17 @@ export default function DeletePage() {
       const baseName = getFileBaseName(file.name);
       downloadBlob(data, `${baseName}_edited.pdf`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to process PDF");
+      setError(getErrorMessage(err, "Failed to process PDF"));
     } finally {
       stopProcessing();
     }
   }, [file, pageItems, startProcessing, setError, stopProcessing]);
 
-  // Memoize expensive calculations
-  const { deletedCount, remainingCount, rotatedCount, hasChanges } = useMemo(() => {
-    const deleted = pageItems.filter((p) => p.deleted).length;
-    const remaining = pageItems.length - deleted;
-    const rotated = pageItems.filter((p) => !p.deleted && p.rotation !== 0).length;
-    const hasReordered = pageItems.some((p, i) => !p.deleted && p.pageNumber !== i + 1);
-    return {
-      deletedCount: deleted,
-      remainingCount: remaining,
-      rotatedCount: rotated,
-      hasChanges: deleted > 0 || rotated > 0 || hasReordered,
-    };
-  }, [pageItems]);
+  const deletedCount = pageItems.filter((p) => p.deleted).length;
+  const remainingCount = pageItems.length - deletedCount;
+  const rotatedCount = pageItems.filter((p) => !p.deleted && p.rotation !== 0).length;
+  const hasReordered = pageItems.some((p, i) => !p.deleted && p.pageNumber !== i + 1);
+  const hasChanges = deletedCount > 0 || rotatedCount > 0 || hasReordered;
 
   // Memoize page preview lookup map for O(1) access
   const pagePreviewMap = useMemo(() => {

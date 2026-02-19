@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, useCallback, useEffect, useState } from "react";
-import { getPdfjsWorkerSrc } from "@/lib/pdfjs-config";
+import { getErrorMessage } from "@/lib/error";
+import { loadPdfjs } from "@/lib/pdfjs-config";
 
 interface PageThumbnail {
   pageNumber: number;
@@ -37,8 +38,7 @@ export function usePdfPages(file: File | null, scale: number = 0.5) {
       setProgress(0);
 
       try {
-        const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfjsWorkerSrc(pdfjsLib.version);
+        const pdfjsLib = await loadPdfjs();
 
         if (!file) return;
         const arrayBuffer = await file.arrayBuffer();
@@ -83,7 +83,7 @@ export function usePdfPages(file: File | null, scale: number = 0.5) {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load PDF");
+          setError(getErrorMessage(err, "Failed to load PDF"));
         }
       } finally {
         if (!cancelled) {
@@ -136,7 +136,7 @@ export const PageThumbnailCard = memo(function PageThumbnailCard({
     <div
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
+      onClick={onClick || undefined}
       onKeyDown={onClick ? handleKeyDown : undefined}
       className={`
         relative group cursor-pointer transition-all duration-200

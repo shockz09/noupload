@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { ImageCompressIcon, ImageIcon } from "@/components/icons";
 import {
   ComparisonDisplay,
@@ -16,6 +16,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox, QualitySlider } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { compressImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 
 interface CompressMetadata {
@@ -47,7 +48,7 @@ export default function ImageCompressPage() {
         });
         setProgress(100);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to compress image");
+        setError(getErrorMessage(err, "Failed to compress image"));
       } finally {
         stopProcessing();
       }
@@ -100,11 +101,7 @@ export default function ImageCompressPage() {
     clearResult();
   }, [revokePreview, clearResult]);
 
-  const savings = useMemo(
-    () =>
-      result?.metadata ? Math.round((1 - result.metadata.compressedSize / result.metadata.originalSize) * 100) : 0,
-    [result],
-  );
+  const savings = result?.metadata ? Math.round((1 - result.metadata.compressedSize / result.metadata.originalSize) * 100) : 0;
 
   if (!isLoaded) return null;
 

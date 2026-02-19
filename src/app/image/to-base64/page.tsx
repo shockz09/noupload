@@ -4,10 +4,11 @@ import { useCallback, useState } from "react";
 import { Base64Icon, CheckIcon, ImageIcon, LoaderIcon } from "@/components/icons";
 import { ErrorBox, ImageFileInfo, ImagePageHeader } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing, useImagePaste, useObjectURL } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { formatFileSize, imageToBase64 } from "@/lib/image-utils";
-
 export default function ImageToBase64Page() {
   const { isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
@@ -33,7 +34,7 @@ export default function ImageToBase64Page() {
           const result = await imageToBase64(selectedFile);
           setBase64(result);
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Failed to convert");
+          setError(getErrorMessage(err, "Failed to convert"));
         } finally {
           stopProcessing();
         }
@@ -90,27 +91,10 @@ export default function ImageToBase64Page() {
             subtitle="or click to browse · Ctrl+V to paste"
           />
 
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">When to use Base64</p>
-              <p className="text-muted-foreground">
-                Base64 is useful for embedding small images directly in HTML, CSS, or JavaScript. For large images,
-                hosting them separately is more efficient.
-              </p>
-            </div>
-          </div>
+          <InfoBox title="When to use Base64">
+            Base64 is useful for embedding small images directly in HTML, CSS, or JavaScript. For large images,
+            hosting them separately is more efficient.
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

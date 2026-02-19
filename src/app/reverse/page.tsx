@@ -4,9 +4,12 @@ import { useCallback, useState } from "react";
 import { PdfIcon, ReversePagesIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
-import { downloadBlob, getPDFPageCount, reversePDF } from "@/lib/pdf-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { getPDFPageCount, reversePDF } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface ReverseResult {
@@ -44,7 +47,7 @@ export default function ReversePage() {
         });
         setProgress(100);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to reverse PDF");
+        setError(getErrorMessage(err, "Failed to reverse PDF"));
       } finally {
         stopProcessing();
       }
@@ -146,26 +149,9 @@ export default function ReversePage() {
             title="Drop your PDF file here"
           />
 
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">When to use this?</p>
-              <p className="text-muted-foreground">
-                Useful when you scanned pages in the wrong order, or need to flip reading direction.
-              </p>
-            </div>
-          </div>
+          <InfoBox title="When to use this?">
+            Useful when you scanned pages in the wrong order, or need to flip reading direction.
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

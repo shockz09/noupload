@@ -68,7 +68,7 @@ export function RedactionConfirmDialog({ open, count, onConfirm, onCancel }: Red
           >
             Apply & Export
           </button>
-          <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-3" autoFocus>
+          <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-3">
             Cancel
           </button>
         </DialogFooter>

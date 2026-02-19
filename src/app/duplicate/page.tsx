@@ -1,12 +1,14 @@
 "use client";
 
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import { DownloadIcon, DuplicateIcon, LoaderIcon, PdfIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";
 import { useFileProcessing } from "@/hooks";
-import { downloadBlob, extractPagesWithRotation } from "@/lib/pdf-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { extractPagesWithRotation } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 const PlusIcon = memo(function PlusIcon({ className }: { className?: string }) {
@@ -198,18 +200,15 @@ export default function DuplicatePage() {
 
       downloadBlob(data, `${baseName}${suffix}.pdf`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to process PDF");
+      setError(getErrorMessage(err, "Failed to process PDF"));
     } finally {
       stopProcessing();
     }
   }, [file, pageItems, startProcessing, setError, stopProcessing]);
 
-  const duplicateCount = useMemo(() => pageItems.filter((p) => p.isDuplicate).length, [pageItems]);
-  const rotatedCount = useMemo(() => pageItems.filter((p) => p.rotation !== 0).length, [pageItems]);
-  const hasChanges = useMemo(
-    () => duplicateCount > 0 || rotatedCount > 0 || pageItems.some((p, i) => p.pageNumber !== i + 1),
-    [duplicateCount, rotatedCount, pageItems],
-  );
+  const duplicateCount = pageItems.filter((p) => p.isDuplicate).length;
+  const rotatedCount = pageItems.filter((p) => p.rotation !== 0).length;
+  const hasChanges = duplicateCount > 0 || rotatedCount > 0 || pageItems.some((p, i) => p.pageNumber !== i + 1);
 
   const getPagePreview = useCallback(
     (pageNumber: number) => {

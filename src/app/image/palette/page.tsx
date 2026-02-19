@@ -4,7 +4,9 @@ import { useCallback, useRef, useState } from "react";
 import { CopyIcon, ImageIcon, PaletteIcon, TrashIcon } from "@/components/icons";
 import { ErrorBox, ImageFileInfo, ImagePageHeader, ProgressBar } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { InfoBox } from "@/components/shared";
 import { useFileProcessing, useImagePaste, useObjectURL } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { extractColorPalette, formatFileSize } from "@/lib/image-utils";
 
 // Eyedropper icon component
@@ -200,7 +202,7 @@ export default function ColorPalettePage() {
 
       setColors((prev) => [...prev, ...uniqueNewColors]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to extract colors");
+      setError(getErrorMessage(err, "Failed to extract colors"));
     } finally {
       stopProcessing();
     }
@@ -261,15 +263,9 @@ export default function ColorPalettePage() {
             title="Drop your image here"
             subtitle="or click to browse · Ctrl+V to paste"
           />
-          <div className="info-box">
-            <EyedropperIcon className="w-5 h-5 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">Pick Any Color</p>
-              <p className="text-muted-foreground">
-                Click anywhere on your image to sample colors. Build your own palette or auto-extract dominant colors.
-              </p>
-            </div>
-          </div>
+          <InfoBox title="Pick Any Color" icon={<EyedropperIcon className="w-5 h-5 mt-0.5" />}>
+            Click anywhere on your image to sample colors. Build your own palette or auto-extract dominant colors.
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

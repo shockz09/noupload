@@ -11,6 +11,7 @@ import {
   SuccessCard,
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useImagePaste, useObjectURL } from "@/hooks";
 import {
@@ -20,6 +21,7 @@ import {
   type ModelQuality,
   useBackgroundRemoval,
 } from "@/lib/background-removal/useBackgroundRemoval";
+import { getErrorMessage } from "@/lib/error";
 import { downloadImage, formatFileSize } from "@/lib/image-utils";
 
 // Remove background icon
@@ -116,7 +118,7 @@ export default function RemoveBgPage() {
           originalSize: fileToProcess.size,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to remove background");
+        setError(getErrorMessage(err, "Failed to remove background"));
       } finally {
         processingRef.current = false;
       }
@@ -430,30 +432,11 @@ export default function RemoveBgPage() {
             <p className="text-xs text-muted-foreground">{MODEL_DESCRIPTIONS[modelQuality]}</p>
           </fieldset>
 
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">
-                {isInstant ? "Instant removal" : "AI-powered background removal"}
-              </p>
-              <p className="text-muted-foreground">
-                {isInstant
-                  ? "Drop an image and the background will be removed automatically."
-                  : "Uses AI to detect and remove backgrounds. Model downloads once and is cached."}
-              </p>
-            </div>
-          </div>
+          <InfoBox title={isInstant ? "Instant removal" : "AI-powered background removal"}>
+            {isInstant
+              ? "Drop an image and the background will be removed automatically."
+              : "Uses AI to detect and remove backgrounds. Model downloads once and is cached."}
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

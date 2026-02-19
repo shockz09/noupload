@@ -4,10 +4,12 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { PdfIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
 import { PDFA_DESCRIPTIONS, type PdfALevel, useGhostscript } from "@/lib/ghostscript/useGhostscript";
-import { downloadBlob } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 // Archive icon
@@ -66,7 +68,7 @@ export default function PdfToPdfAPage() {
           level,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to convert PDF");
+        setError(getErrorMessage(err, "Failed to convert PDF"));
       } finally {
         stopProcessing();
       }
@@ -190,28 +192,11 @@ export default function PdfToPdfAPage() {
             <p className="text-xs text-muted-foreground">{PDFA_DESCRIPTIONS[pdfaLevel]}</p>
           </fieldset>
 
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">{isInstant ? "Instant conversion" : "About PDF/A"}</p>
-              <p className="text-muted-foreground">
-                {isInstant
-                  ? "Drop a PDF and it will be converted automatically."
-                  : "PDF/A is an ISO standard for long-term archiving. Required by many government and legal systems."}
-              </p>
-            </div>
-          </div>
+          <InfoBox title={isInstant ? "Instant conversion" : "About PDF/A"}>
+            {isInstant
+              ? "Drop a PDF and it will be converted automatically."
+              : "PDF/A is an ISO standard for long-term archiving. Required by many government and legal systems."}
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

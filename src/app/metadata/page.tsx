@@ -5,7 +5,9 @@ import { DownloadIcon, MetadataIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar } from "@/components/pdf/shared";
 import { useFileProcessing, useProcessingResult } from "@/hooks";
-import { downloadBlob, getPDFMetadata, setPDFMetadata } from "@/lib/pdf-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { getPDFMetadata, setPDFMetadata } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface PdfMetadata {
@@ -54,7 +56,7 @@ export default function MetadataPage() {
         setMetadata(formatted);
         setEditedMetadata(formatted);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to read PDF metadata");
+        setError(getErrorMessage(err, "Failed to read PDF metadata"));
       }
     },
     [clearResult, clearError, setError],
@@ -78,7 +80,7 @@ export default function MetadataPage() {
       setResult(blob, `${getFileBaseName(file.name)}_metadata.pdf`);
       setProgress(100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update metadata");
+      setError(getErrorMessage(err, "Failed to update metadata"));
     } finally {
       stopProcessing();
     }

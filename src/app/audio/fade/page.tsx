@@ -15,6 +15,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { applyFade, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
 
 export default function FadeAudioPage() {
@@ -68,7 +69,7 @@ export default function FadeAudioPage() {
       setUsedFadeIn(fadeIn);
       setUsedFadeOut(fadeOut);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to apply fade");
+      setError(getErrorMessage(err, "Failed to apply fade"));
     } finally {
       stopProcessing();
     }

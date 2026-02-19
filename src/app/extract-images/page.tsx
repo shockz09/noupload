@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { DownloadIcon, ExtractImageIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar } from "@/components/pdf/shared";
+import { InfoBox } from "@/components/shared";
 import { useFileProcessing } from "@/hooks";
 import { downloadFile } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -146,27 +147,10 @@ export default function ExtractImagesPage() {
             title="Drop your PDF here"
             subtitle="to extract embedded images"
           />
-          <div className="info-box">
-            <svg
-              aria-hidden="true"
-              className="w-5 h-5 mt-0.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">Image Extraction</p>
-              <p className="text-muted-foreground">
-                Extracts all embedded images from your PDF. Works best with PDFs that contain JPEG or PNG images. Some
-                image formats may not be extractable.
-              </p>
-            </div>
-          </div>
+          <InfoBox title="Image Extraction">
+            Extracts all embedded images from your PDF. Works best with PDFs that contain JPEG or PNG images. Some
+            image formats may not be extractable.
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

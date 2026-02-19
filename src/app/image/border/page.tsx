@@ -5,6 +5,7 @@ import { BorderIcon, LoaderIcon } from "@/components/icons";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { addBorder, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 
 const presetColors = ["#000000", "#FFFFFF", "#ef4444", "#3b82f6", "#22c55e", "#eab308"];
@@ -54,7 +55,7 @@ export default function ImageBorderPage() {
       const bordered = await addBorder(file, borderWidth, borderColor);
       setResult(bordered, getOutputFilename(file.name, undefined, "_bordered"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add border");
+      setError(getErrorMessage(err, "Failed to add border"));
     } finally {
       stopProcessing();
     }

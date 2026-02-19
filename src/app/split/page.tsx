@@ -4,7 +4,9 @@ import { useCallback, useMemo, useState } from "react";
 import { LoaderIcon, PdfIcon, SplitIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
-import { downloadBlob, downloadMultiple, extractPages, getPDFPageCount, splitPDF } from "@/lib/pdf-utils";
+import { downloadBlob, downloadMultiple } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { extractPages, getPDFPageCount, splitPDF } from "@/lib/pdf-utils";
 import { getFileBaseName } from "@/lib/utils";
 
 type SplitMode = "extract" | "range" | "each";
@@ -137,7 +139,7 @@ export default function SplitPage() {
       setResult({ files: resultFiles, mode });
       setProgress(100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to split PDF");
+      setError(getErrorMessage(err, "Failed to split PDF"));
     } finally {
       setIsProcessing(false);
     }
@@ -246,8 +248,9 @@ export default function SplitPage() {
           {/* Mode-specific inputs */}
           {mode === "extract" && (
             <div className="space-y-2">
-              <span className="input-label">Pages to extract</span>
+              <label htmlFor="extract-pages" className="input-label">Pages to extract</label>
               <input
+                id="extract-pages"
                 type="text"
                 placeholder="e.g., 1, 3, 5-10"
                 value={extractInput}
@@ -262,8 +265,9 @@ export default function SplitPage() {
 
           {mode === "range" && (
             <div className="space-y-2">
-              <span className="input-label">Page ranges</span>
+              <label htmlFor="page-ranges" className="input-label">Page ranges</label>
               <input
+                id="page-ranges"
                 type="text"
                 placeholder="e.g., 1-3, 4-6, 7-10"
                 value={rangeInput}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { memo, useMemo } from "react";
 import { InstantModeNavToggle } from "@/components/shared/InstantModeToggle";
@@ -17,9 +18,9 @@ export const Header = memo(function Header() {
   return (
     <header className="header-main sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-        <a href="/" className="header-logo">
+        <Link href="/" className="header-logo">
           noupload/<span>{section.name}</span>
-        </a>
+        </Link>
         <InstantModeNavToggle />
       </div>
     </header>

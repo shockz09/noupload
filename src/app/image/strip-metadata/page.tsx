@@ -4,8 +4,10 @@ import { useCallback, useMemo, useState } from "react";
 import { ImageIcon, LoaderIcon, MetadataIcon, ShieldIcon } from "@/components/icons";
 import { ErrorBox, ImageFileInfo, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
 import { copyImageToClipboard, formatFileSize, getOutputFilename, stripMetadata } from "@/lib/image-utils";
 
 interface StripMetadata {
@@ -31,7 +33,7 @@ export default function StripMetadataPage() {
           originalSize: fileToProcess.size,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to strip metadata");
+        setError(getErrorMessage(err, "Failed to strip metadata"));
       } finally {
         stopProcessing();
       }
@@ -143,17 +145,11 @@ export default function StripMetadataPage() {
             subtitle="or click to browse · Ctrl+V to paste"
           />
 
-          <div className="info-box">
-            <ShieldIcon className="w-5 h-5 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-bold text-foreground mb-1">{isInstant ? "Instant processing" : "Manual mode"}</p>
-              <p className="text-muted-foreground">
-                {isInstant
-                  ? "Drop or paste an image and it will be cleaned automatically."
-                  : "Drop an image, review it, then click to process."}
-              </p>
-            </div>
-          </div>
+          <InfoBox title={isInstant ? "Instant processing" : "Manual mode"} icon={<ShieldIcon className="w-5 h-5 mt-0.5" />}>
+            {isInstant
+              ? "Drop or paste an image and it will be cleaned automatically."
+              : "Drop an image, review it, then click to process."}
+          </InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

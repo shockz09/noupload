@@ -18,6 +18,7 @@ import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useVideoToAudio } from "@/hooks";
 import { formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { type DenoiseStrength, denoiseAudio, isFFmpegLoaded } from "@/lib/ffmpeg-utils";
 import { getFileBaseName } from "@/lib/utils";
 
@@ -66,7 +67,7 @@ export default function DenoiseAudioPage() {
         setResult(blob, `${baseName}_denoised.wav`);
         setUsedStrength(denoiseStrength);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to denoise audio");
+        setError(getErrorMessage(err, "Failed to denoise audio"));
       } finally {
         setProcessingState("idle");
         processingRef.current = false;

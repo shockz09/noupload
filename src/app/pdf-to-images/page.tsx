@@ -7,7 +7,9 @@ import { usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
-import { type ConvertedImage, downloadImage, downloadImagesAsZip, pdfToImages } from "@/lib/pdf-image-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { type ConvertedImage, downloadImagesAsZip, pdfToImages } from "@/lib/pdf-image-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
 
 function RotateIcon({ className }: { className?: string }) {
@@ -112,7 +114,7 @@ export default function PdfToImagesPage() {
       });
       setImages(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to convert PDF");
+      setError(getErrorMessage(err, "Failed to convert PDF"));
     } finally {
       stopProcessing();
     }
@@ -192,7 +194,7 @@ export default function PdfToImagesPage() {
       });
       setImages(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to convert PDF");
+      setError(getErrorMessage(err, "Failed to convert PDF"));
     } finally {
       stopProcessing();
     }
@@ -209,7 +211,7 @@ export default function PdfToImagesPage() {
     if (file) {
       const baseName = getFileBaseName(file.name);
       const ext = format === "png" ? "png" : "jpg";
-      downloadImage(image.blob, `${baseName}_page${image.pageNumber}.${ext}`);
+      downloadBlob(image.blob, `${baseName}_page${image.pageNumber}.${ext}`);
     }
   };
 
@@ -227,12 +229,8 @@ export default function PdfToImagesPage() {
     setPageItems([]);
   }, [images, clearError]);
 
-  // Memoize computed counts to prevent recalculation on every render
-  const { selectedCount, rotatedCount } = useMemo(() => {
-    const selected = pageItems.filter((p) => p.selected).length;
-    const rotated = pageItems.filter((p) => p.selected && p.rotation !== 0).length;
-    return { selectedCount: selected, rotatedCount: rotated };
-  }, [pageItems]);
+  const selectedCount = pageItems.filter((p) => p.selected).length;
+  const rotatedCount = pageItems.filter((p) => p.selected && p.rotation !== 0).length;
 
   // Memoize page preview lookup for O(1) access
   const pagePreviewMap = useMemo(() => {

@@ -1,7 +1,22 @@
 import type { Metadata } from "next";
+import { Instrument_Serif, Onest } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@/components/analytics";
 import { Header } from "@/components/header";
+
+const onest = Onest({
+  subsets: ["latin"],
+  variable: "--font-onest",
+  display: "swap",
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
+  variable: "--font-instrument-serif",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -74,16 +89,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Onest:wght@300;400;500;600;700;800&display=swap"
-          rel="stylesheet"
-          crossOrigin="anonymous"
-        />
-      </head>
+    <html lang="en" className={`${onest.variable} ${instrumentSerif.variable}`}>
       <body className="min-h-screen bg-background">
         {/* Paper texture overlay */}
         <div className="paper-texture" />

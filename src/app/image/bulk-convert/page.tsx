@@ -5,6 +5,7 @@ import { BulkIcon, DownloadIcon, ImageIcon, LoaderIcon } from "@/components/icon
 import { ErrorBox, ImagePageHeader, ProgressBar } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { IMAGE_FORMATS_BULK } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { convertFormat, downloadImage, formatFileSize, type ImageFormat } from "@/lib/image-utils";
 import { getFileBaseName } from "@/lib/utils";
 
@@ -72,7 +73,7 @@ export default function BulkConvertPage() {
       }
       setResults(converted);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to convert images");
+      setError(getErrorMessage(err, "Failed to convert images"));
     } finally {
       setIsProcessing(false);
     }

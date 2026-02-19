@@ -5,8 +5,11 @@ import { LoaderIcon, SignatureIcon } from "@/components/icons";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { InfoBox } from "@/components/shared";
 import { SignatureDrawPad, SignatureUpload } from "@/components/signature";
-import { addSignature, downloadBlob } from "@/lib/pdf-utils";
+import { downloadBlob } from "@/lib/download";
+import { getErrorMessage } from "@/lib/error";
+import { addSignature } from "@/lib/pdf-utils";
 import { getFileBaseName } from "@/lib/utils";
 
 interface SignResult {
@@ -142,7 +145,7 @@ export default function SignPage() {
         filename: `${baseName}_signed.pdf`,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to sign PDF");
+      setError(getErrorMessage(err, "Failed to sign PDF"));
     } finally {
       setIsProcessing(false);
     }
@@ -236,6 +239,8 @@ export default function SignPage() {
             ) : previewPage ? (
               <div
                 ref={previewRef}
+                role="application"
+                aria-label="Signature placement editor"
                 className={`relative border-2 border-foreground bg-white select-none overflow-hidden ${
                   signatureDataUrl ? "cursor-crosshair" : "cursor-not-allowed opacity-75"
                 } ${isDragging ? "cursor-grabbing" : ""}`}
@@ -389,24 +394,10 @@ export default function SignPage() {
             )}
 
             {/* Info */}
-            <div className="info-box">
-              <svg
-                aria-hidden="true"
-                className="w-5 h-5 mt-0.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4" />
-                <path d="M12 8h.01" />
-              </svg>
-              <span className="text-sm">
-                Signature will be added to all {pages.length} pages. This is a visual signature, not a cryptographic
-                one.
-              </span>
-            </div>
+            <InfoBox>
+              Signature will be added to all {pages.length} pages. This is a visual signature, not a cryptographic
+              one.
+            </InfoBox>
 
             {error && <ErrorBox message={error} />}
             {isProcessing && <ProgressBar progress={50} label="Adding signature..." />}

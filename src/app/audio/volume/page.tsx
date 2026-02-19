@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioFileInfo,
@@ -15,6 +15,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { adjustVolume, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
 
 export default function VolumeAudioPage() {
@@ -65,7 +66,7 @@ export default function VolumeAudioPage() {
       setResult(processed, `${baseName}_volume.wav`);
       setUsedVolume(volume);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to adjust volume");
+      setError(getErrorMessage(err, "Failed to adjust volume"));
     } finally {
       stopProcessing();
     }
@@ -82,7 +83,7 @@ export default function VolumeAudioPage() {
     setVolume(Number(e.target.value));
   }, []);
 
-  const isDisabled = useMemo(() => volume === 100, [volume]);
+  const isDisabled = volume === 100;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

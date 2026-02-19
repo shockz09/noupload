@@ -5,6 +5,7 @@ import { BulkIcon, DownloadIcon, ImageIcon, LoaderIcon } from "@/components/icon
 import { ErrorBox, ImagePageHeader, ProgressBar } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { IMAGE_RESIZE_PRESETS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
 import { downloadImage, formatFileSize, getOutputFilename, resizeImage } from "@/lib/image-utils";
 
 interface FileItem {
@@ -78,7 +79,7 @@ export default function BulkResizePage() {
       }
       setResults(resized);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to resize images");
+      setError(getErrorMessage(err, "Failed to resize images"));
     } finally {
       setIsProcessing(false);
     }
@@ -130,7 +131,7 @@ export default function BulkResizePage() {
 
           <div className="space-y-2">
             {results.map((item, i) => (
-              <div key={i} className="flex items-center justify-between p-3 border-2 border-foreground bg-background">
+              <div key={item.filename} className="flex items-center justify-between p-3 border-2 border-foreground bg-background">
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm truncate">{item.filename}</p>
                   <p className="text-xs text-muted-foreground">{formatFileSize(item.blob.size)}</p>
