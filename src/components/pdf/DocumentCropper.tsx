@@ -269,10 +269,10 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
           <button
             type="button"
             onClick={onRetake}
-            className="flex items-center gap-2 px-6 py-3 border-2 border-foreground font-bold transition-all hover:bg-accent"
+            className="flex items-center justify-center gap-2 px-6 h-12 border-2 border-foreground font-bold transition-all hover:bg-accent whitespace-nowrap"
           >
             <svg
-              className="w-5 h-5"
+              className="w-5 h-5 flex-shrink-0"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -288,10 +288,10 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
           <button
             type="button"
             onClick={handleConfirm}
-            className="flex items-center gap-2 px-6 py-3 bg-primary text-white border-2 border-foreground font-bold transition-all hover:opacity-90"
+            className="flex items-center justify-center gap-2 px-6 h-12 bg-primary text-white border-2 border-foreground font-bold transition-all hover:opacity-90 whitespace-nowrap"
           >
             <svg
-              className="w-5 h-5"
+              className="w-5 h-5 flex-shrink-0"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
