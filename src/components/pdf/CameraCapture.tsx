@@ -261,7 +261,7 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
           autoPlay
           playsInline
           muted
-          className="w-full aspect-[4/3] object-cover"
+          className="w-full h-auto max-h-[70vh] object-contain"
           onLoadedMetadata={() => setIsLoading(false)}
         />
       </div>
