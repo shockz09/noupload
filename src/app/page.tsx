@@ -50,7 +50,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">New</div>
-              <h3 className="text-xl font-bold">Image Tools</h3>
+              <h2 className="text-xl font-bold">Image Tools</h2>
               <p className="text-sm text-muted-foreground">Compress, resize, convert, crop, and more</p>
             </div>
             <div className="flex items-center gap-2 text-primary font-bold">
