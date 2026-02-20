@@ -2,7 +2,8 @@
 
 import { useCallback, useState } from "react";
 import { AudioPageHeader } from "@/components/audio/shared";
-import { DownloadIcon, MusicTagIcon } from "@/components/icons";
+import { DownloadIcon } from "@/components/icons/ui";
+import { MusicTagIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, ProgressBar } from "@/components/shared";
 import { useFileProcessing, useProcessingResult } from "@/hooks";

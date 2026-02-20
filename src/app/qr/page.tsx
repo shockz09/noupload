@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeftIcon, BarcodeIcon } from "@/components/icons";
+import { ArrowLeftIcon } from "@/components/icons/ui";
+import { BarcodeIcon } from "@/components/icons/image";
 import { ToolSearch } from "@/components/shared/ToolSearch";
 
 function QRIcon({ className }: { className?: string }) {

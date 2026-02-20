@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { FlipHorizontalIcon, FlipVerticalIcon, LoaderIcon, RotateIcon } from "@/components/icons";
+import { LoaderIcon } from "@/components/icons/ui";
+import { FlipHorizontalIcon, FlipVerticalIcon } from "@/components/icons/image";
+import { RotateIcon } from "@/components/icons/pdf";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";

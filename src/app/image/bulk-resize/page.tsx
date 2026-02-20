@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { BulkIcon, DownloadIcon, ImageIcon, LoaderIcon } from "@/components/icons";
+import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { BulkIcon, ImageIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, ProgressBar } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { IMAGE_RESIZE_PRESETS } from "@/lib/constants";

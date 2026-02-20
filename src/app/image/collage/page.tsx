@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { CollageIcon, XIcon } from "@/components/icons";
+import { XIcon } from "@/components/icons/ui";
+import { CollageIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, ProgressBar, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";

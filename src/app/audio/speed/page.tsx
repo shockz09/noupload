@@ -10,7 +10,7 @@ import {
   SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
-import { SpeedIcon } from "@/components/icons";
+import { SpeedIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { changeSpeed, formatDuration, formatFileSize, getAudioInfo } from "@/lib/audio-utils";

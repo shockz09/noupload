@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { LoaderIcon, MergeIcon } from "@/components/icons";
+import { LoaderIcon } from "@/components/icons/ui";
+import { MergeIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { FileList } from "@/components/pdf/file-list";
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { CompressIcon, PdfIcon } from "@/components/icons";
+import { CompressIcon, PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import {
   ComparisonDisplay,

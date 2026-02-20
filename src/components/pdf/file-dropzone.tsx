@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useMemo, useState } from "react";
-import { UploadIcon } from "@/components/icons";
+import { UploadIcon } from "@/components/icons/ui";
 import { cn } from "@/lib/utils";
 
 interface FileDropzoneProps {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { HtmlIcon, PrintIcon } from "@/components/icons";
+import { HtmlIcon, PrintIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PdfPageHeader } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";

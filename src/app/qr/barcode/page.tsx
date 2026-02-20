@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { memo, useCallback, useEffect, useState } from "react";
-import { ArrowLeftIcon, BarcodeIcon, CopyIcon, DownloadIcon } from "@/components/icons";
+import { ArrowLeftIcon, CopyIcon, DownloadIcon } from "@/components/icons/ui";
+import { BarcodeIcon } from "@/components/icons/image";
 import { ErrorBox, InfoBox } from "@/components/shared";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";

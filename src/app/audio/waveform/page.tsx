@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioPageHeader, ErrorBox } from "@/components/audio/shared";
-import { AudioIcon, DownloadIcon, LoaderIcon, WaveformIcon } from "@/components/icons";
+import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { AudioIcon, WaveformIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileProcessing } from "@/hooks";
 import {

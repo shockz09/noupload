@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeftIcon, ArrowRightIcon } from "@/components/icons/ui";
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
   AudioMergeIcon,
-  ConvertIcon,
   DenoiseIcon,
   ExtractIcon,
   FadeIcon,
@@ -18,7 +16,8 @@ import {
   TrimIcon,
   VolumeIcon,
   WaveformIcon,
-} from "@/components/icons";
+} from "@/components/icons/audio";
+import { ConvertIcon } from "@/components/icons/image";
 import { ToolSearch } from "@/components/shared/ToolSearch";
 
 const tools = [

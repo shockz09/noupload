@@ -9,7 +9,8 @@ import {
   SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
-import { LoaderIcon, ReverseIcon } from "@/components/icons";
+import { LoaderIcon } from "@/components/icons/ui";
+import { ReverseIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";

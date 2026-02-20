@@ -9,7 +9,8 @@ import {
   SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
-import { AudioIcon, PauseIcon, PlayIcon, TrimIcon } from "@/components/icons";
+import { PauseIcon, PlayIcon } from "@/components/icons/ui";
+import { AudioIcon, TrimIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { formatDuration, formatFileSize, getAudioInfo, getWaveformData, trimAudio } from "@/lib/audio-utils";

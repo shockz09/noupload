@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertIcon, LoaderIcon, XIcon } from "@/components/icons";
+import { AlertIcon, LoaderIcon, XIcon } from "@/components/icons/ui";
 import { DocumentCropper } from "@/components/pdf/DocumentCropper";
 import { detectDocument } from "@/lib/document-scanner";
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, useCallback, useRef, useState } from "react";
-import { DownloadIcon, DuplicateIcon, LoaderIcon, PdfIcon } from "@/components/icons";
+import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { DuplicateIcon, PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";

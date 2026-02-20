@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { CopyIcon, ImageIcon, PaletteIcon, TrashIcon } from "@/components/icons";
+import { CopyIcon, TrashIcon } from "@/components/icons/ui";
+import { ImageIcon, PaletteIcon } from "@/components/icons/image";
 import { ErrorBox, ImageFileInfo, ImagePageHeader, ProgressBar } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";

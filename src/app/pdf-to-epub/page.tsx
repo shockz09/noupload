@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { BookIcon, PdfIcon } from "@/components/icons";
+import { BookIcon, PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProcessButton, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";

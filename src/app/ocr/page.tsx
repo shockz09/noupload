@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
-import { ArrowLeftIcon, DownloadIcon, LoaderIcon, OcrIcon } from "@/components/icons";
+import { ArrowLeftIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { OcrIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";

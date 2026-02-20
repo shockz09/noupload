@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeftIcon, CopyIcon, DownloadIcon } from "@/components/icons";
+import { ArrowLeftIcon, CopyIcon, DownloadIcon } from "@/components/icons/ui";
 import { QRCustomizePanel } from "@/components/qr/customize-panel";
 import { ErrorBox } from "@/components/shared";
 import { copyImageToClipboard } from "@/lib/image-utils";

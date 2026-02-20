@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { GripIcon, LoaderIcon, NumbersIcon, OrganizeIcon, TrashIcon } from "@/components/icons";
+import { GripIcon, LoaderIcon, TrashIcon } from "@/components/icons/ui";
+import { NumbersIcon, OrganizeIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";

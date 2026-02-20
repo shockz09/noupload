@@ -11,7 +11,8 @@ import {
   SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
-import { AudioIcon, AudioMergeIcon, GripIcon, XIcon } from "@/components/icons";
+import { GripIcon, XIcon } from "@/components/icons/ui";
+import { AudioIcon, AudioMergeIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useVideoToAudio } from "@/hooks";
 import { formatFileSize } from "@/lib/audio-utils";

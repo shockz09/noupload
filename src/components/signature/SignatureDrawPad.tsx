@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { TrashIcon } from "@/components/icons";
+import { TrashIcon } from "@/components/icons/ui";
 
 interface SignatureDrawPadProps {
   onSignatureReady: (dataUrl: string) => void;

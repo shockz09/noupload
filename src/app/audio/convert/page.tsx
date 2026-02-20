@@ -11,7 +11,8 @@ import {
   ProgressBar,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
-import { ConvertIcon, DownloadIcon } from "@/components/icons";
+import { DownloadIcon } from "@/components/icons/ui";
+import { ConvertIcon } from "@/components/icons/image";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { FormatSelector } from "@/components/shared";
 import { useAudioResult, useVideoToAudio } from "@/hooks";

@@ -1,18 +1,14 @@
 "use client";
 
+import { EditIcon, LockIcon, UnlockIcon } from "@/components/icons/ui";
 import {
   ArchiveIcon,
   BookIcon,
   CompressIcon,
   DeletePagesIcon,
   DuplicateIcon,
-  EditIcon,
-  ExtractImageIcon,
   FileIcon,
-  GrayscaleIcon,
   HtmlIcon,
-  ImageIcon,
-  LockIcon,
   MergeIcon,
   MetadataIcon,
   NumbersIcon,
@@ -24,9 +20,9 @@ import {
   SignatureIcon,
   SplitIcon,
   TextIcon,
-  UnlockIcon,
   WatermarkIcon,
-} from "@/components/icons";
+} from "@/components/icons/pdf";
+import { GrayscaleIcon, ExtractImageIcon, ImageIcon } from "@/components/icons/image";
 import { ToolSearch } from "@/components/shared/ToolSearch";
 
 const tools = [

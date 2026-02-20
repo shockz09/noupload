@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { DownloadIcon, MetadataIcon } from "@/components/icons";
+import { DownloadIcon } from "@/components/icons/ui";
+import { MetadataIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar } from "@/components/pdf/shared";
 import { useFileProcessing, useProcessingResult } from "@/hooks";

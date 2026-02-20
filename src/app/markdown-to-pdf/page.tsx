@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileIcon } from "@/components/icons";
+import { FileIcon } from "@/components/icons/pdf";
 
 // Lazy load heavy dependencies (~5MB total)
 const getMarked = async () => (await import("marked")).marked;

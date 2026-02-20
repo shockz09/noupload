@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, useCallback, useRef, useState } from "react";
-import { GripIcon, PdfIcon, XIcon } from "@/components/icons";
+import { GripIcon, XIcon } from "@/components/icons/ui";
+import { PdfIcon } from "@/components/icons/pdf";
 import { cn, formatFileSize } from "@/lib/utils";
 
 interface FileItem {

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { CameraIcon, FileIcon, GripIcon, LoaderIcon, UploadIcon, XIcon } from "@/components/icons";
+import { GripIcon, LoaderIcon, UploadIcon, XIcon } from "@/components/icons/ui";
+import { CameraIcon, FileIcon } from "@/components/icons/pdf";
 import { CameraCapture } from "@/components/pdf/CameraCapture";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";

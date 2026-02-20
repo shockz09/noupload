@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { ImageIcon, LoaderIcon, MetadataIcon, ShieldIcon } from "@/components/icons";
+import { LoaderIcon, ShieldIcon } from "@/components/icons/ui";
+import { ImageIcon } from "@/components/icons/image";
+import { MetadataIcon } from "@/components/icons/pdf";
 import { ErrorBox, ImageFileInfo, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";

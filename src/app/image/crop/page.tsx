@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CropIcon, ImageIcon, LoaderIcon } from "@/components/icons";
+import { LoaderIcon } from "@/components/icons/ui";
+import { CropIcon, ImageIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRightIcon } from "@/components/icons";
+import { ArrowRightIcon } from "@/components/icons/ui";
 import { PdfToolsGrid } from "./pdf-tools-grid";
 
 export default function Home() {

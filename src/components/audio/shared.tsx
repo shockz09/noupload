@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, type ReactNode } from "react";
-import { AudioIcon, InfoIcon, LoaderIcon, VideoIcon } from "@/components/icons";
+import { InfoIcon, LoaderIcon } from "@/components/icons/ui";
+import { AudioIcon, VideoIcon } from "@/components/icons/audio";
 import { ProgressBar as BaseProgressBar, FileInfo, PageHeader } from "@/components/shared";
 import type { ExtractionState } from "@/hooks/useVideoToAudio";
 import { formatDuration, formatFileSize } from "@/lib/audio-utils";

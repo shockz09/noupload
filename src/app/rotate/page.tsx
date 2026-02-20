@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { LoaderIcon, RotateIcon } from "@/components/icons";
+import { LoaderIcon } from "@/components/icons/ui";
+import { RotateIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, PageThumbnailCard, usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";

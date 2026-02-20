@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { ImageCompressIcon, ImageIcon } from "@/components/icons";
+import { ImageCompressIcon, ImageIcon } from "@/components/icons/image";
 import {
   ComparisonDisplay,
   ErrorBox,

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useState } from "react";
-import { TrashIcon, UploadIcon } from "@/components/icons";
+import { TrashIcon, UploadIcon } from "@/components/icons/ui";
 import { useBackgroundRemoval } from "@/lib/background-removal/useBackgroundRemoval";
 
 interface SignatureUploadProps {

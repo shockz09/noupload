@@ -3,7 +3,8 @@
 import { useCallback, useRef, useState } from "react";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { AudioPageHeader, ErrorBox } from "@/components/audio/shared";
-import { DownloadIcon, MicIcon, StopIcon } from "@/components/icons";
+import { DownloadIcon, StopIcon } from "@/components/icons/ui";
+import { MicIcon } from "@/components/icons/audio";
 import { InfoBox } from "@/components/shared";
 import { useObjectURL } from "@/hooks";
 import { downloadAudio, formatDuration, formatFileSize } from "@/lib/audio-utils";

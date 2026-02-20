@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeftIcon, ArrowRightIcon } from "@/components/icons/ui";
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
   Base64Icon,
   BlurIcon,
   BorderIcon,
@@ -16,14 +15,12 @@ import {
   FiltersIcon,
   HeicIcon,
   ImageCompressIcon,
-  MetadataIcon,
   PaletteIcon,
   RemoveBgIcon,
   ResizeIcon,
-  RotateIcon,
   ScreenshotIcon,
-  WatermarkIcon,
-} from "@/components/icons";
+} from "@/components/icons/image";
+import { MetadataIcon, RotateIcon, WatermarkIcon } from "@/components/icons/pdf";
 import { ToolSearch } from "@/components/shared/ToolSearch";
 
 const tools = [

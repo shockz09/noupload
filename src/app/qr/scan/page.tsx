@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftIcon, LoaderIcon } from "@/components/icons";
+import { ArrowLeftIcon, LoaderIcon } from "@/components/icons/ui";
 import { ErrorBox } from "@/components/shared";
 import { useImagePaste } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { ConvertIcon, ImageIcon } from "@/components/icons";
+import { ConvertIcon, ImageIcon } from "@/components/icons/image";
 import {
   ComparisonDisplay,
   ErrorBox,

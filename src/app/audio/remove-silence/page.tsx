@@ -12,7 +12,7 @@ import {
   SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
-import { SilenceIcon } from "@/components/icons";
+import { SilenceIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useVideoToAudio } from "@/hooks";

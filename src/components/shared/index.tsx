@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { memo, type ReactNode } from "react";
-import { AlertIcon, ArrowLeftIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons";
+import { AlertIcon, ArrowLeftIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 
 // ============ Page Header ============
 interface PageHeaderProps {

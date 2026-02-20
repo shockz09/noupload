@@ -10,7 +10,8 @@ import {
   ProcessButton,
   ProgressBar,
 } from "@/components/audio/shared";
-import { DownloadIcon, ExtractIcon, LoaderIcon, VideoIcon } from "@/components/icons";
+import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { ExtractIcon, VideoIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { FormatSelector, InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
