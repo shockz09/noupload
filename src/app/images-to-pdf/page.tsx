@@ -450,7 +450,7 @@ export default function ImagesToPdfPage() {
                 type="button"
                 onClick={handleConvert}
                 disabled={isProcessing || images.length === 0}
-                className="btn-primary w-full max-w-md mx-auto block"
+                className="btn-primary w-full block"
               >
                 {isProcessing ? (
                   <>
