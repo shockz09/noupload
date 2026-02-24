@@ -56,7 +56,7 @@ const nextConfig: NextConfig = {
 					},
 					{
 						key: "Content-Security-Policy",
-						value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://va.vercel-scripts.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://unpkg.com data: blob:; worker-src 'self' blob: https://cdn.jsdelivr.net https://unpkg.com; object-src 'none'; frame-ancestors 'none';",
+						value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://va.vercel-scripts.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://unpkg.com https://staticimgly.com https://fonts.googleapis.com https://fonts.gstatic.com data: blob:; worker-src 'self' blob: https://cdn.jsdelivr.net https://unpkg.com; object-src 'none'; frame-ancestors 'none';",
 					},
 				],
 			},
