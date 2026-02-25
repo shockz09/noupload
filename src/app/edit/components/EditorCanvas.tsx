@@ -1583,7 +1583,7 @@ export function EditorCanvas({
                       });
 
                       // Remove background
-                      const result = await removeBackground(blob, "medium");
+                      const result = await removeBackground(blob);
 
                       // Replace image with new one
                       const { FabricImage } = await getFabric();
@@ -1638,7 +1638,7 @@ export function EditorCanvas({
                   {isRemovingBg && removingBgObjectId === selectedObject?.id ? (
                     <span className="flex items-center gap-1">
                       <span className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      {bgProgress}
+                      {bgProgress.phase === "downloading" ? `Downloading... ${Math.round(bgProgress.progress)}%` : "Removing..."}
                     </span>
                   ) : (
                     "Remove BG"

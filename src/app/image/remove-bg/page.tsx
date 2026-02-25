@@ -17,12 +17,11 @@ import { useImagePaste, useObjectURL } from "@/hooks";
 import {
   compositeOnColor,
   compositeOnImage,
-  MODEL_DESCRIPTIONS,
-  type ModelQuality,
+  type ProgressState,
   useBackgroundRemoval,
 } from "@/lib/background-removal/useBackgroundRemoval";
 import { getErrorMessage } from "@/lib/error";
-import { downloadImage, formatFileSize } from "@/lib/image-utils";
+import { copyImageToClipboard, downloadImage, formatFileSize } from "@/lib/image-utils";
 
 // Remove background icon
 function RemoveBgIcon({ className }: { className?: string }) {
@@ -52,6 +51,7 @@ interface RemoveResult {
   url: string;
   filename: string;
   originalSize: number;
+  processingTimeSeconds: number;
 }
 
 const PRESET_COLORS = [
@@ -66,15 +66,49 @@ const PRESET_COLORS = [
   "#EC4899",
 ];
 
+function capabilityLabel(cap: { device: string; dtype: string }): string {
+  if (cap.device === "webgpu" && cap.dtype === "fp16") return "WebGPU FP16";
+  if (cap.device === "webgpu") return "WebGPU FP32";
+  return "WASM";
+}
+
+function progressLabel(p: ProgressState): string {
+  switch (p.phase) {
+    case "downloading":
+      return `Downloading AI model... ${Math.round(p.progress)}%`;
+    case "building":
+      return `Building model... ${Math.round(p.progress)}%`;
+    case "processing":
+      return "Removing background...";
+    case "ready":
+      return "Done!";
+    case "error":
+      return p.errorMsg || "Error";
+    default:
+      return "Initializing...";
+  }
+}
+
+function progressValue(p: ProgressState): number {
+  switch (p.phase) {
+    case "downloading":
+    case "building":
+      return p.progress;
+    case "ready":
+      return 100;
+    default:
+      return -1; // indeterminate
+  }
+}
+
 export default function RemoveBgPage() {
   const { isInstant, isLoaded } = useInstantMode();
-  const { removeBackground, isProcessing, progress, error: bgError } = useBackgroundRemoval();
+  const { removeBackground, isProcessing, progress, error: bgError, capability } = useBackgroundRemoval();
 
   const [file, setFile] = useState<File | null>(null);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RemoveResult | null>(null);
-  const [modelQuality, setModelQuality] = useState<ModelQuality>("medium");
 
   // Use custom hooks for URL management
   const { url: preview, setSource: setPreview, revoke: revokePreview } = useObjectURL();
@@ -91,24 +125,16 @@ export default function RemoveBgPage() {
   const instantTriggeredRef = useRef(false);
 
   const processFile = useCallback(
-    async (fileToProcess: File, model: ModelQuality = "medium") => {
+    async (fileToProcess: File) => {
       if (processingRef.current) return;
       processingRef.current = true;
       setError(null);
       setResult(null);
 
       try {
-        const { blob, url } = await removeBackground(fileToProcess, model);
+        const { blob, url, width, height, processingTimeSeconds } = await removeBackground(fileToProcess);
         setForegroundUrl(url);
-
-        // Get image dimensions
-        const img = new Image();
-        img.src = url;
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error("Failed to load image"));
-        });
-        setImageDimensions({ width: img.width, height: img.height });
+        setImageDimensions({ width, height });
 
         // Default to transparent
         setResult({
@@ -116,6 +142,7 @@ export default function RemoveBgPage() {
           url,
           filename: fileToProcess.name.replace(/\.[^.]+$/, "_nobg.png"),
           originalSize: fileToProcess.size,
+          processingTimeSeconds,
         });
       } catch (err) {
         setError(getErrorMessage(err, "Failed to remove background"));
@@ -197,9 +224,9 @@ export default function RemoveBgPage() {
   useEffect(() => {
     if (isInstant && file && !instantTriggeredRef.current && !isProcessing && !result) {
       instantTriggeredRef.current = true;
-      processFile(file, modelQuality);
+      processFile(file);
     }
-  }, [isInstant, file, isProcessing, result, processFile, modelQuality]);
+  }, [isInstant, file, isProcessing, result, processFile]);
 
   const handleClear = useCallback(() => {
     revokePreview();
@@ -223,7 +250,7 @@ export default function RemoveBgPage() {
 
   const handleProcess = async () => {
     if (!file) return;
-    processFile(file, modelQuality);
+    processFile(file);
   };
 
   const handleDownload = (e: React.MouseEvent) => {
@@ -263,6 +290,7 @@ export default function RemoveBgPage() {
             title="Background Removed!"
             downloadLabel="Download Image"
             onDownload={handleDownload}
+            onCopy={() => copyImageToClipboard(result.blob)}
             onStartOver={handleStartOver}
             startOverLabel="Remove Another"
           >
@@ -289,6 +317,10 @@ export default function RemoveBgPage() {
                 decoding="async"
               />
             </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Processed in {result.processingTimeSeconds.toFixed(2)}s
+              {capability && ` · ${capabilityLabel(capability)}`}
+            </p>
           </SuccessCard>
 
           {/* Background Options */}
@@ -406,36 +438,24 @@ export default function RemoveBgPage() {
             subtitle="or click to browse · Ctrl+V to paste"
           />
 
-          {/* Model Quality Selector */}
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-medium text-foreground">Quality</legend>
-            <div className="grid grid-cols-2 gap-3" role="group">
-              {(["medium", "high"] as ModelQuality[]).map((quality) => (
-                <button
-                  key={quality}
-                  type="button"
-                  onClick={() => setModelQuality(quality)}
-                  className={`p-3 rounded-lg border-2 transition-all text-left ${
-                    modelQuality === quality
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/50"
-                  }`}
-                >
-                  <div className="font-medium capitalize text-sm">{quality}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {quality === "medium" && "Faster, good quality"}
-                    {quality === "high" && "Slower, best quality"}
-                  </div>
-                </button>
-              ))}
+          {capability && (
+            <div className="flex items-center justify-center gap-2">
+              <span
+                className={`inline-flex items-center px-2.5 py-1 text-xs font-medium border-2 ${
+                  capability.device === "webgpu"
+                    ? "border-green-600 text-green-700 bg-green-50 dark:border-green-500 dark:text-green-400 dark:bg-green-950"
+                    : "border-yellow-600 text-yellow-700 bg-yellow-50 dark:border-yellow-500 dark:text-yellow-400 dark:bg-yellow-950"
+                }`}
+              >
+                {capabilityLabel(capability)}
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground">{MODEL_DESCRIPTIONS[modelQuality]}</p>
-          </fieldset>
+          )}
 
-          <InfoBox title={isInstant ? "Instant removal" : "AI-powered background removal"}>
+          <InfoBox title={isInstant ? "Instant removal" : "WebGPU-accelerated background removal"}>
             {isInstant
               ? "Drop an image and the background will be removed automatically."
-              : "Uses AI to detect and remove backgrounds. Model downloads once and is cached."}
+              : "Uses WebGPU-accelerated AI for fast background removal. Model downloads once (~40 MB) and is cached."}
           </InfoBox>
         </div>
       ) : (
@@ -459,40 +479,13 @@ export default function RemoveBgPage() {
             icon={<ImageIcon className="w-5 h-5" />}
           />
 
-          {/* Model Quality Selector */}
-          {!isProcessing && (
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-medium text-foreground">Quality</legend>
-              <div className="grid grid-cols-2 gap-3" role="group">
-                {(["medium", "high"] as ModelQuality[]).map((quality) => (
-                  <button
-                    key={quality}
-                    type="button"
-                    onClick={() => setModelQuality(quality)}
-                    className={`p-3 rounded-lg border-2 transition-all text-left ${
-                      modelQuality === quality
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-muted-foreground/50"
-                    }`}
-                  >
-                    <div className="font-medium capitalize text-sm">{quality}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {quality === "medium" && "Faster, good quality"}
-                      {quality === "high" && "Slower, best quality"}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-          )}
-
           {displayError && <ErrorBox message={displayError} />}
-          {isProcessing && <ProgressBar progress={-1} label={progress || "Processing..."} />}
+          {isProcessing && <ProgressBar progress={progressValue(progress)} label={progressLabel(progress)} />}
 
           <ProcessButton
             onClick={handleProcess}
             isProcessing={isProcessing}
-            processingLabel={progress || "Processing..."}
+            processingLabel={progressLabel(progress)}
             icon={<RemoveBgIcon className="w-5 h-5" />}
             label="Remove Background"
           />

@@ -1,113 +1,115 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BgRemovalResponse, ModelQuality } from "./background-removal.worker";
 
-export type { ModelQuality };
+export type DeviceCapability =
+  | { device: "webgpu"; dtype: "fp16" }
+  | { device: "webgpu"; dtype: "fp32" }
+  | { device: "wasm"; dtype: "fp32" };
 
-export const MODEL_DESCRIPTIONS: Record<ModelQuality, string> = {
-  medium: "Good quality, faster processing",
-  high: "Best quality, slower processing",
-};
+export interface ProgressState {
+  phase: "idle" | "downloading" | "building" | "ready" | "processing" | "error";
+  progress: number;
+  errorMsg?: string;
+}
 
 export interface BackgroundRemovalResult {
   blob: Blob;
   url: string;
+  width: number;
+  height: number;
+  processingTimeSeconds: number;
 }
 
 export interface UseBackgroundRemovalResult {
-  removeBackground: (image: File | Blob, model?: ModelQuality) => Promise<BackgroundRemovalResult>;
+  removeBackground: (image: File | Blob) => Promise<BackgroundRemovalResult>;
   isProcessing: boolean;
-  progress: string;
+  progress: ProgressState;
   error: string | null;
-}
-
-// Singleton worker instance - persists across hook instances
-let sharedWorker: Worker | null = null;
-const pendingRequests = new Map<
-  string,
-  {
-    resolve: (result: BackgroundRemovalResult) => void;
-    reject: (error: Error) => void;
-    setProgress: (msg: string) => void;
-  }
->();
-
-function getOrCreateWorker(): Worker {
-  if (!sharedWorker) {
-    sharedWorker = new Worker(new URL("./background-removal.worker.ts", import.meta.url), { type: "module" });
-
-    sharedWorker.onmessage = (event: MessageEvent<BgRemovalResponse>) => {
-      const { id, success, data, error: errorMsg, progress: progressMsg } = event.data;
-
-      const pending = pendingRequests.get(id);
-      if (!pending) return;
-
-      // Handle progress updates
-      if (progressMsg && !success) {
-        pending.setProgress(progressMsg);
-        return;
-      }
-
-      if (success && data) {
-        pendingRequests.delete(id);
-        const blob = new Blob([data], { type: "image/png" });
-        const url = URL.createObjectURL(blob);
-        pending.resolve({ blob, url });
-      } else if (errorMsg) {
-        pendingRequests.delete(id);
-        pending.reject(new Error(errorMsg));
-      }
-    };
-
-    sharedWorker.onerror = (event) => {
-      console.error("[bg-removal] Worker error:", event);
-    };
-  }
-  return sharedWorker;
+  capability: DeviceCapability | null;
 }
 
 export function useBackgroundRemoval(): UseBackgroundRemovalResult {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState("");
+  const [progress, setProgress] = useState<ProgressState>({ phase: "idle", progress: 0 });
   const [error, setError] = useState<string | null>(null);
-  const workerRef = useRef<Worker | null>(null);
+  const [capability, setCapability] = useState<DeviceCapability | null>(null);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  // Get shared worker on mount
+  // Detect capabilities and subscribe to progress on mount
   useEffect(() => {
-    workerRef.current = getOrCreateWorker();
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { getCapabilities, subscribeToProgress } = await import("rembg-webgpu");
+
+        // Subscribe to library progress events
+        unsubRef.current = subscribeToProgress((state) => {
+          if (cancelled) return;
+          setProgress({
+            phase: state.phase as ProgressState["phase"],
+            progress: state.progress,
+            errorMsg: state.errorMsg,
+          });
+        });
+
+        const cap = await getCapabilities();
+        if (!cancelled) setCapability(cap as DeviceCapability);
+      } catch {
+        // Capabilities detection is non-critical
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unsubRef.current?.();
+    };
   }, []);
 
   const processImage = useCallback(
-    async (image: File | Blob, model: ModelQuality = "medium"): Promise<BackgroundRemovalResult> => {
-      if (!workerRef.current) {
-        throw new Error("Worker not initialized");
-      }
-
+    async (image: File | Blob): Promise<BackgroundRemovalResult> => {
       setIsProcessing(true);
       setError(null);
-      setProgress("Removing background...");
+      setProgress({ phase: "processing", progress: -1 });
 
       try {
-        const id = crypto.randomUUID();
-        const imageData = await image.arrayBuffer();
+        const { removeBackground: rembgRemove } = await import("rembg-webgpu");
 
-        const result = await new Promise<BackgroundRemovalResult>((resolve, reject) => {
-          pendingRequests.set(id, { resolve, reject, setProgress });
+        // Create an object URL for the input image
+        const inputUrl = URL.createObjectURL(image);
 
-          workerRef.current!.postMessage(
-            {
-              id,
-              imageData,
-              mimeType: image.type || "image/png",
-              model,
-            },
-            [imageData],
-          );
-        });
+        try {
+          // Suppress benign onnxruntime warnings that trigger Next.js dev error overlay
+          const origError = console.error;
+          console.error = (...args: unknown[]) => {
+            if (typeof args[0] === "string" && args[0].includes("VerifyEachNodeIsAssignedToAnEp")) return;
+            origError.apply(console, args);
+          };
 
-        setProgress("Done!");
-        return result;
+          let result: Awaited<ReturnType<typeof rembgRemove>>;
+          try {
+            result = await rembgRemove(inputUrl);
+          } finally {
+            console.error = origError;
+          }
+
+          // Fetch the blob from the result URL
+          const response = await fetch(result.blobUrl);
+          const blob = await response.blob();
+
+          setProgress({ phase: "ready", progress: 100 });
+
+          return {
+            blob,
+            url: result.blobUrl,
+            width: result.width,
+            height: result.height,
+            processingTimeSeconds: result.processingTimeSeconds,
+          };
+        } finally {
+          URL.revokeObjectURL(inputUrl);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to remove background";
         setError(message);
@@ -124,6 +126,7 @@ export function useBackgroundRemoval(): UseBackgroundRemovalResult {
     isProcessing,
     progress,
     error,
+    capability,
   };
 }
 

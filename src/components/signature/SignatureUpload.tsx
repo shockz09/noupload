@@ -33,7 +33,7 @@ export const SignatureUpload = memo(function SignatureUpload({
 
         if (removeBg) {
           try {
-            const result = await removeBackground(file, "medium");
+            const result = await removeBackground(file);
             setProcessedUrl(result.url);
             setPreviewUrl(result.url);
           } catch {
@@ -96,7 +96,7 @@ export const SignatureUpload = memo(function SignatureUpload({
           try {
             const response = await fetch(originalUrl);
             const blob = await response.blob();
-            const result = await removeBackground(blob, "medium");
+            const result = await removeBackground(blob);
             setProcessedUrl(result.url);
             setPreviewUrl(result.url);
           } catch {
@@ -144,7 +144,7 @@ export const SignatureUpload = memo(function SignatureUpload({
       {isProcessing ? (
         <div className="p-8 border-2 border-foreground/30 flex flex-col items-center justify-center min-h-[120px]">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-2" />
-          <p className="text-sm text-muted-foreground">{progress}</p>
+          <p className="text-sm text-muted-foreground">{progress.phase === "downloading" ? `Downloading... ${Math.round(progress.progress)}%` : "Removing background..."}</p>
         </div>
       ) : previewUrl ? (
         <div className="space-y-4">
