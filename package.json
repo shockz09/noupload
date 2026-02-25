@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@bentopdf/gs-wasm": "^0.1.0",
-    "@breezystack/lamejs": "^1.2.7",
+    "wasm-media-encoders": "^0.7.0",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "rembg-webgpu": "^0.2.1",

@@ -347,52 +347,53 @@ export function downloadAudio(blob: Blob, filename: string): void {
 // Re-export formatFileSize from shared utils
 export { formatFileSize } from "./utils";
 
-// Convert AudioBuffer to MP3 using lamejs
+// Map CBR bitrate to LAME VBR quality (0 = best, 9.999 = worst)
+function bitrateToVbrQuality(bitrate: number): number {
+  if (bitrate >= 320) return 0;
+  if (bitrate >= 256) return 1;
+  if (bitrate >= 192) return 2;
+  if (bitrate >= 160) return 3;
+  if (bitrate >= 128) return 4;
+  if (bitrate >= 96) return 6;
+  if (bitrate >= 64) return 8;
+  return 9;
+}
+
+// Convert AudioBuffer to MP3 using WASM-compiled LAME
 export async function audioBufferToMp3(buffer: AudioBuffer, bitrate: number = 128): Promise<Blob> {
-  // Lazy load lamejs only when converting to MP3
-  const lamejs = (await import("@breezystack/lamejs")).default;
+  const { createMp3Encoder } = await import("wasm-media-encoders");
+  const encoder = await createMp3Encoder();
 
   const channels = buffer.numberOfChannels;
-  const sampleRate = buffer.sampleRate;
-  const mp3encoder = new lamejs.Mp3Encoder(channels === 1 ? 1 : 2, sampleRate, bitrate);
+  encoder.configure({
+    sampleRate: buffer.sampleRate,
+    channels: channels === 1 ? 1 : 2,
+    vbrQuality: bitrateToVbrQuality(bitrate),
+  });
 
   const mp3Data: Uint8Array[] = [];
-  const sampleBlockSize = 1152;
+  const blockSize = 1152;
 
-  // Get channel data
   const left = buffer.getChannelData(0);
-  const right = channels > 1 ? buffer.getChannelData(1) : null;
+  const right = channels > 1 ? buffer.getChannelData(1) : left;
 
-  // Convert to Int16
-  const leftInt16 = new Int16Array(left.length);
-  const rightInt16 = right ? new Int16Array(right.length) : null;
-
-  for (let i = 0; i < left.length; i++) {
-    leftInt16[i] = left[i] < 0 ? left[i] * 0x8000 : left[i] * 0x7fff;
-    if (rightInt16 && right) {
-      rightInt16[i] = right[i] < 0 ? right[i] * 0x8000 : right[i] * 0x7fff;
-    }
-  }
-
-  // Encode in chunks
-  for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
-    const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
-    const rightChunk = rightInt16 ? rightInt16.subarray(i, i + sampleBlockSize) : leftChunk;
-
-    const mp3buf = channels === 1 ? mp3encoder.encodeBuffer(leftChunk) : mp3encoder.encodeBuffer(leftChunk, rightChunk);
-
+  // Encode in chunks — encoder accepts Float32Array directly
+  for (let i = 0; i < left.length; i += blockSize) {
+    const leftChunk = left.subarray(i, i + blockSize);
+    const rightChunk = right.subarray(i, i + blockSize);
+    const mp3buf = encoder.encode([leftChunk, rightChunk]);
     if (mp3buf.length > 0) {
       mp3Data.push(new Uint8Array(mp3buf));
     }
   }
 
-  // Flush remaining
-  const mp3buf = mp3encoder.flush();
-  if (mp3buf.length > 0) {
-    mp3Data.push(new Uint8Array(mp3buf));
+  // Finalize — returns last frames
+  const final = encoder.finalize();
+  if (final.length > 0) {
+    mp3Data.push(new Uint8Array(final));
   }
 
-  // Calculate total length and merge
+  // Merge chunks
   const totalLength = mp3Data.reduce((acc, arr) => acc + arr.length, 0);
   const result = new Uint8Array(totalLength);
   let offset = 0;
