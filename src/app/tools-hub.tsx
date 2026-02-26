@@ -429,7 +429,6 @@ interface CategoryDef {
   key: CategoryKey;
   label: string;
   count: number;
-  gradient: string;
   accentColor: string;
   tools: typeof pdfTools;
   categoryLabels: Record<string, string>;
@@ -441,7 +440,6 @@ const categories: CategoryDef[] = [
     key: "pdf",
     label: "PDF",
     count: pdfTools.length,
-    gradient: "from-[#C84C1C]/10 to-[#92400E]/10",
     accentColor: "#C84C1C",
     tools: pdfTools,
     categoryLabels: pdfCategoryLabels,
@@ -451,7 +449,6 @@ const categories: CategoryDef[] = [
     key: "image",
     label: "Image",
     count: imageTools.length,
-    gradient: "from-[#16A34A]/10 to-[#2563EB]/10",
     accentColor: "#16A34A",
     tools: imageTools,
     categoryLabels: imageCategoryLabels,
@@ -461,7 +458,6 @@ const categories: CategoryDef[] = [
     key: "audio",
     label: "Audio",
     count: audioTools.length,
-    gradient: "from-[#8B5CF6]/10 to-[#EC4899]/10",
     accentColor: "#8B5CF6",
     tools: audioTools,
     categoryLabels: audioCategoryLabels,
@@ -471,7 +467,6 @@ const categories: CategoryDef[] = [
     key: "qr",
     label: "QR Code",
     count: qrTools.length,
-    gradient: "from-[#F59E0B]/10 to-[#EF4444]/10",
     accentColor: "#F59E0B",
     tools: qrTools,
     categoryLabels: qrCategoryLabels,
@@ -491,9 +486,9 @@ export const ToolsHub = memo(function ToolsHub() {
   const current = categories.find((c) => c.key === active)!;
 
   return (
-    <div className="space-y-10">
-      {/* Category cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+    <div className="space-y-8">
+      {/* Category pills */}
+      <div className="flex flex-wrap gap-3">
         {categories.map((cat) => {
           const isActive = cat.key === active;
           return (
@@ -502,19 +497,13 @@ export const ToolsHub = memo(function ToolsHub() {
               type="button"
               onClick={() => handleSelect(cat.key)}
               data-active={isActive}
-              className={`category-card relative text-left overflow-hidden border-2 bg-gradient-to-r ${cat.gradient} p-4 sm:p-5 ${
-                isActive ? "border-foreground" : "border-foreground/30 hover:border-foreground"
-              }`}
+              className="category-pill px-4 py-2 text-sm font-bold cursor-pointer"
               style={{ "--cat-color": cat.accentColor } as React.CSSProperties}
             >
-              <div className="space-y-1">
-                <h3 className={`text-base sm:text-lg font-bold ${isActive ? "text-foreground" : "text-foreground/70"}`}>
-                  {cat.label}
-                </h3>
-                <p className={`text-xs sm:text-sm ${isActive ? "text-muted-foreground" : "text-muted-foreground/60"}`}>
-                  {cat.count} tools
-                </p>
-              </div>
+              {cat.label}
+              <span className={`ml-1.5 text-xs font-semibold ${isActive ? "opacity-80" : "text-muted-foreground"}`}>
+                {cat.count}
+              </span>
             </button>
           );
         })}
