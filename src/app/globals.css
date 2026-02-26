@@ -476,6 +476,26 @@
 .tool-markdown-to-pdf { --tool-color: #059669; }
 .tool-pptx-to-pdf { --tool-color: #86198F; }
 
+/* Category card animation */
+.category-card {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.category-card:hover,
+.category-card[data-active="true"] {
+  transform: translate(-4px, -4px);
+  box-shadow:
+    4px 4px 0 0 #1A1612,
+    8px 8px 0 0 var(--cat-color, #C84C1C);
+}
+
+.category-card:active {
+  transform: translate(-2px, -2px);
+  box-shadow:
+    2px 2px 0 0 #1A1612,
+    4px 4px 0 0 var(--cat-color, #C84C1C);
+}
+
 /* Category tag */
 .category-tag {
   position: absolute;

@@ -26,7 +26,7 @@ import {
 import { EditIcon, LockIcon, UnlockIcon } from "@/components/icons/ui";
 import { ToolSearch } from "@/components/shared/ToolSearch";
 
-const tools = [
+export const pdfTools = [
   {
     title: "Edit PDF",
     description: "Add text, signatures, shapes, and annotations",
@@ -245,7 +245,7 @@ const tools = [
   },
 ];
 
-const categoryLabels: Record<string, string> = {
+export const pdfCategoryLabels: Record<string, string> = {
   organize: "Organize",
   optimize: "Optimize",
   convert: "Convert",
@@ -254,5 +254,5 @@ const categoryLabels: Record<string, string> = {
 };
 
 export function PdfToolsGrid() {
-  return <ToolSearch tools={tools} categoryLabels={categoryLabels} placeholder="Search PDF tools..." />;
+  return <ToolSearch tools={pdfTools} categoryLabels={pdfCategoryLabels} placeholder="Search PDF tools..." />;
 }

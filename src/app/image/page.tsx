@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeftIcon, ArrowRightIcon } from "@/components/icons/ui";
 import {
   Base64Icon,
   BlurIcon,
@@ -21,6 +20,7 @@ import {
   ScreenshotIcon,
 } from "@/components/icons/image";
 import { MetadataIcon, RotateIcon, WatermarkIcon } from "@/components/icons/pdf";
+import { ArrowLeftIcon } from "@/components/icons/ui";
 import { ToolSearch } from "@/components/shared/ToolSearch";
 
 const tools = [
@@ -219,7 +219,7 @@ export default function ImagesPage() {
           className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeftIcon className="w-4 h-4" />
-          Back to PDF Tools
+          Back to Tools
         </Link>
 
         <div className="max-w-3xl">
@@ -257,23 +257,6 @@ export default function ImagesPage() {
           <span>Free forever</span>
         </div>
       </section>
-
-      {/* Audio Tools Banner */}
-      <Link href="/audio" className="block group">
-        <div className="relative overflow-hidden border-2 border-foreground bg-gradient-to-r from-[#8B5CF6]/10 to-[#EC4899]/10 p-6 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0_0_#1a1a1a] transition-all">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">New</div>
-              <h3 className="text-xl font-bold">Audio Tools</h3>
-              <p className="text-sm text-muted-foreground">Trim, speed, reverse, fade, and more</p>
-            </div>
-            <div className="flex items-center gap-2 text-primary font-bold">
-              <span>Explore</span>
-              <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-        </div>
-      </Link>
 
       {/* Tools Grid */}
       <section className="space-y-8">

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeftIcon, ArrowRightIcon } from "@/components/icons/ui";
 import {
   AudioMergeIcon,
   DenoiseIcon,
@@ -18,6 +17,7 @@ import {
   WaveformIcon,
 } from "@/components/icons/audio";
 import { ConvertIcon } from "@/components/icons/image";
+import { ArrowLeftIcon } from "@/components/icons/ui";
 import { ToolSearch } from "@/components/shared/ToolSearch";
 
 const tools = [
@@ -152,7 +152,7 @@ export default function AudioPage() {
           className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeftIcon className="w-4 h-4" />
-          Back to PDF Tools
+          Back to Tools
         </Link>
 
         <div className="max-w-3xl">
@@ -190,23 +190,6 @@ export default function AudioPage() {
           <span>Free forever</span>
         </div>
       </section>
-
-      {/* QR Tools Banner */}
-      <Link href="/qr" className="block group">
-        <div className="relative overflow-hidden border-2 border-foreground bg-gradient-to-r from-[#F59E0B]/10 to-[#EF4444]/10 p-6 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0_0_#1a1a1a] transition-all">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">New</div>
-              <h3 className="text-xl font-bold">QR Code Tools</h3>
-              <p className="text-sm text-muted-foreground">Generate, scan, and customize QR codes</p>
-            </div>
-            <div className="flex items-center gap-2 text-primary font-bold">
-              <span>Explore</span>
-              <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-        </div>
-      </Link>
 
       {/* Tools Grid */}
       <section className="space-y-8">

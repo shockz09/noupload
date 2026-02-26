@@ -1,6 +1,4 @@
-import Link from "next/link";
-import { ArrowRightIcon } from "@/components/icons/ui";
-import { PdfToolsGrid } from "./pdf-tools-grid";
+import { ToolsHub } from "./tools-hub";
 
 export default function Home() {
   return (
@@ -9,7 +7,7 @@ export default function Home() {
       <section className="space-y-8 py-8">
         <div className="max-w-3xl">
           <h1 className="text-3xl sm:text-5xl lg:text-7xl font-display leading-[1.1] tracking-tight">
-            PDF tools that <span className="italic">respect</span>{" "}
+            Tools that <span className="italic">respect</span>{" "}
             <span className="relative inline-block">
               your privacy
               <svg
@@ -44,32 +42,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Image Tools Banner */}
-      <Link href="/image" className="block group">
-        <div className="relative overflow-hidden border-2 border-foreground bg-gradient-to-r from-[#16A34A]/10 to-[#2563EB]/10 p-6 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0_0_#1a1a1a] transition-all">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">New</div>
-              <h2 className="text-xl font-bold">Image Tools</h2>
-              <p className="text-sm text-muted-foreground">Compress, resize, convert, crop, and more</p>
-            </div>
-            <div className="flex items-center gap-2 text-primary font-bold">
-              <span>Explore</span>
-              <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-        </div>
-      </Link>
-
-      {/* Tools Grid */}
-      <section className="space-y-8">
-        <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-display">Tools</h2>
-          <div className="flex-1 h-0.5 bg-foreground" />
-        </div>
-
-        <PdfToolsGrid />
-      </section>
+      {/* Unified Tools Hub */}
+      <ToolsHub />
 
       {/* Features Section */}
       <section className="py-12 border-t-2 border-foreground">
