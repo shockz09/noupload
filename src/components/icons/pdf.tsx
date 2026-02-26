@@ -445,6 +445,25 @@ export function PrintIcon({ className = "w-6 h-6" }: { className?: string }) {
   );
 }
 
+export function PptxIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+      <polyline points="13 2 13 9 20 9" />
+      <rect x="8" y="13" width="8" height="4" rx="1" />
+    </svg>
+  );
+}
+
 export function CameraIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
     <svg

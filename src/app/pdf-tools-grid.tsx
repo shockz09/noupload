@@ -1,6 +1,6 @@
 "use client";
 
-import { EditIcon, LockIcon, UnlockIcon } from "@/components/icons/ui";
+import { ExtractImageIcon, GrayscaleIcon, ImageIcon } from "@/components/icons/image";
 import {
   ArchiveIcon,
   BookIcon,
@@ -14,6 +14,7 @@ import {
   NumbersIcon,
   OcrIcon,
   OrganizeIcon,
+  PptxIcon,
   ReversePagesIcon,
   RotateIcon,
   SanitizeIcon,
@@ -22,7 +23,7 @@ import {
   TextIcon,
   WatermarkIcon,
 } from "@/components/icons/pdf";
-import { GrayscaleIcon, ExtractImageIcon, ImageIcon } from "@/components/icons/image";
+import { EditIcon, LockIcon, UnlockIcon } from "@/components/icons/ui";
 import { ToolSearch } from "@/components/shared/ToolSearch";
 
 const tools = [
@@ -233,6 +234,14 @@ const tools = [
     icon: BookIcon,
     category: "convert",
     colorClass: "tool-convert",
+  },
+  {
+    title: "PPTX → PDF",
+    description: "Convert PowerPoint presentations to PDF",
+    href: "/pptx-to-pdf",
+    icon: PptxIcon,
+    category: "convert",
+    colorClass: "tool-pptx-to-pdf",
   },
 ];
 
