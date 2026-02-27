@@ -106,10 +106,17 @@ export default function RootLayout({
               <p className="text-sm text-muted-foreground font-medium">
                 Your files never leave your device. Built for privacy.
               </p>
-              <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
-                <span className="w-2.5 h-2.5 bg-[#2D5A3D] animate-pulse" />
-                All processing local
-              </div>
+              <p className="text-xs text-muted-foreground/50">
+                by{" "}
+                <a
+                  href="https://github.com/shockz09"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-foreground transition-colors"
+                >
+                  Rohit Mishra
+                </a>
+              </p>
             </div>
           </div>
         </footer>
