@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Instrument_Serif, Onest } from "next/font/google";
+import { Onest, Shantell_Sans } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@/components/analytics";
 import { Header } from "@/components/header";
@@ -10,11 +10,9 @@ const onest = Onest({
   display: "swap",
 });
 
-const instrumentSerif = Instrument_Serif({
+const shantellSans = Shantell_Sans({
   subsets: ["latin"],
-  weight: ["400"],
-  style: ["normal", "italic"],
-  variable: "--font-instrument-serif",
+  variable: "--font-shantell",
   display: "swap",
 });
 
@@ -89,7 +87,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${onest.variable} ${instrumentSerif.variable}`}>
+    <html lang="en" className={`${onest.variable} ${shantellSans.variable}`}>
       <body className="min-h-screen bg-background">
         {/* Paper texture overlay */}
         <div className="paper-texture" />
