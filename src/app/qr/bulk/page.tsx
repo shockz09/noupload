@@ -180,11 +180,11 @@ export default function BulkQRGeneratePage() {
   return (
     <div className="page-enter max-w-6xl mx-auto space-y-8">
       <Link
-        href="/qr"
+        href="/"
         className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeftIcon className="w-4 h-4" />
-        Back to QR Tools
+        Back to Tools
       </Link>
 
       <div className="flex items-start gap-6">

@@ -142,59 +142,6 @@ export default function QRPage() {
         <ToolSearch tools={tools} categoryLabels={categoryLabels} placeholder="Search QR tools..." />
       </section>
 
-      {/* Features Section */}
-      <section className="py-12 border-t-2 border-foreground">
-        <div className="grid sm:grid-cols-3 gap-6">
-          <div className="feature-item">
-            <div className="feature-icon">
-              <svg
-                aria-hidden="true"
-                className="w-6 h-6"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <polyline points="9 12 11 14 15 10" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold mb-2">100% Private</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              QR codes are generated locally. Your data never leaves your device.
-            </p>
-          </div>
-
-          <div className="feature-item">
-            <div className="feature-icon">
-              <svg
-                aria-hidden="true"
-                className="w-6 h-6"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold mb-2">Instant</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Generate and scan in milliseconds. No waiting for servers.
-            </p>
-          </div>
-
-          <div className="feature-item">
-            <div className="feature-icon">
-              <QRIcon className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold mb-2">Multiple Formats</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Text, URLs, WiFi, UPI payments, email, phone, and SMS supported.
-            </p>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
