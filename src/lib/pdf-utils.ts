@@ -259,9 +259,12 @@ export async function addSignature(
   // Convert data URL to image
   const signatureBytes = await fetch(signatureDataUrl).then((res) => res.arrayBuffer());
 
-  // Determine image type and embed
+  // Detect PNG by magic bytes (89 50 4E 47 = \x89PNG)
+  const header = new Uint8Array(signatureBytes.slice(0, 4));
+  const isPng = header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4e && header[3] === 0x47;
+
   let signatureImage: PDFImage;
-  if (signatureDataUrl.includes("image/png")) {
+  if (isPng) {
     signatureImage = await pdf.embedPng(signatureBytes);
   } else {
     signatureImage = await pdf.embedJpg(signatureBytes);
