@@ -175,15 +175,6 @@ export default function SignPage() {
   const setModeDraw = useCallback(() => setSignatureMode("draw"), []);
   const setModeUpload = useCallback(() => setSignatureMode("upload"), []);
 
-  // Quick position callbacks
-  const setPositionBottomRight = useCallback(() => setPosition({ x: 70, y: 10 }), []);
-  const setPositionBottomLeft = useCallback(() => setPosition({ x: 30, y: 10 }), []);
-  const setPositionCenter = useCallback(() => setPosition({ x: 50, y: 50 }), []);
-
-  // Signature width handler
-  const handleWidthChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSignatureWidth(Number(e.target.value));
-  }, []);
 
   const previewPage = useMemo(() => pages[0], [pages]);
 
@@ -271,7 +262,7 @@ export default function SignPage() {
                       left: `${position.x}%`,
                       bottom: `${position.y}%`,
                       transform: "translate(-50%, 50%)",
-                      maxWidth: `${signatureWidth * 0.3}px`,
+                      width: `${(signatureWidth / 500) * 50}%`,
                     }}
                   >
                     <img
@@ -308,13 +299,6 @@ export default function SignPage() {
               </div>
             ) : null}
 
-            {/* Position readout */}
-            {signatureDataUrl && (
-              <div className="flex items-center justify-center gap-4 text-sm font-mono text-muted-foreground">
-                <span>X: {position.x.toFixed(0)}%</span>
-                <span>Y: {position.y.toFixed(0)}%</span>
-              </div>
-            )}
           </div>
 
           {/* Right: Signature creation */}
@@ -350,46 +334,59 @@ export default function SignPage() {
               )}
             </div>
 
-            {/* Size Control */}
+            {/* Size */}
             {signatureDataUrl && (
-              <div className="p-6 bg-card border-2 border-foreground space-y-4">
-                <span className="input-label">Signature Size: {signatureWidth}px</span>
-                <input
-                  type="range"
-                  min={50}
-                  max={500}
-                  step={10}
-                  value={signatureWidth}
-                  onChange={handleWidthChange}
-                  className="w-full accent-primary"
-                />
-
-                {/* Quick positions */}
-                <div className="space-y-2">
-                  <span className="input-label">Quick Positions</span>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={setPositionBottomRight}
-                      className="px-3 py-1.5 text-xs font-bold bg-muted border-2 border-foreground hover:bg-accent transition-colors"
-                    >
-                      Bottom Right
-                    </button>
-                    <button
-                      type="button"
-                      onClick={setPositionBottomLeft}
-                      className="px-3 py-1.5 text-xs font-bold bg-muted border-2 border-foreground hover:bg-accent transition-colors"
-                    >
-                      Bottom Left
-                    </button>
-                    <button
-                      type="button"
-                      onClick={setPositionCenter}
-                      className="px-3 py-1.5 text-xs font-bold bg-muted border-2 border-foreground hover:bg-accent transition-colors"
-                    >
-                      Center
-                    </button>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground shrink-0">Size</span>
+                <div className="flex items-center gap-2 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => { setSignatureWidth((w) => Math.max(50, w - 30)); navigator.vibrate?.(5); }}
+                    className="w-8 h-8 flex items-center justify-center border-2 border-foreground font-bold text-sm hover:bg-accent transition-colors"
+                  >
+                    −
+                  </button>
+                  <div
+                    className="flex-1 h-2 bg-muted border border-foreground/20 relative cursor-pointer"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                      setSignatureWidth(Math.round(50 + pct * 450));
+                      navigator.vibrate?.(5);
+                    }}
+                    onMouseDown={(e) => {
+                      const bar = e.currentTarget;
+                      let last = -1;
+                      const onMove = (ev: MouseEvent) => {
+                        const rect = bar.getBoundingClientRect();
+                        const pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+                        const val = Math.round(50 + pct * 450);
+                        if (val !== last) {
+                          last = val;
+                          setSignatureWidth(val);
+                          navigator.vibrate?.(2);
+                        }
+                      };
+                      const onUp = () => {
+                        window.removeEventListener("mousemove", onMove);
+                        window.removeEventListener("mouseup", onUp);
+                      };
+                      window.addEventListener("mousemove", onMove);
+                      window.addEventListener("mouseup", onUp);
+                    }}
+                  >
+                    <div
+                      className="absolute inset-y-0 left-0 bg-foreground pointer-events-none"
+                      style={{ width: `${((signatureWidth - 50) / 450) * 100}%` }}
+                    />
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSignatureWidth((w) => Math.min(500, w + 30)); navigator.vibrate?.(5); }}
+                    className="w-8 h-8 flex items-center justify-center border-2 border-foreground font-bold text-sm hover:bg-accent transition-colors"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
             )}
