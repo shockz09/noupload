@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { UploadIcon } from "@/components/icons/ui";
 import { cn } from "@/lib/utils";
 
@@ -108,6 +108,35 @@ export const FileDropzone = memo(function FileDropzone({
     [handleClick],
   );
 
+  // Paste support — listen for Ctrl+V / Cmd+V with image data
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const files: File[] = [];
+      for (const item of items) {
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+          if (file) {
+            const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
+            if (acceptedExtensions.some((a) => a === ext || a === file.type)) {
+              files.push(file);
+            }
+          }
+        }
+      }
+
+      if (files.length > 0) {
+        e.preventDefault();
+        onFilesSelected(files.slice(0, maxFiles));
+      }
+    };
+
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [acceptedExtensions, maxFiles, onFilesSelected]);
+
   // Memoize display label
   const acceptLabel = useMemo(
     () =>
@@ -166,7 +195,7 @@ export const FileDropzone = memo(function FileDropzone({
           <p className="text-xl font-bold text-foreground">
             {isDragging ? "Drop it like it's hot" : title || "Drop your files here"}
           </p>
-          <p className="text-muted-foreground">{subtitle || "or click to browse from your device"}</p>
+          <p className="text-muted-foreground">{subtitle || "click to browse, or paste from clipboard"}</p>
         </div>
 
         {/* CTA Button */}
