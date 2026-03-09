@@ -1,244 +1,436 @@
 "use client";
 
-import { degrees, PDFDocument } from "pdf-lib";
 import type { FormField } from "../hooks/useFormFields";
+import type { EditorObjectRecord, EditorTextRecord } from "./editor-objects";
+import { loadFabricModule, recordToFabricObject } from "./editor-objects";
+import { loadLibPdf } from "./libpdf";
+import { canDrawTextNatively, pickNativePdfFont } from "./text-export-policy";
 import type { PageState } from "../page";
-
-// Must match the PDF_SCALE in EditorCanvas
-const PDF_SCALE = 1.5;
 
 export interface ExportOptions {
   file: File;
   pageStates: PageState[];
-  pageObjects: Map<number, object[]>;
+  pageObjects: Map<number, EditorObjectRecord[]>;
   formFields: FormField[];
 }
 
-/**
- * Export the edited PDF with annotations flattened
- */
+interface OverlayResult {
+  dataUrl: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export async function exportPdf({ file, pageStates, pageObjects, formFields }: ExportOptions): Promise<Uint8Array> {
-  // Load original PDF
-  const fileBytes = await file.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(fileBytes);
+  const [{ PDF, StandardFonts, rgb }, fileBytes] = await Promise.all([loadLibPdf(), file.arrayBuffer()]);
+  const pdf = await PDF.load(new Uint8Array(fileBytes));
+  const form = pdf.getForm();
+  const hasSignatureFields = !!form?.getSignatureFields().length;
 
-  // Fill form fields if any
-  if (formFields.length > 0) {
-    try {
-      const form = pdfDoc.getForm();
-      for (const field of formFields) {
-        if (!field.value) continue;
-
-        try {
-          switch (field.type) {
-            case "text": {
-              const textField = form.getTextField(field.name);
-              textField.setText(field.value);
-              break;
-            }
-            case "checkbox": {
-              const checkBox = form.getCheckBox(field.name);
-              if (field.value === "true" || field.value === "Yes") {
-                checkBox.check();
-              } else {
-                checkBox.uncheck();
-              }
-              break;
-            }
-            case "radio": {
-              const radioGroup = form.getRadioGroup(field.name);
-              radioGroup.select(field.value);
-              break;
-            }
-            case "select": {
-              const dropdown = form.getDropdown(field.name);
-              dropdown.select(field.value);
-              break;
-            }
-          }
-        } catch (fieldErr) {
-          console.warn(`Failed to fill field "${field.name}":`, fieldErr);
-        }
-      }
-      // Flatten form to make fields non-editable in output
-      form.flatten();
-    } catch (formErr) {
-      console.warn("Failed to process form fields:", formErr);
+  if (form) {
+    const values = buildFormFillValues(formFields);
+    if (Object.keys(values).length > 0) {
+      form.fill(values);
     }
+    form.flatten({ skipSignatures: true });
   }
 
-  // Get pages in order
-  const pages = pdfDoc.getPages();
-
-  // Track which pages to delete (from highest to lowest index to avoid shifting)
+  const pages = pdf.getPages();
   const pagesToDelete: number[] = [];
 
-  // Process each page
-  for (let i = 0; i < pages.length; i++) {
-    const pageNum = i + 1;
-    const pageState = pageStates.find((p) => p.pageNumber === pageNum);
-    const page = pages[i];
+  for (let index = 0; index < pages.length; index++) {
+    const pageNumber = index + 1;
+    const page = pages[index];
+    const pageState = pageStates.find((item) => item.pageNumber === pageNumber);
 
-    // Mark deleted pages
     if (pageState?.deleted) {
-      pagesToDelete.push(i);
+      pagesToDelete.push(index);
       continue;
     }
 
-    // Apply rotation
     if (pageState?.rotation) {
-      const currentRotation = page.getRotation().angle;
-      page.setRotation(degrees(currentRotation + pageState.rotation));
+      const nextRotation = (((page.rotation || 0) + pageState.rotation) % 360) as 0 | 90 | 180 | 270;
+      page.setRotation(nextRotation);
     }
 
-    // Get annotations for this page
-    const objects = pageObjects.get(pageNum);
-    if (!objects || objects.length === 0) continue;
-
-    // Render Fabric objects to image and embed
-    try {
-      const pngDataUrl = await renderObjectsToImage(objects, page.getWidth(), page.getHeight());
-      if (pngDataUrl) {
-        const pngImageBytes = dataUrlToBytes(pngDataUrl);
-        const pngImage = await pdfDoc.embedPng(pngImageBytes);
-        const { width, height } = page.getSize();
-
-        page.drawImage(pngImage, {
-          x: 0,
-          y: 0,
-          width,
-          height,
-        });
-      }
-    } catch (err) {
-      console.error(`Failed to render annotations for page ${pageNum}:`, err);
+    const records = (pageObjects.get(pageNumber) || []).slice().sort((a, b) => a.zIndex - b.zIndex);
+    for (const record of records) {
+      await drawRecord({
+        page,
+        pageWidth: page.width,
+        pageHeight: page.height,
+        pdf,
+        record,
+        rgb,
+        StandardFonts,
+      });
     }
   }
 
-  // Remove deleted pages (in reverse order to maintain indices)
   pagesToDelete.sort((a, b) => b - a);
   for (const pageIndex of pagesToDelete) {
-    pdfDoc.removePage(pageIndex);
+    pdf.removePage(pageIndex);
   }
 
-  // Save and return
-  const pdfBytes = await pdfDoc.save();
-  return pdfBytes;
+  const canSaveIncrementally = hasSignatureFields && pdf.canSaveIncrementally() === null;
+  return pdf.save({ incremental: canSaveIncrementally });
 }
 
-/**
- * Render Fabric.js objects to a PNG data URL
- */
-async function renderObjectsToImage(
+async function drawRecord({
+  page,
+  pageWidth,
+  pageHeight,
+  pdf,
+  record,
+  rgb,
+  StandardFonts,
+}: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  objects: any[],
-  pdfWidth: number,
-  pdfHeight: number,
-): Promise<string | null> {
-  if (objects.length === 0) return null;
+  page: any;
+  pageWidth: number;
+  pageHeight: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pdf: any;
+  record: EditorObjectRecord;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rgb: any;
+  StandardFonts: Record<string, string>;
+}): Promise<void> {
+  switch (record.kind) {
+    case "rectangle":
+    case "highlight":
+    case "whiteout":
+    case "redaction":
+      drawRectangleRecord(page, pageHeight, record, rgb);
+      return;
+    case "ellipse":
+      drawEllipseRecord(page, pageHeight, record, rgb);
+      return;
+    case "line":
+      drawLineRecord(page, pageHeight, record, rgb);
+      return;
+    case "arrow":
+      drawArrowRecord(page, pageHeight, record, rgb);
+      return;
+    case "image":
+    case "signature":
+      await drawNativeImageRecord(pdf, page, pageHeight, record);
+      return;
+    case "text":
+    case "editedText":
+      if (canDrawTextNatively(record, StandardFonts)) {
+        drawTextRecord(page, pageHeight, record, rgb, StandardFonts);
+      } else {
+        await drawOverlayRecord(pdf, page, pageHeight, record, pageWidth, pageHeight);
+      }
+      return;
+    case "path":
+    case "stamp":
+    case "unsupported":
+      await drawOverlayRecord(pdf, page, pageHeight, record, pageWidth, pageHeight);
+      return;
+    default:
+      return;
+  }
+}
 
-  // Create offscreen canvas
-  const fabric = await import("fabric");
-  const { Canvas, util } = fabric;
+function buildFormFillValues(formFields: FormField[]): Record<string, boolean | string> {
+  const values: Record<string, boolean | string> = {};
+  for (const field of formFields) {
+    if (!field.name || !field.value) continue;
 
-  // Export at higher resolution for better quality
-  const scale = 2;
+    if (field.type === "checkbox") {
+      values[field.name] = field.value === "true" || field.value === "Yes";
+      continue;
+    }
 
+    if (field.type === "radio" || field.type === "select" || field.type === "text") {
+      values[field.name] = field.value;
+    }
+  }
+  return values;
+}
+
+function drawRectangleRecord(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  pageHeight: number,
+  record: Extract<EditorObjectRecord, { kind: "rectangle" | "highlight" | "whiteout" | "redaction" }>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rgb: any,
+) {
+  const fillColor =
+    record.kind === "redaction" ? "#000000" : record.kind === "whiteout" ? "#FFFFFF" : record.style.fill || record.style.stroke;
+  page.drawRectangle({
+    x: record.x,
+    y: pageHeight - record.y - record.height,
+    width: record.width,
+    height: record.height,
+    color: hexToRgb(fillColor, rgb),
+    borderColor: record.kind === "rectangle" ? hexToRgb(record.style.stroke, rgb) : undefined,
+    borderWidth: record.kind === "rectangle" ? record.style.strokeWidth || 0 : 0,
+    opacity: record.kind === "highlight" ? record.style.opacity ?? 0.4 : record.style.opacity ?? 1,
+    rotate: record.rotation ? { angle: -record.rotation, origin: "center" } : undefined,
+  });
+}
+
+function drawEllipseRecord(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  pageHeight: number,
+  record: Extract<EditorObjectRecord, { kind: "ellipse" }>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rgb: any,
+) {
+  page.drawEllipse({
+    x: record.x + record.width / 2,
+    y: pageHeight - record.y - record.height / 2,
+    xRadius: record.width / 2,
+    yRadius: record.height / 2,
+    color: hexToRgb(record.style.fill, rgb),
+    borderColor: hexToRgb(record.style.stroke, rgb),
+    borderWidth: record.style.strokeWidth || 0,
+    opacity: record.style.opacity ?? 1,
+    borderOpacity: record.style.opacity ?? 1,
+    rotate: record.rotation ? { angle: -record.rotation, origin: "center" } : undefined,
+  });
+}
+
+function drawLineRecord(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  pageHeight: number,
+  record: { x1: number; y1: number; x2: number; y2: number; style: EditorObjectRecord["style"] },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rgb: any,
+) {
+  page.drawLine({
+    start: {
+      x: record.x1,
+      y: pageHeight - record.y1,
+    },
+    end: {
+      x: record.x2,
+      y: pageHeight - record.y2,
+    },
+    color: hexToRgb(record.style.stroke, rgb),
+    thickness: record.style.strokeWidth || 2,
+    opacity: record.style.opacity ?? 1,
+    lineCap: "round",
+  });
+}
+
+function drawArrowRecord(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  pageHeight: number,
+  record: { x1: number; y1: number; x2: number; y2: number; style: EditorObjectRecord["style"] },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rgb: any,
+) {
+  drawLineRecord(page, pageHeight, record, rgb);
+
+  const strokeWidth = record.style.strokeWidth || 2;
+  const angle = Math.atan2(record.y2 - record.y1, record.x2 - record.x1);
+  const headLength = Math.max(strokeWidth * 5, 12);
+  const pdfEndX = record.x2;
+  const pdfEndY = pageHeight - record.y2;
+  const leftPoint = {
+    x: pdfEndX - headLength * Math.cos(angle - Math.PI / 6),
+    y: pdfEndY + headLength * Math.sin(angle - Math.PI / 6),
+  };
+  const rightPoint = {
+    x: pdfEndX - headLength * Math.cos(angle + Math.PI / 6),
+    y: pdfEndY + headLength * Math.sin(angle + Math.PI / 6),
+  };
+
+  page.drawLine({
+    start: { x: pdfEndX, y: pdfEndY },
+    end: leftPoint,
+    color: hexToRgb(record.style.stroke, rgb),
+    thickness: strokeWidth,
+    opacity: record.style.opacity ?? 1,
+    lineCap: "round",
+  });
+  page.drawLine({
+    start: { x: pdfEndX, y: pdfEndY },
+    end: rightPoint,
+    color: hexToRgb(record.style.stroke, rgb),
+    thickness: strokeWidth,
+    opacity: record.style.opacity ?? 1,
+    lineCap: "round",
+  });
+}
+
+async function drawNativeImageRecord(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pdf: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  pageHeight: number,
+  record: Extract<EditorObjectRecord, { kind: "image" | "signature" }>,
+) {
+  if (!record.asset.dataUrl) return;
+  const bytes = dataUrlToBytes(record.asset.dataUrl);
+  const image = record.asset.mimeType.includes("jpeg") || record.asset.mimeType.includes("jpg")
+    ? pdf.embedJpeg(bytes)
+    : pdf.embedPng(bytes);
+
+  page.drawImage(image, {
+    x: record.x,
+    y: pageHeight - record.y - record.height,
+    width: record.width,
+    height: record.height,
+    opacity: record.style.opacity ?? 1,
+    rotate: record.rotation ? { angle: -record.rotation, origin: "center" } : undefined,
+  });
+}
+
+function drawTextRecord(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  pageHeight: number,
+  record: EditorTextRecord,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rgb: any,
+  StandardFonts: Record<string, string>,
+) {
+  const size = record.style.fontSize || 16;
+  const font = pickNativePdfFont(record, StandardFonts);
+  if (!font) return;
+
+  const x = record.x;
+  const y = pageHeight - record.y - size;
+  const color = hexToRgb(record.style.fill || record.style.stroke, rgb);
+
+  page.drawText(record.text, {
+    x,
+    y,
+    font,
+    size,
+    color,
+    opacity: record.style.opacity ?? 1,
+    maxWidth: record.width,
+  });
+
+  const estimatedWidth = record.width || Math.max(record.text.length * size * 0.55, size);
+  if (record.style.underline) {
+    page.drawLine({
+      start: { x, y: y - size * 0.08 },
+      end: { x: x + estimatedWidth, y: y - size * 0.08 },
+      color,
+      thickness: Math.max(size * 0.05, 1),
+      opacity: record.style.opacity ?? 1,
+    });
+  }
+  if (record.style.linethrough) {
+    page.drawLine({
+      start: { x, y: y + size * 0.32 },
+      end: { x: x + estimatedWidth, y: y + size * 0.32 },
+      color,
+      thickness: Math.max(size * 0.05, 1),
+      opacity: record.style.opacity ?? 1,
+    });
+  }
+}
+
+async function drawOverlayRecord(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pdf: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  pageHeight: number,
+  record: EditorObjectRecord,
+  pageWidth: number,
+  _pageHeight: number,
+) {
+  const overlay = await buildOverlay(record, pageWidth, _pageHeight);
+  if (!overlay?.dataUrl) return;
+
+  const image = pdf.embedPng(dataUrlToBytes(overlay.dataUrl));
+  page.drawImage(image, {
+    x: overlay.x,
+    y: pageHeight - overlay.y - overlay.height,
+    width: overlay.width,
+    height: overlay.height,
+    opacity: 1,
+  });
+}
+
+async function buildOverlay(record: EditorObjectRecord, pageWidth: number, pageHeight: number): Promise<OverlayResult | null> {
+  if ((record.kind === "stamp" || record.kind === "unsupported") && record.asset?.dataUrl && "x" in record && "y" in record) {
+    return {
+      dataUrl: record.asset.dataUrl,
+      x: record.x,
+      y: record.y,
+      width: "width" in record ? record.width : 0,
+      height: "height" in record ? record.height : 0,
+    };
+  }
+
+  const { Canvas } = await loadFabricModule();
   const canvasEl = document.createElement("canvas");
-  canvasEl.width = pdfWidth * scale;
-  canvasEl.height = pdfHeight * scale;
+  canvasEl.width = Math.ceil(pageWidth);
+  canvasEl.height = Math.ceil(pageHeight);
 
   const canvas = new Canvas(canvasEl, {
-    width: pdfWidth * scale,
-    height: pdfHeight * scale,
+    width: pageWidth,
+    height: pageHeight,
+    selection: false,
     renderOnAddRemove: false,
   });
 
-  // Load and add each object, scaling appropriately
-  for (const objData of objects) {
-    try {
-      // Check if this is a redaction object (convert pattern to solid black)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const isRedaction = objData.stroke === "#FF0000" && objData.opacity === 0.5;
+  try {
+    const fabricObj = await recordToFabricObject(record, 1);
+    canvas.add(fabricObj);
+    canvas.renderAll();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const modifiedData: any = { ...objData };
-
-      if (isRedaction) {
-        // Convert redaction to solid black rectangle
-        modifiedData.fill = "#000000";
-        modifiedData.stroke = "#000000";
-        modifiedData.opacity = 1;
-      }
-
-      // Scale up the object coordinates for export
-      // The editor canvas is at displayWidth = pdfWidth/PDF_SCALE
-      // We need to scale from display coords to PDF coords, then to export scale
-      const displayScale = PDF_SCALE;
-      const totalScale = displayScale * scale;
-
-      modifiedData.left = (modifiedData.left || 0) * totalScale;
-      modifiedData.top = (modifiedData.top || 0) * totalScale;
-      modifiedData.scaleX = (modifiedData.scaleX || 1) * totalScale;
-      modifiedData.scaleY = (modifiedData.scaleY || 1) * totalScale;
-
-      // Scale stroke width
-      if (modifiedData.strokeWidth) {
-        modifiedData.strokeWidth *= totalScale;
-      }
-
-      // Handle line objects
-      if (modifiedData.type === "line") {
-        modifiedData.x1 = (modifiedData.x1 || 0) * totalScale;
-        modifiedData.y1 = (modifiedData.y1 || 0) * totalScale;
-        modifiedData.x2 = (modifiedData.x2 || 0) * totalScale;
-        modifiedData.y2 = (modifiedData.y2 || 0) * totalScale;
-      }
-
-      // Handle polygon points (for arrows)
-      if (modifiedData.points) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        modifiedData.points = modifiedData.points.map((p: any) => ({
-          x: p.x * totalScale,
-          y: p.y * totalScale,
-        }));
-      }
-
-      // Handle font size for text
-      if (modifiedData.fontSize) {
-        modifiedData.fontSize *= totalScale;
-      }
-      if (modifiedData.width && modifiedData.type === "textbox") {
-        modifiedData.width *= totalScale;
-      }
-
-      const [fabricObj] = await util.enlivenObjects([modifiedData]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      canvas.add(fabricObj as any);
-    } catch (err) {
-      console.error("Failed to recreate object for export:", err);
+    const bounds = fabricObj.getBoundingRect();
+    if (!bounds.width || !bounds.height) {
+      return null;
     }
+
+    const dataUrl = canvas.toDataURL({
+      format: "png",
+      left: bounds.left,
+      top: bounds.top,
+      width: bounds.width,
+      height: bounds.height,
+      multiplier: 2,
+    });
+
+    return {
+      dataUrl,
+      x: bounds.left,
+      y: bounds.top,
+      width: bounds.width,
+      height: bounds.height,
+    };
+  } finally {
+    canvas.dispose();
   }
-
-  canvas.renderAll();
-
-  // Export to PNG
-  const dataUrl = canvas.toDataURL({
-    format: "png",
-    multiplier: 1, // Already scaled
-  });
-
-  // Cleanup
-  canvas.dispose();
-
-  return dataUrl;
 }
 
-/**
- * Convert data URL to Uint8Array
- */
+function hexToRgb(
+  value: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rgb: any,
+) {
+  if (!value || value === "transparent") return undefined;
+
+  const normalized = value.replace("#", "");
+  if (normalized.length !== 3 && normalized.length !== 6) return undefined;
+
+  const hex = normalized.length === 3 ? normalized.split("").map((char) => `${char}${char}`).join("") : normalized;
+  const parsed = Number.parseInt(hex, 16);
+  if (Number.isNaN(parsed)) return undefined;
+
+  return rgb(((parsed >> 16) & 255) / 255, ((parsed >> 8) & 255) / 255, (parsed & 255) / 255);
+}
+
 function dataUrlToBytes(dataUrl: string): Uint8Array {
-  const base64 = dataUrl.split(",")[1];
+  const base64 = dataUrl.split(",")[1] || "";
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
@@ -247,16 +439,11 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   return bytes;
 }
 
-/**
- * Count redactions in page objects
- */
-export function countRedactions(pageObjects: Map<number, object[]>): number {
+export function countRedactions(pageObjects: Map<number, EditorObjectRecord[]>): number {
   let count = 0;
   for (const objects of pageObjects.values()) {
-    for (const obj of objects) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const anyObj = obj as any;
-      if (anyObj.stroke === "#FF0000" && anyObj.opacity === 0.5) {
+    for (const object of objects) {
+      if (object.kind === "redaction") {
         count++;
       }
     }

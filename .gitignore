@@ -48,3 +48,8 @@ specs/
 *.report.html
 *.report.json
 test-results/
+
+# Local QA artifacts
+dogfood-output/
+tests/
+--annotate

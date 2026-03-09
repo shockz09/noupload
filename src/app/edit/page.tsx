@@ -16,6 +16,7 @@ import { SignatureModal } from "./components/SignatureModal";
 import { ZoomControls } from "./components/ZoomControls";
 import { useAutoSave } from "./hooks/useAutoSave";
 import type { FormField } from "./hooks/useFormFields";
+import type { EditorObjectRecord } from "./lib/editor-objects";
 import { countRedactions, exportPdf } from "./lib/export-pdf";
 
 // Edit icon for the header
@@ -131,7 +132,7 @@ export default function EditPdfPage() {
   }, [activeTool]);
 
   // Page objects (Fabric.js objects per page)
-  const [pageObjects, setPageObjects] = useState<Map<number, object[]>>(new Map());
+  const [pageObjects, setPageObjects] = useState<Map<number, EditorObjectRecord[]>>(new Map());
 
   // Undo/redo state
   const [canUndo, setCanUndo] = useState(false);
@@ -181,7 +182,7 @@ export default function EditPdfPage() {
     setPendingImage(dataUrl);
   }, []);
 
-  const handleObjectsChange = useCallback((pageNumber: number, objects: object[]) => {
+  const handleObjectsChange = useCallback((pageNumber: number, objects: EditorObjectRecord[]) => {
     setPageObjects((prev) => {
       const next = new Map(prev);
       next.set(pageNumber, objects);

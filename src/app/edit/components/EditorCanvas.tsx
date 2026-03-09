@@ -4,6 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBackgroundRemoval } from "@/lib/background-removal/useBackgroundRemoval";
 import { loadPdfjs } from "@/lib/pdfjs-config";
 import type { FormField } from "../hooks/useFormFields";
+import {
+  attachEditorMetadata,
+  createStampDataUrl,
+  fabricObjectToRecord,
+  loadFabricModule,
+  recordToFabricObject,
+  type EditorAsset,
+  type EditorObjectRecord,
+} from "../lib/editor-objects";
+import { buildEditableTextOptions } from "../lib/editable-text-style";
 import { type TextRegion, useTextExtraction } from "../hooks/useTextExtraction";
 import type { PageState, Tool } from "../page";
 import type { StampData } from "./EditorToolbar";
@@ -12,14 +22,12 @@ import { FormFieldOverlay } from "./FormFieldOverlay";
 // Scale factor for PDF rendering (PDF internal coords to display coords)
 const PDF_SCALE = 1.5;
 
-// Cached fabric import
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let fabricModule: any = null;
-async function getFabric() {
-  if (!fabricModule) {
-    fabricModule = await import("fabric");
-  }
-  return fabricModule;
+function assetFromDataUrl(dataUrl: string): EditorAsset {
+  const match = dataUrl.match(/^data:([^;,]+)[;,]/);
+  return {
+    dataUrl,
+    mimeType: match?.[1] || "image/png",
+  };
 }
 
 interface EditorCanvasProps {
@@ -31,8 +39,8 @@ interface EditorCanvasProps {
   highlightColor: string;
   strokeColor: string;
   fillColor: string;
-  onObjectsChange?: (pageNumber: number, objects: object[]) => void;
-  pageObjects?: Map<number, object[]>;
+  onObjectsChange?: (pageNumber: number, objects: EditorObjectRecord[]) => void;
+  pageObjects?: Map<number, EditorObjectRecord[]>;
   onUndoRedoChange?: (canUndo: boolean, canRedo: boolean, undo: () => void, redo: () => void) => void;
   pendingSignature?: string | null;
   onSignaturePlaced?: () => void;
@@ -124,9 +132,13 @@ export function EditorCanvas({
   // Save objects helper
   const saveObjects = useCallback(() => {
     if (!fabricCanvas || !onObjectsChange) return;
-    const objects = fabricCanvas.getObjects().map((obj: { toObject: () => object }) => obj.toObject());
+    const objects = fabricCanvas
+      .getObjects()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((obj: any) => !obj.editorHelper)
+      .map((obj: unknown, index: number) => fabricObjectToRecord(obj, currentPage, zoom, index));
     onObjectsChange(currentPage, objects);
-  }, [fabricCanvas, onObjectsChange, currentPage]);
+  }, [fabricCanvas, onObjectsChange, currentPage, zoom]);
 
   // Update undo/redo availability
   const updateUndoRedoState = useCallback(() => {
@@ -364,7 +376,7 @@ export function EditorCanvas({
     canvasEl.style.display = "block";
     wrapper.appendChild(canvasEl);
 
-    const { Canvas } = await getFabric();
+    const { Canvas } = await loadFabricModule();
 
     const canvas = new Canvas(canvasEl, {
       width: displayW,
@@ -404,13 +416,10 @@ export function EditorCanvas({
     // Only reload if canvas is empty but we have saved objects
     if (savedObjects && savedObjects.length > 0 && canvasObjectCount === 0) {
       const loadObjects = async () => {
-        const fabric = await getFabric();
-        const { util } = fabric;
         for (const obj of savedObjects) {
           try {
-            const [fabricObj] = await util.enlivenObjects([obj]);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            fabricCanvas.add(fabricObj as any);
+            const fabricObj = await recordToFabricObject(obj, zoom);
+            fabricCanvas.add(fabricObj);
           } catch (err) {
             console.error("Failed to load object:", err);
           }
@@ -423,7 +432,7 @@ export function EditorCanvas({
       };
       loadObjects();
     }
-  }, [fabricCanvas, pageObjects, currentPage]);
+  }, [fabricCanvas, pageObjects, currentPage, zoom]);
 
   // Handle tool changes
   useEffect(() => {
@@ -434,7 +443,7 @@ export function EditorCanvas({
     if (activeTool === "draw") {
       // Create brush if it doesn't exist (Fabric.js 6.x)
       if (!fabricCanvas.freeDrawingBrush) {
-        getFabric().then(({ PencilBrush }) => {
+        loadFabricModule().then(({ PencilBrush }) => {
           fabricCanvas.freeDrawingBrush = new PencilBrush(fabricCanvas);
           fabricCanvas.freeDrawingBrush.color = strokeColor;
           fabricCanvas.freeDrawingBrush.width = 2;
@@ -472,7 +481,8 @@ export function EditorCanvas({
       if (activeTool === "select" && !fabricCanvas.findTarget(opt.e)) {
         const textRegion = findTextRegionAtPoint(pointer.x, pointer.y);
         if (textRegion) {
-          const { Rect } = await getFabric();
+          const pairId = crypto.randomUUID();
+          const { Rect } = await loadFabricModule();
 
           // Add some padding to the whiteout
           const padding = 2;
@@ -488,18 +498,19 @@ export function EditorCanvas({
             selectable: false,
             evented: false,
           });
+          attachEditorMetadata(whiteout, {
+            editorKind: "whiteout",
+            sourceTool: "select",
+            pairId,
+          });
 
           // Create editable text (use IText to avoid auto-wrapping)
-          const { IText } = await getFabric();
-          const textObj = new IText(textRegion.text, {
-            left: textRegion.bbox.x,
-            top: textRegion.bbox.y,
-            fontSize: textRegion.fontSize,
-            fontFamily: textRegion.fontFamily,
-            fontWeight: textRegion.fontWeight,
-            fontStyle: textRegion.fontStyle,
-            fill: textRegion.color,
-            editable: true,
+          const { IText } = await loadFabricModule();
+          const textObj = new IText(textRegion.text, buildEditableTextOptions(textRegion));
+          attachEditorMetadata(textObj, {
+            editorKind: "editedText",
+            sourceTool: "select",
+            pairId,
           });
 
           fabricCanvas.add(whiteout);
@@ -523,7 +534,7 @@ export function EditorCanvas({
       if (activeTool === "text") {
         if (fabricCanvas.findTarget(opt.e)) return;
 
-        const { Textbox } = await getFabric();
+        const { Textbox } = await loadFabricModule();
         const textbox = new Textbox("Type here", {
           left: pointer.x,
           top: pointer.y,
@@ -532,6 +543,10 @@ export function EditorCanvas({
           fontFamily: "Arial",
           fill: strokeColor,
           editable: true,
+        });
+        attachEditorMetadata(textbox, {
+          editorKind: "text",
+          sourceTool: "text",
         });
 
         fabricCanvas.add(textbox);
@@ -554,7 +569,7 @@ export function EditorCanvas({
         isDrawingShapeRef.current = true;
         shapeStartRef.current = { x: pointer.x, y: pointer.y };
 
-        const fabric = await getFabric();
+        const fabric = await loadFabricModule();
         const { Rect, Ellipse, Line, FabricObject } = fabric;
         let shape: InstanceType<typeof FabricObject> | null = null;
 
@@ -605,6 +620,17 @@ export function EditorCanvas({
             strokeWidth: activeTool === "shape-rect" ? 2 : 0,
             opacity,
           });
+          attachEditorMetadata(shape, {
+            editorKind:
+              activeTool === "highlight"
+                ? "highlight"
+                : activeTool === "whiteout"
+                  ? "whiteout"
+                  : activeTool === "redact"
+                    ? "redaction"
+                    : "rectangle",
+            sourceTool: activeTool,
+          });
         } else if (activeTool === "shape-circle") {
           shape = new Ellipse({
             left: pointer.x,
@@ -615,10 +641,18 @@ export function EditorCanvas({
             stroke: strokeColor,
             strokeWidth: 2,
           });
+          attachEditorMetadata(shape, {
+            editorKind: "ellipse",
+            sourceTool: activeTool,
+          });
         } else if (activeTool === "shape-line" || activeTool === "shape-arrow") {
           shape = new Line([pointer.x, pointer.y, pointer.x, pointer.y], {
             stroke: strokeColor,
             strokeWidth: 2,
+          });
+          attachEditorMetadata(shape, {
+            editorKind: activeTool === "shape-arrow" ? "arrow" : "line",
+            sourceTool: activeTool,
           });
         }
 
@@ -678,34 +712,39 @@ export function EditorCanvas({
 
       isDrawingShapeRef.current = false;
 
-      // Add arrow head if needed
       if (activeTool === "shape-arrow" && currentShapeRef.current) {
         const line = currentShapeRef.current;
-        const { Polygon } = await getFabric();
-
-        const x1 = line.x1,
-          y1 = line.y1,
-          x2 = line.x2,
-          y2 = line.y2;
-        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const { Triangle } = await loadFabricModule();
+        const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
         const headLength = 15;
-
-        const arrowHead = new Polygon(
-          [
-            { x: 0, y: 0 },
-            { x: -headLength, y: headLength / 2 },
-            { x: -headLength, y: -headLength / 2 },
-          ],
-          {
-            left: x2,
-            top: y2,
-            fill: strokeColor,
-            angle: (angle * 180) / Math.PI,
-            originX: "center",
-            originY: "center",
+        attachEditorMetadata(line, {
+          editorKind: "arrow",
+          sourceTool: "shape-arrow",
+          arrowData: {
+            x1: line.x1,
+            y1: line.y1,
+            x2: line.x2,
+            y2: line.y2,
+            anchorLeft: Math.min(line.x1, line.x2),
+            anchorTop: Math.min(line.y1, line.y2),
           },
-        );
-
+        });
+        const arrowHead = new Triangle({
+          left: line.x2,
+          top: line.y2,
+          width: headLength,
+          height: headLength,
+          fill: strokeColor,
+          angle: (angle * 180) / Math.PI + 90,
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (arrowHead as any).editorHelper = true;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (line as any).arrowHelper = arrowHead;
         fabricCanvas.add(arrowHead);
       }
 
@@ -796,7 +835,19 @@ export function EditorCanvas({
   useEffect(() => {
     if (!fabricCanvas) return;
 
-    const handleModified = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleModified = (event: any) => {
+      const target = event?.target;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const helper = target?.arrowHelper as any;
+      if (target?.editorKind === "arrow" && helper) {
+        const angle = Math.atan2(target.y2 - target.y1, target.x2 - target.x1);
+        helper.set({
+          left: target.x2,
+          top: target.y2,
+          angle: (angle * 180) / Math.PI + 90,
+        });
+      }
       saveHistory();
       saveObjects();
     };
@@ -810,6 +861,30 @@ export function EditorCanvas({
     };
   }, [fabricCanvas, saveHistory, saveObjects]);
 
+  // Persist free-draw strokes as semantic path records
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handlePathCreated = (event: any) => {
+      if (event?.path) {
+        attachEditorMetadata(event.path, {
+          editorKind: "path",
+          sourceTool: "draw",
+        });
+        saveHistory();
+        saveObjects();
+      }
+    };
+
+    fabricCanvas.on("path:created", handlePathCreated);
+    return () => {
+      if (fabricInstanceRef.current === fabricCanvas) {
+        fabricCanvas.off("path:created", handlePathCreated);
+      }
+    };
+  }, [fabricCanvas, saveHistory, saveObjects]);
+
   // Place pending signature
   useEffect(() => {
     if (!fabricCanvas || !pendingSignature || !dimensions.width) return;
@@ -818,7 +893,7 @@ export function EditorCanvas({
     const canvasHeight = dimensions.height / PDF_SCALE;
 
     const placeSignature = async () => {
-      const { FabricImage } = await getFabric();
+      const { FabricImage } = await loadFabricModule();
       const img = await FabricImage.fromURL(pendingSignature);
 
       // Scale to reasonable size
@@ -830,6 +905,11 @@ export function EditorCanvas({
       img.set({
         left: canvasWidth / 2 - ((img.width || 200) * scale) / 2,
         top: canvasHeight / 2 - ((img.height || 100) * scale) / 2,
+      });
+      attachEditorMetadata(img, {
+        editorKind: "signature",
+        sourceTool: "signature",
+        asset: assetFromDataUrl(pendingSignature),
       });
 
       fabricCanvas.add(img);
@@ -946,7 +1026,7 @@ export function EditorCanvas({
     const canvasHeight = dimensions.height / PDF_SCALE;
 
     const placeStamp = async () => {
-      const fabric = await getFabric();
+      const fabric = await loadFabricModule();
       const { Rect, Group, Circle, Path, FabricText } = fabric;
 
       const stampColor = pendingStamp.color;
@@ -961,7 +1041,8 @@ export function EditorCanvas({
         // === AUTHENTIC RUBBER STAMP DESIGN ===
         const radius = 80;
         stampRadius = radius;
-        const elements: object[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const elements: any[] = [];
         const text = pendingStamp.text.toUpperCase();
 
         // --- SERRATED/GEAR OUTER EDGE ---
@@ -1239,6 +1320,12 @@ export function EditorCanvas({
         });
       }
 
+      attachEditorMetadata(group, {
+        editorKind: "stamp",
+        sourceTool: "stamp",
+        stampData: pendingStamp,
+        asset: assetFromDataUrl(createStampDataUrl(pendingStamp)),
+      });
       fabricCanvas.add(group);
 
       const startTime = performance.now();
@@ -1443,7 +1530,7 @@ export function EditorCanvas({
     const canvasHeight = dimensions.height / PDF_SCALE;
 
     const placeImage = async () => {
-      const { FabricImage } = await getFabric();
+      const { FabricImage } = await loadFabricModule();
       const img = await FabricImage.fromURL(pendingImage);
 
       // Scale to fit within canvas (max 50% of canvas size)
@@ -1458,6 +1545,11 @@ export function EditorCanvas({
       img.set({
         left: canvasWidth / 2 - ((img.width || 200) * scale) / 2,
         top: canvasHeight / 2 - ((img.height || 200) * scale) / 2,
+      });
+      attachEditorMetadata(img, {
+        editorKind: "image",
+        sourceTool: "image",
+        asset: assetFromDataUrl(pendingImage),
       });
 
       fabricCanvas.add(img);
@@ -1551,7 +1643,7 @@ export function EditorCanvas({
           <div className="absolute top-2 left-0 right-0 flex justify-center z-50 pointer-events-none">
             <div className="bg-card border-2 border-foreground shadow-[2px_2px_0_0_#1A1612] px-3 py-1.5 flex items-center gap-2 pointer-events-auto">
               {/* Remove BG button - only for images */}
-              {selectedObject?.type === "image" && (
+              {selectedObject?.type === "image" && selectedObject?.editorKind === "image" && (
                 <button
                   type="button"
                   disabled={isRemovingBg}
@@ -1584,9 +1676,16 @@ export function EditorCanvas({
 
                       // Remove background
                       const result = await removeBackground(blob);
+                      const processedBlob = await fetch(result.url).then((response) => response.blob());
+                      const processedDataUrl = await new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(String(reader.result || ""));
+                        reader.onerror = () => reject(reader.error || new Error("Failed to read processed image"));
+                        reader.readAsDataURL(processedBlob);
+                      });
 
                       // Replace image with new one
-                      const { FabricImage } = await getFabric();
+                      const { FabricImage } = await loadFabricModule();
                       const newImg = await FabricImage.fromURL(result.url, { crossOrigin: "anonymous" });
                       newImg.set({
                         left: imgObj.left,
@@ -1597,6 +1696,11 @@ export function EditorCanvas({
                         flipX: imgObj.flipX,
                         flipY: imgObj.flipY,
                         opacity: 0,
+                      });
+                      attachEditorMetadata(newImg, {
+                        editorKind: imgObj.editorKind === "signature" ? "signature" : "image",
+                        sourceTool: imgObj.sourceTool || "image",
+                        asset: assetFromDataUrl(processedDataUrl),
                       });
 
                       // Add new image, keep old for crossfade

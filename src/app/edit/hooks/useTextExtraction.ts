@@ -154,25 +154,30 @@ async function extractTextColors(
  * Extract text using PDF.js with color and font style info
  */
 async function extractNativeText(file: File, pageNumber: number, scale: number): Promise<TextRegion[]> {
-  const pdfjsLib = await loadPdfjs();
+  const [pdfjsLib, arrayBuffer] = await Promise.all([loadPdfjs(), file.arrayBuffer()]);
+  const pdfjsDoc = await pdfjsLib.getDocument({ data: arrayBuffer, fontExtraProperties: true }).promise;
+  const pdfjsPage = await pdfjsDoc.getPage(pageNumber);
+  await pdfjsPage.getOperatorList();
+  const colorMap = await extractTextColors(pdfjsPage);
+  return extractNativeTextWithPdfjs(pdfjsPage, pageNumber, scale, colorMap);
+}
 
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const page = await pdf.getPage(pageNumber);
-
+async function extractNativeTextWithPdfjs(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  pageNumber: number,
+  scale: number,
+  colorMap: Map<number, string>,
+): Promise<TextRegion[]> {
   const viewport = page.getViewport({ scale });
   const textContent = await page.getTextContent();
 
-  // Get styles dictionary from textContent
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const styles =
     ((textContent as any).styles as Record<
       string,
       { fontFamily?: string; ascent?: number; descent?: number; vertical?: boolean }
     >) || {};
-
-  // Extract colors from operatorList
-  const colorMap = await extractTextColors(page);
 
   const regions: TextRegion[] = [];
   let textOpIndex = 0;
@@ -199,31 +204,13 @@ async function extractNativeText(file: File, pageNumber: number, scale: number):
     const height = fontSize;
     const adjustedY = y - height;
 
-    // Get style info from styles dictionary
     const styleInfo = styles[textItem.fontName];
-    const styleFontFamily = styleInfo?.fontFamily || "";
-
-    // Parse font info from both fontName and styleFontFamily
-    const parsedFromName = parseFontName(textItem.fontName || "");
-    const parsedFromStyle = parseFontName(styleFontFamily || "");
-
-    // Prefer style fontFamily if available, otherwise use parsed
-    let fontFamily = parsedFromStyle.fontFamily;
-    if (styleFontFamily && !styleFontFamily.includes("g_d")) {
-      // Use the actual fontFamily from styles if it looks real (not like "g_d0_f1")
-      fontFamily = mapToWebFont(styleFontFamily);
-    }
-
-    // Use detected weight/style from either source (prefer the one that found something)
-    const fontWeight = parsedFromName.fontWeight !== "normal" ? parsedFromName.fontWeight : parsedFromStyle.fontWeight;
-    const fontStyle = parsedFromName.fontStyle !== "normal" ? parsedFromName.fontStyle : parsedFromStyle.fontStyle;
-
-    // Get color from operatorList (fallback to black)
+    const fontInfo = resolvePdfjsFontInfo(page, textItem.fontName, styleInfo?.fontFamily || "");
     const color = colorMap.get(textOpIndex) || "#000000";
     textOpIndex++;
 
     regions.push({
-      id: `native-${pageNumber}-${i}`,
+      id: `native-pdfjs-${pageNumber}-${i}`,
       text: textItem.str,
       bbox: {
         x,
@@ -232,9 +219,9 @@ async function extractNativeText(file: File, pageNumber: number, scale: number):
         height: Math.max(height, 8),
       },
       fontSize,
-      fontFamily,
-      fontWeight,
-      fontStyle,
+      fontFamily: fontInfo.fontFamily,
+      fontWeight: fontInfo.fontWeight,
+      fontStyle: fontInfo.fontStyle,
       color,
       pageNumber,
       source: "native",
@@ -242,6 +229,39 @@ async function extractNativeText(file: File, pageNumber: number, scale: number):
   }
 
   return regions;
+}
+
+function resolvePdfjsFontInfo(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  internalFontName: string,
+  styleFontFamily: string,
+): {
+  fontFamily: string;
+  fontWeight: string;
+  fontStyle: string;
+} {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fontObject: any | null = page?.commonObjs?.has?.(internalFontName) ? page.commonObjs.get(internalFontName) : null;
+  const actualFontName =
+    fontObject?.name ||
+    fontObject?.loadedName ||
+    (styleFontFamily && !styleFontFamily.includes("g_d") ? styleFontFamily : "") ||
+    internalFontName;
+
+  const parsed = parseFontName(actualFontName || "");
+  let fontWeight = parsed.fontWeight;
+  let fontStyle = parsed.fontStyle;
+
+  if (fontObject?.bold) {
+    fontWeight = fontObject.black ? "900" : "bold";
+  }
+  if (fontObject?.italic) {
+    fontStyle = "italic";
+  }
+
+  const fontFamily = parsed.fontFamily || mapToWebFont(actualFontName || "");
+  return { fontFamily, fontWeight, fontStyle };
 }
 
 /**
