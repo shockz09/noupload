@@ -99,7 +99,7 @@ export const ToolSearch = memo(function ToolSearch({
           const Icon = tool.icon;
 
           return (
-            <Link key={tool.href} href={tool.href}>
+            <Link key={tool.href} href={tool.href} className="tool-card-link">
               <article className={`tool-card ${tool.colorClass} group h-full cursor-pointer`}>
                 <span className="category-tag">{categoryLabels[tool.category] || tool.category}</span>
 

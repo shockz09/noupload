@@ -341,13 +341,18 @@
    TOOL CARDS - STAMP AESTHETIC
    ============================================ */
 
+.tool-card-link {
+  display: block;
+  padding: 8px;
+  margin: -8px;
+}
+
 .tool-card {
   position: relative;
   background: #FFFEFA;
   border: 2px solid #1A1612;
   padding: 16px;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  overflow: hidden;
 }
 
 @media (min-width: 640px) {
@@ -369,18 +374,18 @@
   transition: transform 0.3s ease;
 }
 
-.tool-card:hover {
+.tool-card-link:hover .tool-card {
   transform: translate(-4px, -4px);
   box-shadow:
     4px 4px 0 0 #1A1612,
     8px 8px 0 0 var(--tool-color, #C84C1C);
 }
 
-.tool-card:hover::before {
+.tool-card-link:hover .tool-card::before {
   transform: scaleX(1);
 }
 
-.tool-card:active {
+.tool-card-link:active .tool-card {
   transform: translate(-2px, -2px);
   box-shadow:
     2px 2px 0 0 #1A1612,
@@ -400,7 +405,7 @@
   transition: all 0.2s ease;
 }
 
-.tool-card:hover .tool-icon {
+.tool-card-link:hover .tool-icon {
   animation: icon-wiggle 0.4s ease;
 }
 
