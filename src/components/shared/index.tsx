@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { memo, type ReactNode } from "react";
 import { AlertIcon, ArrowLeftIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { BackButton } from "./BackButton";
 
 // ============ Page Header ============
 interface PageHeaderProps {
@@ -22,10 +23,7 @@ export const PageHeader = memo(function PageHeader({
 }: PageHeaderProps) {
   return (
     <div className="space-y-6">
-      <Link href={backHref} className="back-link">
-        <ArrowLeftIcon className="w-4 h-4" />
-        {backLabel}
-      </Link>
+      <BackButton fallbackHref={backHref} label={backLabel} />
       <div className="flex items-center gap-5">
         <div className={`tool-icon ${iconClass}`}>{icon}</div>
         <div>
