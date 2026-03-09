@@ -902,12 +902,15 @@ export interface CollageLayout {
   columns?: number;
   rows?: number;
   gap?: number;
+  backgroundColor?: string;
+  borderRadius?: number;
 }
 
 export async function createCollage(
   files: File[],
   layout: CollageLayout,
   outputSize: { width: number; height: number },
+  format: "jpeg" | "png" = "jpeg",
 ): Promise<Blob> {
   const images = await Promise.all(files.map(loadImage));
 
@@ -917,66 +920,90 @@ export async function createCollage(
     canvas.height = outputSize.height;
     const ctx = canvas.getContext("2d")!;
 
-    // Fill background with white
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, outputSize.width, outputSize.height);
+    // Fill background
+    const bg = layout.backgroundColor ?? "#FFFFFF";
+    if (bg === "transparent") {
+      ctx.clearRect(0, 0, outputSize.width, outputSize.height);
+    } else {
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, outputSize.width, outputSize.height);
+    }
 
     const gap = layout.gap ?? 4;
+    const radius = layout.borderRadius ?? 0;
     const count = images.length;
+
+    // Compute cell positions
+    const cells: { x: number; y: number; w: number; h: number }[] = [];
 
     if (layout.type === "grid") {
       const cols = layout.columns ?? Math.ceil(Math.sqrt(count));
       const rows = Math.ceil(count / cols);
       const cellWidth = (outputSize.width - gap * (cols + 1)) / cols;
       const cellHeight = (outputSize.height - gap * (rows + 1)) / rows;
-
-      images.forEach((img, i) => {
+      for (let i = 0; i < count; i++) {
         const col = i % cols;
         const row = Math.floor(i / cols);
-        const x = gap + col * (cellWidth + gap);
-        const y = gap + row * (cellHeight + gap);
-        drawImageCover(ctx, img, x, y, cellWidth, cellHeight);
-      });
+        cells.push({ x: gap + col * (cellWidth + gap), y: gap + row * (cellHeight + gap), w: cellWidth, h: cellHeight });
+      }
     } else if (layout.type === "horizontal") {
       const cellWidth = (outputSize.width - gap * (count + 1)) / count;
-      images.forEach((img, i) => {
-        const x = gap + i * (cellWidth + gap);
-        drawImageCover(ctx, img, x, gap, cellWidth, outputSize.height - gap * 2);
-      });
+      for (let i = 0; i < count; i++) {
+        cells.push({ x: gap + i * (cellWidth + gap), y: gap, w: cellWidth, h: outputSize.height - gap * 2 });
+      }
     } else if (layout.type === "vertical") {
       const cellHeight = (outputSize.height - gap * (count + 1)) / count;
-      images.forEach((img, i) => {
-        const y = gap + i * (cellHeight + gap);
-        drawImageCover(ctx, img, gap, y, outputSize.width - gap * 2, cellHeight);
-      });
+      for (let i = 0; i < count; i++) {
+        cells.push({ x: gap, y: gap + i * (cellHeight + gap), w: outputSize.width - gap * 2, h: cellHeight });
+      }
     } else if (layout.type === "mosaic") {
-      // Pinterest-style mosaic
       const cols = layout.columns ?? 3;
       const cellWidth = (outputSize.width - gap * (cols + 1)) / cols;
       const colHeights = new Array(cols).fill(gap);
-
-      images.forEach((img) => {
-        // Find shortest column
+      for (let i = 0; i < count; i++) {
         const minCol = colHeights.indexOf(Math.min(...colHeights));
         const x = gap + minCol * (cellWidth + gap);
         const y = colHeights[minCol];
-
-        // Calculate height maintaining aspect ratio
-        const aspectRatio = img.height / img.width;
+        const aspectRatio = images[i].height / images[i].width;
         const cellHeight = cellWidth * aspectRatio;
-
-        // Only draw if it fits
-        if (y + cellHeight <= outputSize.height) {
-          drawImageCover(ctx, img, x, y, cellWidth, cellHeight);
-          colHeights[minCol] += cellHeight + gap;
-        }
-      });
+        cells.push({ x, y, w: cellWidth, h: cellHeight });
+        colHeights[minCol] += cellHeight + gap;
+      }
     }
 
-    return await canvasToBlob(canvas, "jpeg", 0.92);
+    // Draw each image into its cell
+    images.forEach((img, i) => {
+      if (i >= cells.length) return;
+      const { x, y, w, h } = cells[i];
+      if (radius > 0) {
+        ctx.save();
+        roundedRect(ctx, x, y, w, h, radius);
+        ctx.clip();
+        drawImageCover(ctx, img, x, y, w, h);
+        ctx.restore();
+      } else {
+        drawImageCover(ctx, img, x, y, w, h);
+      }
+    });
+
+    return await canvasToBlob(canvas, format, 0.92);
   } finally {
     images.forEach((img) => URL.revokeObjectURL(img.src));
   }
+}
+
+function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
 }
 
 function drawImageCover(
@@ -996,11 +1023,9 @@ function drawImageCover(
     sh = img.height;
 
   if (imgAspect > cellAspect) {
-    // Image is wider - crop sides
     sw = img.height * cellAspect;
     sx = (img.width - sw) / 2;
   } else {
-    // Image is taller - crop top/bottom
     sh = img.width / cellAspect;
     sy = (img.height - sh) / 2;
   }

@@ -138,13 +138,15 @@ export default function ImageAdjustPage() {
           <p className="text-muted-foreground">File size: {formatFileSize(result.blob.size)}</p>
         </SuccessCard>
       ) : !file ? (
-        <FileDropzone
-          accept=".jpg,.jpeg,.png,.webp"
-          multiple={false}
-          onFilesSelected={handleFileSelected}
-          title="Drop your image here"
-          subtitle="or click to browse · Ctrl+V to paste"
-        />
+        <div className="max-w-2xl mx-auto">
+          <FileDropzone
+            accept=".jpg,.jpeg,.png,.webp"
+            multiple={false}
+            onFilesSelected={handleFileSelected}
+            title="Drop your image here"
+            subtitle="or click to browse · Ctrl+V to paste"
+          />
+        </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-6 overflow-hidden">
           {/* Left: Live Preview */}

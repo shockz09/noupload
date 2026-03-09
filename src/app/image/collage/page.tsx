@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { XIcon } from "@/components/icons/ui";
 import { CollageIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, ProgressBar, SuccessCard } from "@/components/image/shared";
@@ -16,26 +16,42 @@ interface FileItem {
   preview: string;
 }
 
-type LayoutType = "grid" | "horizontal" | "vertical";
+type LayoutType = "grid" | "horizontal" | "vertical" | "mosaic";
 
-const LAYOUTS: { type: LayoutType; label: string; description: string }[] = [
-  { type: "grid", label: "Grid", description: "Square grid layout" },
-  { type: "horizontal", label: "Row", description: "Side by side" },
-  { type: "vertical", label: "Column", description: "Stacked vertically" },
+const LAYOUTS: { type: LayoutType; label: string }[] = [
+  { type: "grid", label: "Grid" },
+  { type: "horizontal", label: "Row" },
+  { type: "vertical", label: "Column" },
+  { type: "mosaic", label: "Mosaic" },
+];
+
+const BG_OPTIONS = [
+  { value: "#FFFFFF", label: "White" },
+  { value: "#000000", label: "Black" },
+  { value: "transparent", label: "None" },
 ];
 
 export default function CollagePage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [layout, setLayout] = useState<LayoutType>("grid");
+  const [gap, setGap] = useState(8);
+  const [bgColor, setBgColor] = useState("#FFFFFF");
+  const [borderRadius, setBorderRadius] = useState(0);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError } = useFileProcessing();
   const { result, setResult, clearResult, download } = useProcessingResult();
   const { url: previewUrl, setSource: setPreviewSource, revoke: revokePreview } = useObjectURL();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-calculate columns based on image count
   const columns = useMemo(() => {
-    if (layout !== "grid") return undefined;
     const count = files.length;
+    if (layout === "mosaic") {
+      if (count <= 3) return 2;
+      return 3;
+    }
+    if (layout !== "grid") return undefined;
     if (count <= 2) return 2;
     if (count <= 4) return 2;
     if (count <= 6) return 3;
@@ -43,7 +59,6 @@ export default function CollagePage() {
     return 4;
   }, [files.length, layout]);
 
-  // Auto-calculate output size based on layout and image count
   const outputSize = useMemo(() => {
     const count = files.length;
     if (layout === "horizontal") {
@@ -52,7 +67,10 @@ export default function CollagePage() {
     if (layout === "vertical") {
       return { width: 600, height: Math.min(count * 400, 1920) };
     }
-    // Grid - square-ish
+    if (layout === "mosaic") {
+      const cols = columns || 3;
+      return { width: cols * 400, height: Math.round(cols * 400 * 1.4) };
+    }
     const cols = columns || 2;
     const rows = Math.ceil(count / cols);
     return { width: cols * 400, height: rows * 400 };
@@ -65,7 +83,7 @@ export default function CollagePage() {
         file,
         preview: URL.createObjectURL(file),
       }));
-      setFiles((prev) => [...prev, ...items].slice(0, 12)); // Max 12 images
+      setFiles((prev) => [...prev, ...items].slice(0, 12));
       clearResult();
     },
     [clearResult],
@@ -88,6 +106,43 @@ export default function CollagePage() {
     revokePreview();
   }, [files, clearResult, revokePreview]);
 
+  const handleDragStart = useCallback((id: string) => {
+    setDragId(id);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    setDragOverId(id);
+  }, []);
+
+  const handleDrop = useCallback(
+    (targetId: string) => {
+      if (!dragId || dragId === targetId) {
+        setDragId(null);
+        setDragOverId(null);
+        return;
+      }
+      setFiles((prev) => {
+        const arr = [...prev];
+        const fromIdx = arr.findIndex((f) => f.id === dragId);
+        const toIdx = arr.findIndex((f) => f.id === targetId);
+        if (fromIdx < 0 || toIdx < 0) return prev;
+        const [moved] = arr.splice(fromIdx, 1);
+        arr.splice(toIdx, 0, moved);
+        return arr;
+      });
+      setDragId(null);
+      setDragOverId(null);
+      navigator.vibrate?.(5);
+    },
+    [dragId],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragId(null);
+    setDragOverId(null);
+  }, []);
+
   const handleCreate = useCallback(async () => {
     if (files.length < 2 || !startProcessing()) return;
 
@@ -95,21 +150,19 @@ export default function CollagePage() {
       setProgress(20);
 
       const collageLayout: CollageLayout = {
-        type: layout === "grid" ? "grid" : layout,
-        columns: layout === "grid" ? columns : undefined,
-        gap: 8,
+        type: layout,
+        columns: layout === "grid" || layout === "mosaic" ? columns : undefined,
+        gap,
+        backgroundColor: bgColor,
+        borderRadius,
       };
 
       setProgress(40);
-
-      const blob = await createCollage(
-        files.map((f) => f.file),
-        collageLayout,
-        outputSize,
-      );
+      const format = bgColor === "transparent" ? "png" : "jpeg";
+      const blob = await createCollage(files.map((f) => f.file), collageLayout, outputSize, format);
 
       setProgress(90);
-      setResult(blob, "collage.jpg");
+      setResult(blob, `collage.${format === "png" ? "png" : "jpg"}`);
       setPreviewSource(blob);
       setProgress(100);
     } catch (err) {
@@ -117,18 +170,7 @@ export default function CollagePage() {
     } finally {
       stopProcessing();
     }
-  }, [
-    files,
-    layout,
-    columns,
-    outputSize,
-    startProcessing,
-    setProgress,
-    setResult,
-    setPreviewSource,
-    setError,
-    stopProcessing,
-  ]);
+  }, [files, layout, columns, gap, bgColor, borderRadius, outputSize, startProcessing, setProgress, setResult, setPreviewSource, setError, stopProcessing]);
 
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {
@@ -148,7 +190,7 @@ export default function CollagePage() {
 
   const totalSize = useMemo(() => files.reduce((acc, f) => acc + f.file.size, 0), [files]);
 
-  // Generate grid preview layout - use explicit classes for Tailwind
+  // CSS grid classes for live preview
   const getPreviewGrid = () => {
     const count = files.length;
     if (layout === "horizontal") {
@@ -159,7 +201,9 @@ export default function CollagePage() {
       return "grid-cols-6";
     }
     if (layout === "vertical") return "grid-cols-1";
-    // Grid
+    if (layout === "mosaic") {
+      return count <= 3 ? "grid-cols-2" : "grid-cols-3";
+    }
     if (count <= 2) return "grid-cols-2";
     if (count <= 4) return "grid-cols-2";
     if (count <= 6) return "grid-cols-3";
@@ -168,7 +212,7 @@ export default function CollagePage() {
   };
 
   return (
-    <div className="page-enter max-w-2xl mx-auto space-y-8">
+    <div className="page-enter max-w-4xl mx-auto space-y-8">
       <ImagePageHeader
         icon={<CollageIcon className="w-7 h-7" />}
         iconClass="tool-collage"
@@ -197,7 +241,7 @@ export default function CollagePage() {
       ) : (
         <div className="space-y-6">
           {files.length === 0 ? (
-            <>
+            <div className="max-w-2xl mx-auto space-y-6">
               <FileDropzone
                 accept=".jpg,.jpeg,.png,.webp"
                 multiple={true}
@@ -207,43 +251,78 @@ export default function CollagePage() {
                 subtitle="Select 2-12 images"
               />
               <InfoBox title="Collage Maker">
-                Drop 2-12 images and choose a layout. Images will be automatically arranged and sized to fit.
+                Drop 2-12 images, pick a layout, tweak gap and corners, then create. Drag images to reorder.
               </InfoBox>
-            </>
+            </div>
           ) : (
-            <>
-              {/* Image Preview with Clear */}
+            <div className="grid md:grid-cols-2 gap-6" ref={scrollRef}>
+              {/* Left: Live Preview */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold">
-                    {files.length} images ({formatFileSize(totalSize)})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleClearAll}
-                    className="text-sm font-bold text-muted-foreground hover:text-foreground"
-                  >
-                    Clear all
-                  </button>
+                  <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Preview</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">
+                      {files.length} images ({formatFileSize(totalSize)})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleClearAll}
+                      className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    >
+                      Clear all
+                    </button>
+                  </div>
                 </div>
 
-                {/* Thumbnail Grid */}
-                <div className={`grid gap-2 ${getPreviewGrid()}`}>
-                  {files.map((item) => (
-                    <div
-                      key={item.id}
-                      className="relative aspect-square border-2 border-foreground overflow-hidden group"
-                    >
-                      <img src={item.preview} alt="" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFile(item.id)}
-                        className="absolute top-1 right-1 w-6 h-6 bg-foreground text-background rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                {/* Live collage preview */}
+                <div
+                  className="border-2 border-foreground overflow-hidden"
+                  style={{
+                    background:
+                      bgColor === "transparent"
+                        ? "repeating-conic-gradient(#e5e5e5 0% 25%, white 0% 50%) 50% / 16px 16px"
+                        : bgColor,
+                    padding: `${gap}px`,
+                  }}
+                >
+                  <div
+                    className={`grid ${getPreviewGrid()}`}
+                    style={{ gap: `${gap}px` }}
+                  >
+                    {files.map((item) => (
+                      <div
+                        key={item.id}
+                        draggable
+                        onDragStart={() => handleDragStart(item.id)}
+                        onDragOver={(e) => handleDragOver(e, item.id)}
+                        onDrop={() => handleDrop(item.id)}
+                        onDragEnd={handleDragEnd}
+                        className={`relative aspect-square overflow-hidden group cursor-grab active:cursor-grabbing transition-all ${
+                          dragId === item.id
+                            ? "opacity-40 scale-95"
+                            : dragOverId === item.id && dragId
+                              ? "ring-2 ring-primary scale-105"
+                              : ""
+                        }`}
+                        style={{ borderRadius: `${borderRadius}px` }}
                       >
-                        <XIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                        <img
+                          src={item.preview}
+                          alt=""
+                          className="w-full h-full object-cover pointer-events-none"
+                          draggable={false}
+                        />
+                        {/* Remove button */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFile(item.id)}
+                          className="absolute top-1 right-1 w-5 h-5 bg-foreground/80 text-background rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <XIcon className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Add More */}
@@ -258,68 +337,100 @@ export default function CollagePage() {
                     compact
                   />
                 )}
+
               </div>
 
-              {/* Layout Selection */}
-              <div className="space-y-3">
-                <span className="font-bold">Layout</span>
-                <div className="grid grid-cols-3 gap-3">
-                  {LAYOUTS.map((l) => (
-                    <button
-                      key={l.type}
-                      type="button"
-                      onClick={() => setLayout(l.type)}
-                      className={`p-4 text-center border-2 border-foreground transition-colors ${
-                        layout === l.type ? "bg-foreground text-background" : "hover:bg-muted"
-                      }`}
-                    >
-                      {/* Visual Layout Preview */}
-                      <div className="mb-2 flex justify-center">
-                        {l.type === "grid" && (
-                          <div className="grid grid-cols-2 gap-0.5 w-8 h-8">
-                            <div className={`${layout === l.type ? "bg-background/60" : "bg-foreground/60"}`} />
-                            <div className={`${layout === l.type ? "bg-background/60" : "bg-foreground/60"}`} />
-                            <div className={`${layout === l.type ? "bg-background/60" : "bg-foreground/60"}`} />
-                            <div className={`${layout === l.type ? "bg-background/60" : "bg-foreground/60"}`} />
-                          </div>
-                        )}
-                        {l.type === "horizontal" && (
-                          <div className="flex gap-0.5 w-10 h-6">
-                            <div className={`flex-1 ${layout === l.type ? "bg-background/60" : "bg-foreground/60"}`} />
-                            <div className={`flex-1 ${layout === l.type ? "bg-background/60" : "bg-foreground/60"}`} />
-                            <div className={`flex-1 ${layout === l.type ? "bg-background/60" : "bg-foreground/60"}`} />
-                          </div>
-                        )}
-                        {l.type === "vertical" && (
-                          <div className="flex flex-col gap-0.5 w-6 h-10">
-                            <div className={`flex-1 ${layout === l.type ? "bg-background/60" : "bg-foreground/60"}`} />
-                            <div className={`flex-1 ${layout === l.type ? "bg-background/60" : "bg-foreground/60"}`} />
-                            <div className={`flex-1 ${layout === l.type ? "bg-background/60" : "bg-foreground/60"}`} />
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-sm font-bold block">{l.label}</span>
-                      <span className={`text-xs ${layout === l.type ? "text-background/70" : "text-muted-foreground"}`}>
-                        {l.description}
-                      </span>
-                    </button>
-                  ))}
+              {/* Right: Controls */}
+              <div className="space-y-5">
+                {/* Layout */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Layout</span>
+                  <div className="grid grid-cols-4 gap-2">
+                    {LAYOUTS.map((l) => (
+                      <button
+                        key={l.type}
+                        type="button"
+                        onClick={() => setLayout(l.type)}
+                        className={`py-2 text-center border-2 border-foreground text-xs font-bold transition-colors ${
+                          layout === l.type ? "bg-foreground text-background" : "hover:bg-muted"
+                        }`}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Gap */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Gap</span>
+                    <span className="text-xs font-bold tabular-nums">{gap}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="24"
+                    value={gap}
+                    onChange={(e) => setGap(Number(e.target.value))}
+                    className="w-full accent-primary"
+                  />
+                </div>
+
+                {/* Border Radius */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Corners</span>
+                    <span className="text-xs font-bold tabular-nums">{borderRadius}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="32"
+                    value={borderRadius}
+                    onChange={(e) => setBorderRadius(Number(e.target.value))}
+                    className="w-full accent-primary"
+                  />
+                </div>
+
+                {/* Background */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Background</span>
+                  <div className="flex gap-2">
+                    {BG_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setBgColor(opt.value)}
+                        className={`flex-1 py-2 text-xs font-bold border-2 transition-colors ${
+                          bgColor === opt.value
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-foreground/30 hover:border-foreground"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {bgColor === "transparent" && (
+                    <p className="text-xs text-muted-foreground">Will export as PNG</p>
+                  )}
+                </div>
+
+                {error && <ErrorBox message={error} />}
+                {isProcessing && <ProgressBar progress={progress} label="Creating collage..." />}
+
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={isProcessing || files.length < 2}
+                  className="btn-primary w-full"
+                >
+                  <CollageIcon className="w-5 h-5" />
+                  {isProcessing ? "Creating..." : "Create Collage"}
+                </button>
               </div>
-
-              {error && <ErrorBox message={error} />}
-              {isProcessing && <ProgressBar progress={progress} label="Creating collage..." />}
-
-              <button
-                type="button"
-                onClick={handleCreate}
-                disabled={isProcessing || files.length < 2}
-                className="btn-primary w-full"
-              >
-                <CollageIcon className="w-5 h-5" />
-                {isProcessing ? "Creating..." : `Create Collage`}
-              </button>
-            </>
+            </div>
           )}
         </div>
       )}

@@ -217,7 +217,7 @@ export default function ImageBlurPage() {
           startOverLabel="Blur Another Image"
         />
       ) : !file ? (
-        <div className="space-y-6">
+        <div className="max-w-2xl mx-auto space-y-6">
           <FileDropzone
             accept=".jpg,.jpeg,.png,.webp"
             multiple={false}

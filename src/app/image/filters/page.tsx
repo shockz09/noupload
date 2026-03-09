@@ -414,13 +414,15 @@ export default function ImageFiltersPage() {
           </p>
         </SuccessCard>
       ) : !file ? (
-        <FileDropzone
-          accept=".jpg,.jpeg,.png,.webp"
-          multiple={false}
-          onFilesSelected={handleFileSelected}
-          title="Drop your image here"
-          subtitle="or click to browse · Ctrl+V to paste"
-        />
+        <div className="max-w-2xl mx-auto">
+          <FileDropzone
+            accept=".jpg,.jpeg,.png,.webp"
+            multiple={false}
+            onFilesSelected={handleFileSelected}
+            title="Drop your image here"
+            subtitle="or click to browse · Ctrl+V to paste"
+          />
+        </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-6 overflow-hidden">
           <div className="space-y-3 min-w-0">
