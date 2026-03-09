@@ -6,7 +6,7 @@ import { CollageIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, ProgressBar, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
-import { useFileProcessing, useObjectURL, useProcessingResult } from "@/hooks";
+import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { type CollageLayout, copyImageToClipboard, createCollage, formatFileSize } from "@/lib/image-utils";
 
@@ -70,6 +70,8 @@ export default function CollagePage() {
     },
     [clearResult],
   );
+
+  useImagePaste(handleFilesSelected, !result);
 
   const handleRemoveFile = useCallback((id: string) => {
     setFiles((prev) => {

@@ -7,7 +7,7 @@ import { ComparisonDisplay, ErrorBox, ImageFileInfo, ImagePageHeader, SuccessCar
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useFileProcessing } from "@/hooks";
+import { useFileProcessing, useImagePaste } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { convertHeicToJpeg } from "@/lib/heic-utils";
 import { copyImageToClipboard, downloadImage, formatFileSize } from "@/lib/image-utils";
@@ -67,6 +67,8 @@ export default function HeicToJpegPage() {
     },
     [isInstant, processFile, clearError],
   );
+
+  useImagePaste(handleFileSelected, !result);
 
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {

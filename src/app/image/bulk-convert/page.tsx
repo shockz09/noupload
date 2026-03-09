@@ -5,6 +5,7 @@ import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { BulkIcon, ImageIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, ProgressBar } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { useImagePaste } from "@/hooks";
 import { IMAGE_FORMATS_BULK } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
 import { convertFormat, downloadImage, formatFileSize, type ImageFormat } from "@/lib/image-utils";
@@ -36,6 +37,8 @@ export default function BulkConvertPage() {
     setError(null);
     setResults([]);
   }, []);
+
+  useImagePaste(handleFilesSelected, results.length === 0);
 
   const handleRemoveFile = (id: string) => setFiles((prev) => prev.filter((f) => f.id !== id));
   const handleClearAll = () => {
