@@ -47,7 +47,7 @@ export const ProcessingState = memo(function ProcessingState({
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-lg font-semibold">{Math.round(progress)}%</span>
+              <span className="text-lg font-semibold tabular-nums">{Math.round(progress)}%</span>
             </div>
           </div>
 

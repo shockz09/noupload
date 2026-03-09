@@ -125,7 +125,7 @@ export default function VolumeAudioPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="input-label">Volume</span>
-              <span className="text-sm font-bold">{volume}%</span>
+              <span className="text-sm font-bold tabular-nums">{volume}%</span>
             </div>
             <input
               type="range"

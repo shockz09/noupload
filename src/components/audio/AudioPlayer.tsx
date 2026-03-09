@@ -260,7 +260,7 @@ export const AudioPlayer = memo(function AudioPlayer({ src, className = "" }: Au
               </div>
 
               {/* Time readout */}
-              <div className="font-mono text-xs font-bold tracking-tight">
+              <div className="font-mono text-xs font-bold tracking-tight tabular-nums">
                 <span className="text-foreground">{formatTime(currentTime)}</span>
                 <span className="text-muted-foreground mx-1">/</span>
                 <span className="text-muted-foreground">{formatTime(duration)}</span>

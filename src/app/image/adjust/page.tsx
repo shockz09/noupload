@@ -180,7 +180,7 @@ export default function ImageAdjustPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Brightness</span>
-                <span className="text-xs font-bold">{formatValue(brightness)}</span>
+                <span className="text-xs font-bold tabular-nums">{formatValue(brightness)}</span>
               </div>
               <input
                 type="range"
@@ -196,7 +196,7 @@ export default function ImageAdjustPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Contrast</span>
-                <span className="text-xs font-bold">{formatValue(contrast)}</span>
+                <span className="text-xs font-bold tabular-nums">{formatValue(contrast)}</span>
               </div>
               <input
                 type="range"
@@ -212,7 +212,7 @@ export default function ImageAdjustPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Saturation</span>
-                <span className="text-xs font-bold">{formatValue(saturation)}</span>
+                <span className="text-xs font-bold tabular-nums">{formatValue(saturation)}</span>
               </div>
               <input
                 type="range"

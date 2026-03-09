@@ -112,7 +112,6 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "ss01", "ss02";
-    font-variant-numeric: tabular-nums;
   }
   h1, h2, h3 {
     font-family: var(--font-display);
