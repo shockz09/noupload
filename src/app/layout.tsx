@@ -90,14 +90,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${onest.variable} ${instrumentSerif.variable}`}>
-      <body className="min-h-screen bg-background">
+      <body className="min-h-screen bg-background flex flex-col">
         {/* Paper texture overlay */}
         <div className="paper-texture" />
 
         {/* Header */}
         <Header />
 
-        <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">{children}</main>
+        <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 flex-1 w-full">{children}</main>
 
         {/* Footer */}
         <footer className="border-t-2 border-foreground mt-auto">
