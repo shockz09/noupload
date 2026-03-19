@@ -24,7 +24,7 @@ interface ConvertResult {
   pageCount: number;
 }
 
-const MAX_IMAGES = 20;
+const MAX_IMAGES = 100;
 
 type InputMode = "upload" | "camera";
 
