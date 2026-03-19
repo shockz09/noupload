@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useImagePaste } from "@/hooks";
 import { GripIcon, LoaderIcon, UploadIcon, XIcon } from "@/components/icons/ui";
 import { CameraIcon, FileIcon } from "@/components/icons/pdf";
 import { CameraCapture } from "@/components/pdf/CameraCapture";
@@ -219,6 +220,8 @@ export default function ImagesToPdfPage() {
     }
     setDraggingId(null);
   }, []);
+
+  useImagePaste(handleFilesSelected, !result && images.length < MAX_IMAGES);
 
   const canAddMore = images.length < MAX_IMAGES;
 
