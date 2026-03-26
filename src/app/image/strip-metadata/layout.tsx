@@ -1,20 +1,24 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Remove Image Metadata Free - Strip EXIF Data",
+  title: "Image Metadata Viewer & Remover - View & Strip EXIF Data Free",
   description:
-    "Remove metadata from images for free. Strip EXIF data, GPS location, camera info. Protect your privacy. Works offline.",
+    "View and remove image metadata for free. Inspect EXIF data, GPS location, camera info, then strip it all. Protect your privacy. Works offline.",
   keywords: [
+    "image metadata viewer",
+    "view exif data",
     "remove image metadata",
     "strip exif",
     "remove exif data",
     "image privacy",
     "remove gps from photo",
     "free metadata remover",
+    "exif viewer",
+    "photo metadata",
   ],
   openGraph: {
-    title: "Remove Image Metadata Free - Strip EXIF Data",
-    description: "Remove metadata and EXIF data from images for free. Works 100% offline.",
+    title: "Image Metadata Viewer & Remover - View & Strip EXIF Data Free",
+    description: "View and remove image metadata and EXIF data for free. Inspect camera info, GPS location, then strip it all. Works 100% offline.",
   },
 };
 

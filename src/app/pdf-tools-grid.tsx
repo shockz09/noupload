@@ -17,7 +17,7 @@ import {
   PptxIcon,
   ReversePagesIcon,
   RotateIcon,
-  SanitizeIcon,
+
   SignatureIcon,
   SplitIcon,
   TextIcon,
@@ -156,14 +156,6 @@ export const pdfTools = [
     colorClass: "tool-sign",
   },
   {
-    title: "Sanitize PDF",
-    description: "Remove metadata and hidden data",
-    href: "/sanitize",
-    icon: SanitizeIcon,
-    category: "security",
-    colorClass: "tool-sanitize",
-  },
-  {
     title: "Encrypt PDF",
     description: "Add password protection to your PDF",
     href: "/encrypt",
@@ -213,7 +205,7 @@ export const pdfTools = [
   },
   {
     title: "PDF Metadata",
-    description: "View and edit document properties",
+    description: "View, edit, or strip document properties",
     href: "/metadata",
     icon: MetadataIcon,
     category: "edit",

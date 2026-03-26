@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "PDF Metadata Editor Free - View & Edit PDF Properties",
+  title: "PDF Metadata Editor & Sanitizer Free - View, Edit & Strip PDF Properties",
   description:
-    "View and edit PDF metadata for free. Change title, author, subject, keywords, and creation date. Works offline, your files stay private.",
+    "View, edit, or strip PDF metadata for free. Change title, author, subject, keywords, or remove all metadata for privacy. Works offline, your files stay private.",
   keywords: [
     "pdf metadata",
     "edit pdf properties",
@@ -12,10 +12,16 @@ export const metadata: Metadata = {
     "pdf author editor",
     "view pdf metadata",
     "free metadata editor",
+    "sanitize pdf",
+    "strip pdf metadata",
+    "remove pdf metadata",
+    "pdf privacy",
+    "clean pdf",
   ],
   openGraph: {
-    title: "PDF Metadata Editor Free - View & Edit PDF Properties",
-    description: "View and edit PDF metadata for free. Change title, author, and more. Works 100% offline.",
+    title: "PDF Metadata Editor & Sanitizer Free - View, Edit & Strip Properties",
+    description:
+      "View, edit, or strip PDF metadata for free. Change title, author, and more — or remove all metadata for privacy. Works 100% offline.",
   },
 };
 

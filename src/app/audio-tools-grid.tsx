@@ -121,8 +121,8 @@ export const audioTools = [
     colorClass: "tool-audio-reverse",
   },
   {
-    title: "Edit Metadata",
-    description: "Edit ID3 tags for MP3 files",
+    title: "Audio Metadata",
+    description: "View, edit, or strip ID3 tags for MP3 files",
     href: "/audio/metadata",
     icon: MusicTagIcon,
     category: "edit",

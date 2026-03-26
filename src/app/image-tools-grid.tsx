@@ -68,8 +68,8 @@ export const imageTools = [
     colorClass: "tool-heic",
   },
   {
-    title: "Strip Metadata",
-    description: "Remove EXIF data and GPS location from photos",
+    title: "Image Metadata",
+    description: "View EXIF data, GPS location, then strip for privacy",
     href: "/image/strip-metadata",
     icon: MetadataIcon,
     category: "privacy",

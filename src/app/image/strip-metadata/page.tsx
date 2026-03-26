@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { LoaderIcon, ShieldIcon } from "@/components/icons/ui";
+import * as exifr from "exifr";
 import { ImageIcon } from "@/components/icons/image";
 import { MetadataIcon } from "@/components/icons/pdf";
+import { LoaderIcon, ShieldIcon } from "@/components/icons/ui";
 import { ErrorBox, ImageFileInfo, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
@@ -12,18 +13,267 @@ import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } f
 import { getErrorMessage } from "@/lib/error";
 import { copyImageToClipboard, formatFileSize, getOutputFilename, stripMetadata } from "@/lib/image-utils";
 
-interface StripMetadata {
+// ============ Types ============
+
+interface StripResultMeta {
   originalSize: number;
 }
+
+interface ParsedMetadata {
+  camera?: CameraMetadata;
+  capture?: CaptureMetadata;
+  image?: ImageMetadata;
+  gps?: GpsMetadata;
+  other?: OtherMetadata;
+}
+
+interface CameraMetadata {
+  Make?: string;
+  Model?: string;
+  LensModel?: string;
+  Software?: string;
+}
+
+interface CaptureMetadata {
+  DateTimeOriginal?: Date;
+  ExposureTime?: number;
+  FNumber?: number;
+  ISO?: number;
+  FocalLength?: number;
+  Flash?: string;
+  WhiteBalance?: string;
+}
+
+interface ImageMetadata {
+  ImageWidth?: number;
+  ImageHeight?: number;
+  ColorSpace?: string;
+  Orientation?: number;
+}
+
+interface GpsMetadata {
+  latitude: number;
+  longitude: number;
+}
+
+interface OtherMetadata {
+  Copyright?: string;
+  Artist?: string;
+  Description?: string;
+}
+
+// ============ Formatting helpers ============
+
+function formatExposureTime(value: number): string {
+  if (value >= 1) return `${value}s`;
+  const denominator = Math.round(1 / value);
+  return `1/${denominator}s`;
+}
+
+function formatAperture(value: number): string {
+  return `f/${value}`;
+}
+
+function formatFocalLength(value: number): string {
+  return `${value}mm`;
+}
+
+function formatCoordinate(value: number, isLatitude: boolean): string {
+  const direction = isLatitude
+    ? value >= 0 ? "N" : "S"
+    : value >= 0 ? "E" : "W";
+  return `${Math.abs(value).toFixed(6)}° ${direction}`;
+}
+
+function googleMapsUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps?q=${lat},${lng}`;
+}
+
+// ============ Metadata extraction ============
+
+async function extractMetadata(file: File): Promise<ParsedMetadata> {
+  const [allData, gpsData] = await Promise.all([
+    exifr.parse(file, true).catch(() => null),
+    exifr.gps(file).catch(() => undefined),
+  ]);
+
+  if (!allData) return {};
+
+  const metadata: ParsedMetadata = {};
+
+  // Camera section
+  const cameraFields: CameraMetadata = {};
+  if (allData.Make) cameraFields.Make = String(allData.Make);
+  if (allData.Model) cameraFields.Model = String(allData.Model);
+  if (allData.LensModel) cameraFields.LensModel = String(allData.LensModel);
+  if (allData.Software) cameraFields.Software = String(allData.Software);
+  if (Object.keys(cameraFields).length > 0) metadata.camera = cameraFields;
+
+  // Capture section
+  const captureFields: CaptureMetadata = {};
+  if (allData.DateTimeOriginal) captureFields.DateTimeOriginal = new Date(allData.DateTimeOriginal);
+  if (allData.ExposureTime != null) captureFields.ExposureTime = Number(allData.ExposureTime);
+  if (allData.FNumber != null) captureFields.FNumber = Number(allData.FNumber);
+  if (allData.ISO != null) captureFields.ISO = Number(allData.ISO);
+  if (allData.FocalLength != null) captureFields.FocalLength = Number(allData.FocalLength);
+  if (allData.Flash != null) captureFields.Flash = String(allData.Flash);
+  if (allData.WhiteBalance != null) captureFields.WhiteBalance = String(allData.WhiteBalance);
+  if (Object.keys(captureFields).length > 0) metadata.capture = captureFields;
+
+  // Image section
+  const imageFields: ImageMetadata = {};
+  if (allData.ImageWidth != null) imageFields.ImageWidth = Number(allData.ImageWidth);
+  if (allData.ImageHeight != null) imageFields.ImageHeight = Number(allData.ImageHeight);
+  if (allData.ColorSpace != null) imageFields.ColorSpace = String(allData.ColorSpace);
+  if (allData.Orientation != null) imageFields.Orientation = Number(allData.Orientation);
+  if (Object.keys(imageFields).length > 0) metadata.image = imageFields;
+
+  // GPS section
+  if (gpsData?.latitude != null && gpsData?.longitude != null) {
+    metadata.gps = { latitude: gpsData.latitude, longitude: gpsData.longitude };
+  }
+
+  // Other section
+  const otherFields: OtherMetadata = {};
+  if (allData.Copyright) otherFields.Copyright = String(allData.Copyright);
+  if (allData.Artist) otherFields.Artist = String(allData.Artist);
+  const description = allData.ImageDescription || allData.Description;
+  if (description) otherFields.Description = String(description);
+  if (Object.keys(otherFields).length > 0) metadata.other = otherFields;
+
+  return metadata;
+}
+
+function hasAnyMetadata(metadata: ParsedMetadata): boolean {
+  return !!(metadata.camera || metadata.capture || metadata.image || metadata.gps || metadata.other);
+}
+
+// ============ Metadata section components ============
+
+function MetadataSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="border-2 border-foreground p-4 bg-card">
+      <p className="input-label mb-3">{title}</p>
+      <div className="space-y-1.5 text-sm">{children}</div>
+    </div>
+  );
+}
+
+function MetadataRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-right">{value}</span>
+    </div>
+  );
+}
+
+function CameraSection({ data }: { data: CameraMetadata }) {
+  return (
+    <MetadataSection title="Camera">
+      {data.Make && <MetadataRow label="Make" value={data.Make} />}
+      {data.Model && <MetadataRow label="Model" value={data.Model} />}
+      {data.LensModel && <MetadataRow label="Lens" value={data.LensModel} />}
+      {data.Software && <MetadataRow label="Software" value={data.Software} />}
+    </MetadataSection>
+  );
+}
+
+function CaptureSection({ data }: { data: CaptureMetadata }) {
+  return (
+    <MetadataSection title="Capture Settings">
+      {data.DateTimeOriginal && (
+        <MetadataRow label="Date" value={data.DateTimeOriginal.toLocaleString()} />
+      )}
+      {data.ExposureTime != null && (
+        <MetadataRow label="Exposure" value={formatExposureTime(data.ExposureTime)} />
+      )}
+      {data.FNumber != null && (
+        <MetadataRow label="Aperture" value={formatAperture(data.FNumber)} />
+      )}
+      {data.ISO != null && (
+        <MetadataRow label="ISO" value={String(data.ISO)} />
+      )}
+      {data.FocalLength != null && (
+        <MetadataRow label="Focal Length" value={formatFocalLength(data.FocalLength)} />
+      )}
+      {data.Flash && <MetadataRow label="Flash" value={data.Flash} />}
+      {data.WhiteBalance && <MetadataRow label="White Balance" value={data.WhiteBalance} />}
+    </MetadataSection>
+  );
+}
+
+function ImageSection({ data }: { data: ImageMetadata }) {
+  return (
+    <MetadataSection title="Image">
+      {data.ImageWidth != null && data.ImageHeight != null && (
+        <MetadataRow label="Dimensions" value={`${data.ImageWidth} × ${data.ImageHeight}`} />
+      )}
+      {data.ColorSpace != null && <MetadataRow label="Color Space" value={String(data.ColorSpace)} />}
+      {data.Orientation != null && <MetadataRow label="Orientation" value={String(data.Orientation)} />}
+    </MetadataSection>
+  );
+}
+
+function GpsSection({ data }: { data: GpsMetadata }) {
+  return (
+    <MetadataSection title="GPS Location">
+      <MetadataRow label="Latitude" value={formatCoordinate(data.latitude, true)} />
+      <MetadataRow label="Longitude" value={formatCoordinate(data.longitude, false)} />
+      <div className="pt-1">
+        <a
+          href={googleMapsUrl(data.latitude, data.longitude)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm font-medium underline underline-offset-2 hover:opacity-70"
+        >
+          View on Google Maps &rarr;
+        </a>
+      </div>
+    </MetadataSection>
+  );
+}
+
+function OtherSection({ data }: { data: OtherMetadata }) {
+  return (
+    <MetadataSection title="Other">
+      {data.Copyright && <MetadataRow label="Copyright" value={data.Copyright} />}
+      {data.Artist && <MetadataRow label="Artist" value={data.Artist} />}
+      {data.Description && <MetadataRow label="Description" value={data.Description} />}
+    </MetadataSection>
+  );
+}
+
+function MetadataDisplay({ metadata }: { metadata: ParsedMetadata }) {
+  if (!hasAnyMetadata(metadata)) {
+    return (
+      <InfoBox title="No metadata found">
+        This image does not contain any readable EXIF or metadata.
+      </InfoBox>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {metadata.camera && <CameraSection data={metadata.camera} />}
+      {metadata.capture && <CaptureSection data={metadata.capture} />}
+      {metadata.image && <ImageSection data={metadata.image} />}
+      {metadata.gps && <GpsSection data={metadata.gps} />}
+      {metadata.other && <OtherSection data={metadata.other} />}
+    </div>
+  );
+}
+
+// ============ Main page ============
 
 export default function StripMetadataPage() {
   const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
+  const [metadata, setMetadata] = useState<ParsedMetadata | null>(null);
 
-  // Use custom hooks
   const { url: preview, setSource: setPreview, revoke: revokePreview } = useObjectURL();
   const { isProcessing, error, startProcessing, stopProcessing, setError } = useFileProcessing();
-  const { result, setResult, clearResult, download } = useProcessingResult<StripMetadata>();
+  const { result, setResult, clearResult, download } = useProcessingResult<StripResultMeta>();
 
   const processFile = useCallback(
     async (fileToProcess: File) => {
@@ -44,27 +294,36 @@ export default function StripMetadataPage() {
   );
 
   const handleFileSelected = useCallback(
-    (files: File[]) => {
-      if (files.length > 0) {
-        const selectedFile = files[0];
-        setFile(selectedFile);
-        clearResult();
-        setPreview(selectedFile);
+    async (files: File[]) => {
+      if (files.length === 0) return;
 
-        if (isInstant) {
-          processFile(selectedFile);
-        }
+      const selectedFile = files[0];
+      setFile(selectedFile);
+      clearResult();
+      setPreview(selectedFile);
+      setMetadata(null);
+
+      if (isInstant) {
+        processFile(selectedFile);
+        return;
+      }
+
+      try {
+        const parsed = await extractMetadata(selectedFile);
+        setMetadata(parsed);
+      } catch {
+        setMetadata({});
       }
     },
     [isInstant, processFile, clearResult, setPreview],
   );
 
-  // Use clipboard paste hook
   useImagePaste(handleFileSelected, !result);
 
   const handleClear = useCallback(() => {
     revokePreview();
     setFile(null);
+    setMetadata(null);
     clearResult();
   }, [revokePreview, clearResult]);
 
@@ -79,6 +338,7 @@ export default function StripMetadataPage() {
   const handleStartOver = useCallback(() => {
     revokePreview();
     setFile(null);
+    setMetadata(null);
     clearResult();
   }, [revokePreview, clearResult]);
 
@@ -95,8 +355,8 @@ export default function StripMetadataPage() {
       <ImagePageHeader
         icon={<MetadataIcon className="w-7 h-7" />}
         iconClass="tool-strip-metadata"
-        title="Strip Metadata"
-        description="Remove EXIF data and GPS location from photos"
+        title="Image Metadata"
+        description="View EXIF data and GPS location, then strip it all for privacy"
       />
 
       {result ? (
@@ -118,7 +378,10 @@ export default function StripMetadataPage() {
               <li>• Software used</li>
             </ul>
           </div>
-          <p className="text-sm text-muted-foreground">New file size: {formatFileSize(result.blob.size)}</p>
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>Original: {formatFileSize(result.metadata?.originalSize ?? 0)}</span>
+            <span>Clean: {formatFileSize(result.blob.size)}</span>
+          </div>
         </SuccessCard>
       ) : showProcessingState ? (
         <div className="border-2 border-foreground p-12 bg-card">
@@ -140,7 +403,7 @@ export default function StripMetadataPage() {
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp"
+            accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.tiff,.tif"
             multiple={false}
             onFilesSelected={handleFileSelected}
             title="Drop your image here"
@@ -150,7 +413,7 @@ export default function StripMetadataPage() {
           <InfoBox title={isInstant ? "Instant processing" : "Manual mode"} icon={<ShieldIcon className="w-5 h-5 mt-0.5" />}>
             {isInstant
               ? "Drop or paste an image and it will be cleaned automatically."
-              : "Drop an image, review it, then click to process."}
+              : "Drop an image to view its metadata, then strip it if needed."}
           </InfoBox>
         </div>
       ) : (
@@ -174,28 +437,7 @@ export default function StripMetadataPage() {
             icon={<ImageIcon className="w-5 h-5" />}
           />
 
-          <div className="bg-[#FEF3C7] border-2 border-foreground p-4">
-            <div className="flex gap-3">
-              <svg
-                aria-hidden="true"
-                className="w-5 h-5 text-[#92400E] shrink-0 mt-0.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              <div className="text-sm">
-                <p className="font-bold text-[#92400E] mb-1">What will be removed</p>
-                <p className="text-[#92400E]/80">
-                  All EXIF metadata including camera info, GPS location, date taken, and any other embedded data.
-                </p>
-              </div>
-            </div>
-          </div>
+          {metadata !== null && <MetadataDisplay metadata={metadata} />}
 
           <button type="button" onClick={handleProcess} disabled={isProcessing} className="btn-primary w-full">
             <ShieldIcon className="w-5 h-5" />

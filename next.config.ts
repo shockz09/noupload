@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+	// Exclude jsmediatags from SSR bundling (it imports react-native-fs)
+	serverExternalPackages: ["jsmediatags"],
 	// Optimize barrel imports for faster builds and smaller bundles
 	experimental: {
 		optimizePackageImports: [
