@@ -31,8 +31,9 @@ export const ImagePageHeader = memo(function ImagePageHeader({
       iconClass={iconClass}
       title={title}
       description={description}
-      backHref="/image"
+      backHref="/"
       backLabel="Back to Image Tools"
+      tabKey="image"
     />
   );
 });

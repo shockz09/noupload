@@ -62,11 +62,21 @@ const categories: CategoryDef[] = [
 
 // ── Component ────────────────────────────────────────────────
 
+const STORAGE_KEY = "noupload-active-tab";
+const VALID_KEYS = new Set<CategoryKey>(["pdf", "image", "audio", "qr"]);
+
+function getSavedCategory(): CategoryKey {
+  if (typeof window === "undefined") return "pdf";
+  const saved = sessionStorage.getItem(STORAGE_KEY);
+  return saved && VALID_KEYS.has(saved as CategoryKey) ? (saved as CategoryKey) : "pdf";
+}
+
 export const ToolsHub = memo(function ToolsHub() {
-  const [active, setActive] = useState<CategoryKey>("pdf");
+  const [active, setActive] = useState<CategoryKey>(getSavedCategory);
 
   const handleSelect = useCallback((key: CategoryKey) => {
     setActive(key);
+    sessionStorage.setItem(STORAGE_KEY, key);
   }, []);
 
   const current = categories.find((c) => c.key === active)!;

@@ -52,8 +52,9 @@ export const AudioPageHeader = memo(function AudioPageHeader({
       iconClass={iconClass}
       title={title}
       description={description}
-      backHref="/audio"
+      backHref="/"
       backLabel="Back to Audio Tools"
+      tabKey="audio"
     />
   );
 });

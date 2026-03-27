@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { memo, type ReactNode } from "react";
-import { AlertIcon, ArrowLeftIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { AlertIcon, ArrowLeftIcon, BufferIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { BackButton } from "./BackButton";
 
 // ============ Page Header ============
@@ -11,6 +11,7 @@ interface PageHeaderProps {
   description: string;
   backHref: string;
   backLabel: string;
+  tabKey?: string;
 }
 
 export const PageHeader = memo(function PageHeader({
@@ -20,10 +21,11 @@ export const PageHeader = memo(function PageHeader({
   description,
   backHref,
   backLabel,
+  tabKey,
 }: PageHeaderProps) {
   return (
     <div className="space-y-6">
-      <BackButton fallbackHref={backHref} label={backLabel} />
+      <BackButton fallbackHref={backHref} label={backLabel} tabKey={tabKey} />
       <div className="flex items-center gap-5">
         <div className={`tool-icon ${iconClass}`}>{icon}</div>
         <div>
@@ -113,6 +115,7 @@ interface SuccessCardProps {
   downloadLabel: string;
   onDownload: (e: React.MouseEvent) => void;
   onCopy?: () => void; // Optional copy to clipboard
+  onHoldInBuffer?: () => void; // Optional hold-in-buffer for cross-tool workflows
   onStartOver: () => void;
   startOverLabel: string;
 }
@@ -125,6 +128,7 @@ export const SuccessCard = memo(function SuccessCard({
   downloadLabel,
   onDownload,
   onCopy,
+  onHoldInBuffer,
   onStartOver,
   startOverLabel,
 }: SuccessCardProps) {
@@ -144,26 +148,38 @@ export const SuccessCard = memo(function SuccessCard({
           {children}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-          <div className="flex gap-2">
-            <button type="button" onClick={onDownload} className="btn-success">
-              <DownloadIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-              {downloadLabel}
-            </button>
-            {onCopy && (
-              <button
-                type="button"
-                onClick={onCopy}
-                className="btn-success px-2 sm:px-3 shrink-0"
-                title="Copy to clipboard"
-              >
-                <CopyIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+        <div className="flex flex-col gap-3 items-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+            <div className="flex gap-2">
+              <button type="button" onClick={onDownload} className="btn-success">
+                <DownloadIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                {downloadLabel}
               </button>
-            )}
+              {onCopy && (
+                <button
+                  type="button"
+                  onClick={onCopy}
+                  className="btn-success px-2 sm:px-3 shrink-0"
+                  title="Copy to clipboard"
+                >
+                  <CopyIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              )}
+            </div>
+            <button type="button" onClick={onStartOver} className="btn-secondary">
+              {startOverLabel}
+            </button>
           </div>
-          <button type="button" onClick={onStartOver} className="btn-secondary">
-            {startOverLabel}
-          </button>
+          {onHoldInBuffer && (
+            <button
+              type="button"
+              onClick={onHoldInBuffer}
+              className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors mt-1"
+            >
+              <BufferIcon className="w-3.5 h-3.5" />
+              Hold in Buffer
+            </button>
+          )}
         </div>
       </div>
     </div>
