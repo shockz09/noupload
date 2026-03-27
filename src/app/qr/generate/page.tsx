@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeftIcon, CopyIcon, DownloadIcon } from "@/components/icons/ui";
+import { CopyIcon, DownloadIcon } from "@/components/icons/ui";
+import { BackButton } from "@/components/shared/BackButton";
 import { QRCustomizePanel } from "@/components/qr/customize-panel";
 import { ErrorBox } from "@/components/shared";
 import { copyImageToClipboard } from "@/lib/image-utils";
@@ -284,13 +284,7 @@ export default function QRGeneratePage() {
 
   return (
     <div className="page-enter max-w-6xl mx-auto space-y-8">
-      <Link
-        href="/"
-        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeftIcon className="w-4 h-4" />
-        Back to Tools
-      </Link>
+      <BackButton fallbackHref="/" label="Back to QR Tools" tabKey="qr" />
 
       <div className="flex items-start gap-6">
         <div className="tool-icon tool-qr-generate" style={{ width: 64, height: 64 }}>

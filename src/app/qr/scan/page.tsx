@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftIcon, LoaderIcon } from "@/components/icons/ui";
+import { LoaderIcon } from "@/components/icons/ui";
+import { BackButton } from "@/components/shared/BackButton";
 import { ErrorBox } from "@/components/shared";
 import { useImagePaste } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
@@ -233,13 +233,7 @@ export default function QRScanPage() {
 
   return (
     <div className="page-enter max-w-3xl mx-auto space-y-8">
-      <Link
-        href="/"
-        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeftIcon className="w-4 h-4" />
-        Back to Tools
-      </Link>
+      <BackButton fallbackHref="/" label="Back to QR Tools" tabKey="qr" />
 
       <div className="flex items-start gap-6">
         <div className="tool-icon tool-qr-scan" style={{ width: 64, height: 64 }}>
