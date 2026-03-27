@@ -13,7 +13,7 @@ import {
   type EditorAsset,
   type EditorObjectRecord,
 } from "../lib/editor-objects";
-import { buildEditableTextOptions } from "../lib/editable-text-style";
+import { buildEditableTextOptions, buildEditableWhiteoutOptions } from "../lib/editable-text-style";
 import { type TextRegion, useTextExtraction } from "../hooks/useTextExtraction";
 import type { PageState, Tool } from "../page";
 import type { StampData } from "./EditorToolbar";
@@ -484,20 +484,8 @@ export function EditorCanvas({
           const pairId = crypto.randomUUID();
           const { Rect } = await loadFabricModule();
 
-          // Add some padding to the whiteout
-          const padding = 2;
-
           // Create whiteout rectangle over original text
-          const whiteout = new Rect({
-            left: textRegion.bbox.x - padding,
-            top: textRegion.bbox.y - padding,
-            width: textRegion.bbox.width + padding * 2,
-            height: textRegion.bbox.height + padding * 2,
-            fill: "#FFFFFF",
-            stroke: "transparent",
-            selectable: false,
-            evented: false,
-          });
+          const whiteout = new Rect(buildEditableWhiteoutOptions(textRegion));
           attachEditorMetadata(whiteout, {
             editorKind: "whiteout",
             sourceTool: "select",

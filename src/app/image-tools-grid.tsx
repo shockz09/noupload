@@ -17,6 +17,7 @@ import {
   ScreenshotIcon,
 } from "@/components/icons/image";
 import { MetadataIcon, RotateIcon, WatermarkIcon } from "@/components/icons/pdf";
+import { EditIcon } from "@/components/icons/ui";
 
 export const imageTools = [
   {
@@ -50,6 +51,14 @@ export const imageTools = [
     icon: CollageIcon,
     category: "edit",
     colorClass: "tool-collage",
+  },
+  {
+    title: "Edit Image",
+    description: "Add text, shapes, drawings, stamps, and signatures",
+    href: "/image/edit",
+    icon: EditIcon,
+    category: "edit",
+    colorClass: "tool-image-edit",
   },
   {
     title: "Compress",

@@ -442,6 +442,7 @@
 .tool-crop { --tool-color: #991B1B; }
 .tool-rotate-image { --tool-color: #5B21B6; }
 .tool-strip-metadata { --tool-color: #3F6212; }
+.tool-image-edit { --tool-color: #C84C1C; }
 .tool-adjust { --tool-color: #92400E; }
 .tool-filters { --tool-color: #9D174D; }
 .tool-image-watermark { --tool-color: #6B21A8; }
