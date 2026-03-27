@@ -394,3 +394,23 @@ export function RefreshIcon({ className = "w-6 h-6" }: { className?: string }) {
     </svg>
   );
 }
+
+export function BufferIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3" />
+      <path d="M21 16v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3" />
+      <rect x="1" y="8" width="22" height="8" rx="1" />
+      <line x1="6" y1="12" x2="6.01" y2="12" />
+    </svg>
+  );
+}
