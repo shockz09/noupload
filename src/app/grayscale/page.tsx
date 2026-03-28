@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
@@ -172,7 +172,6 @@ export default function GrayscalePage() {
           />
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={-1} label={gsProgress || "Processing..."} />}
 
           <button type="button" onClick={handleConvert} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (

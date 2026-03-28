@@ -183,7 +183,7 @@ export default function MetadataPage() {
                 {result.metadata.removedFields.length === 1 ? "field" : "fields"}
               </p>
               {result.metadata.removedFields.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 justify-center">
                   {result.metadata.removedFields.map((field) => (
                     <span key={field} className="px-2 py-1 bg-muted text-xs font-medium rounded">
                       {field}
