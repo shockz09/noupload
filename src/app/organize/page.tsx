@@ -5,7 +5,7 @@ import { GripIcon, LoaderIcon, TrashIcon } from "@/components/icons/ui";
 import { NumbersIcon, OrganizeIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
-import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -460,7 +460,6 @@ export default function OrganizePage() {
           </InfoBox>
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={50} label="Organizing PDF..." />}
 
           {/* Action Button */}
           <button

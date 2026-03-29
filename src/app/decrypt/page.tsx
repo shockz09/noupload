@@ -5,7 +5,7 @@ import { UnlockIcon } from "@/components/icons/ui";
 import { PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PasswordInput } from "@/components/pdf/PasswordInput";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { useQpdf } from "@/lib/qpdf";
@@ -144,7 +144,6 @@ export default function DecryptPage() {
           </div>
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={progress} label="Decrypting..." />}
 
           <button
             type="button"

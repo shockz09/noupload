@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { NumbersIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
-import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -420,7 +420,6 @@ export default function PageNumbersPage() {
             <InfoBox>Numbers will be added to all {pages.length} pages at the same position.</InfoBox>
 
             {error && <ErrorBox message={error} />}
-            {isProcessing && <ProgressBar progress={50} label="Adding page numbers..." />}
 
             {/* Action Button */}
             <button type="button" onClick={handleAddPageNumbers} disabled={isProcessing} className="btn-primary w-full">

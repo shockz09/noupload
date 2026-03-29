@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { MergeIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { FileList } from "@/components/pdf/file-list";
-import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { useFileProcessing, usePdfDataResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { mergePDFs } from "@/lib/pdf-utils";
@@ -165,7 +165,6 @@ export default function MergePage() {
           <FileList files={files} onRemove={handleRemove} onReorder={handleReorder} onClear={handleClear} />
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={progress} label="Merging your PDFs..." />}
 
           <button
             type="button"

@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { RotateIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, PageThumbnailCard, usePdfPages } from "@/components/pdf/pdf-page-preview";
-import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { rotatePDF } from "@/lib/pdf-utils";
@@ -308,7 +308,6 @@ export default function RotatePage() {
           </div>
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={50} label="Applying rotations..." />}
 
           {/* Action Button */}
           <button

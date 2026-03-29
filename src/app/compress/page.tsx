@@ -8,7 +8,6 @@ import {
   ErrorBox,
   PdfFileInfo,
   PdfPageHeader,
-  ProgressBar,
   SavingsBadge,
   SuccessCard,
 } from "@/components/pdf/shared";
@@ -214,7 +213,6 @@ export default function CompressPage() {
           )}
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={-1} label={gsProgress || "Processing..."} />}
 
           <button type="button" onClick={handleCompress} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (

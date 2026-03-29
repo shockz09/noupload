@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { PdfIcon, ReversePagesIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
@@ -174,7 +174,6 @@ export default function ReversePage() {
           )}
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={progress} label="Reversing..." />}
 
           <button type="button" onClick={handleReverse} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (

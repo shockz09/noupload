@@ -5,7 +5,7 @@ import { LockIcon } from "@/components/icons/ui";
 import { PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PasswordInput } from "@/components/pdf/PasswordInput";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -175,7 +175,6 @@ export default function EncryptPage() {
           </p>
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={progress} label="Encrypting..." />}
 
           <button
             type="button"

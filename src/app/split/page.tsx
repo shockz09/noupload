@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { LoaderIcon } from "@/components/icons/ui";
 import { PdfIcon, SplitIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { downloadBlob, downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { extractPages, getPDFPageCount, splitPDF } from "@/lib/pdf-utils";
@@ -300,7 +300,6 @@ export default function SplitPage() {
           )}
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={progress} label="Processing..." />}
 
           <button type="button" onClick={handleSplit} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (
