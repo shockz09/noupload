@@ -80,15 +80,6 @@ function getPresetOptions(preset: PresetKey, info: VideoInfo): CompressOptions {
   };
 }
 
-function estimateReduction(preset: PresetKey, info: VideoInfo): number {
-  const opts = getPresetOptions(preset, info);
-  let estimate = 1 - opts.videoBitrate / info.videoBitrate;
-  if (opts.resolution === "720p" && info.height > 720) estimate += 0.15;
-  if (opts.resolution === "480p" && info.height > 480) estimate += 0.25;
-  if (opts.codec === "hevc") estimate += 0.1;
-  return Math.min(Math.round(estimate * 100), 95);
-}
-
 // ── Bulk types ──────────────────────────────────────────────
 interface BulkFileItem {
   id: string;
@@ -107,11 +98,9 @@ interface BulkCompressItem {
 function PresetSelector({
   preset,
   onSelect,
-  videoInfo,
 }: {
   preset: PresetKey;
   onSelect: (key: PresetKey) => void;
-  videoInfo?: VideoInfo | null;
 }) {
   return (
     <fieldset className="space-y-3">
@@ -119,7 +108,6 @@ function PresetSelector({
       <div className="grid grid-cols-3 gap-3" role="group">
         {(["light", "balanced", "maximum"] as PresetKey[]).map((key) => {
           const p = PRESETS[key];
-          const est = videoInfo ? estimateReduction(key, videoInfo) : null;
           return (
             <button
               key={key}
@@ -132,9 +120,7 @@ function PresetSelector({
               }`}
             >
               <div className="font-medium capitalize text-sm">{p.label}</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {est !== null ? `~${est}% smaller` : p.description}
-              </div>
+              <div className="text-xs text-muted-foreground mt-1">{p.description}</div>
             </button>
           );
         })}
@@ -486,7 +472,7 @@ export default function VideoCompressPage() {
           )}
 
           {videoInfo && !isProcessing && (
-            <PresetSelector preset={preset} onSelect={setPreset} videoInfo={videoInfo} />
+            <PresetSelector preset={preset} onSelect={setPreset} />
           )}
 
           {error && <ErrorBox message={error} />}
