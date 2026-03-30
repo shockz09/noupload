@@ -83,16 +83,22 @@ export default function ImageConvertPage() {
         const selectedFile = files[0];
         setFile(selectedFile);
         clearResult();
-        setPreview(selectedFile);
 
-        // Auto-select a different format as target
         const ext = selectedFile.name.split(".").pop()?.toLowerCase();
-        if (ext === "png") setTargetFormat("jpeg");
-        else if (ext === "jpg" || ext === "jpeg") setTargetFormat("png");
-        else if (ext === "webp") setTargetFormat("jpeg");
+        const isHeic = ext === "heic" || ext === "heif";
+
+        // Browsers can't render HEIC natively — skip preview
+        if (!isHeic) setPreview(selectedFile);
+
+        // Auto-select a sensible target format
+        let autoFormat: ImageFormat = "jpeg";
+        if (ext === "png") autoFormat = "jpeg";
+        else if (ext === "jpg" || ext === "jpeg") autoFormat = "png";
+        setTargetFormat(autoFormat);
 
         if (isInstant) {
-          processFile(selectedFile, "png", 100);
+          const autoQuality = autoFormat === "png" ? 100 : 90;
+          processFile(selectedFile, autoFormat, autoQuality);
         }
       }
     },
@@ -184,7 +190,7 @@ export default function ImageConvertPage() {
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp"
+            accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
             multiple={false}
             onFilesSelected={handleFileSelected}
             title="Drop your image here"
@@ -193,7 +199,7 @@ export default function ImageConvertPage() {
 
           <InfoBox title={isInstant ? "Instant conversion" : "Format guide"}>
             {isInstant
-              ? "Drop an image and it will be converted to PNG automatically."
+              ? "Drop an image and it will be converted automatically. HEIC supported."
               : "JPEG: Best for photos. PNG: Lossless with transparency. WebP: Modern format."}
           </InfoBox>
         </div>

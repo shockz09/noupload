@@ -166,8 +166,28 @@ export async function resizeImage(
   }
 }
 
-// Convert image format
+// Check if a file is HEIC/HEIF format
+export function isHeicFile(file: File): boolean {
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  return ext === "heic" || ext === "heif" || file.type === "image/heic" || file.type === "image/heif";
+}
+
+// Convert image format (supports HEIC/HEIF input)
 export async function convertFormat(file: File, format: ImageFormat, quality: number = 0.92): Promise<Blob> {
+  // HEIC/HEIF: use heic2any which supports JPEG/PNG natively, avoiding double-encoding
+  if (isHeicFile(file)) {
+    const { convertHeic } = await import("@/lib/heic-utils");
+
+    if (format === "jpeg") return convertHeic(file, "image/jpeg", quality);
+    if (format === "png") return convertHeic(file, "image/png", 1);
+
+    // WebP not supported by heic2any — use high-quality JPEG intermediate, then canvas below
+    const jpegBlob = await convertHeic(file, "image/jpeg", 0.95);
+    file = new File([jpegBlob], file.name.replace(/\.heic$/i, ".jpg").replace(/\.heif$/i, ".jpg"), {
+      type: "image/jpeg",
+    });
+  }
+
   const img = await loadImage(file);
 
   try {

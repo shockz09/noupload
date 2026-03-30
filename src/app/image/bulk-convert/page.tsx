@@ -154,7 +154,7 @@ export default function BulkConvertPage() {
       ) : (
         <div className="space-y-6">
           <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp"
+            accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
             multiple={true}
             maxFiles={50}
             onFilesSelected={handleFilesSelected}
