@@ -10,7 +10,7 @@ import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { formatFileSize } from "@/lib/utils";
 import { removeAudio } from "@/lib/video/remove-audio";
-import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS } from "@/lib/constants";
+import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 
 export default function RemoveAudioPage() {
   const { isInstant, isLoaded } = useInstantMode();
@@ -102,6 +102,7 @@ export default function RemoveAudioPage() {
           <FileDropzone
             accept={VIDEO_EXTENSIONS}
             multiple={false}
+            maxSize={VIDEO_MAX_FILE_SIZE}
             onFilesSelected={handleFileSelected}
             title="Drop your video file here"
             subtitle="MP4, MOV, WebM, MKV"

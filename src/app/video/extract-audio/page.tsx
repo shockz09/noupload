@@ -11,7 +11,7 @@ import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { formatFileSize } from "@/lib/utils";
 import { extractAudio, type AudioOutputFormat } from "@/lib/video/extract-audio";
-import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS } from "@/lib/constants";
+import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 
 const FORMATS: { key: AudioOutputFormat; label: string; desc: string }[] = [
   { key: "mp3", label: "MP3", desc: "Universal" },
@@ -111,6 +111,7 @@ export default function ExtractAudioPage() {
           <FileDropzone
             accept={VIDEO_EXTENSIONS}
             multiple={false}
+            maxSize={VIDEO_MAX_FILE_SIZE}
             onFilesSelected={handleFileSelected}
             title="Drop your video file here"
             subtitle="MP4, MOV, WebM, MKV"

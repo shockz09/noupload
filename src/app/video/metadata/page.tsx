@@ -8,7 +8,7 @@ import { useFileProcessing } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { formatFileSize } from "@/lib/utils";
 import { getVideoMetadata, type VideoMetadata } from "@/lib/video/metadata";
-import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS } from "@/lib/constants";
+import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -104,6 +104,7 @@ export default function VideoMetadataPage() {
         <FileDropzone
           accept={VIDEO_EXTENSIONS}
           multiple={false}
+          maxSize={VIDEO_MAX_FILE_SIZE}
           onFilesSelected={handleFileSelected}
           title="Drop your video file here"
           subtitle="MP4, MOV, WebM, MKV"

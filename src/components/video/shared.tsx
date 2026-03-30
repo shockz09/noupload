@@ -6,7 +6,7 @@ import { FileInfo, PageHeader } from "@/components/shared";
 import { formatFileSize } from "@/lib/utils";
 
 // Re-export common components
-export { ErrorBox, ProcessButton, SuccessCard, ComparisonDisplay, SavingsBadge, InfoBox } from "@/components/shared";
+export { ErrorBox, ProcessButton, SuccessCard, ComparisonDisplay, SavingsBadge, InfoBox, ProgressBar } from "@/components/shared";
 
 // ============ Video Page Header ============
 interface VideoPageHeaderProps {
