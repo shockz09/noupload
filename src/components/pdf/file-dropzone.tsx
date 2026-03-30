@@ -1,7 +1,10 @@
 "use client";
 
 import { memo, useCallback, useMemo, useState } from "react";
-import { UploadIcon } from "@/components/icons/ui";
+import { BufferIcon, UploadIcon } from "@/components/icons/ui";
+import { useFileBuffer } from "@/hooks/useFileBuffer";
+import type { BufferItem } from "@/lib/file-buffer";
+import { MIME_TO_EXTENSIONS } from "@/lib/file-buffer";
 import { cn } from "@/lib/utils";
 
 interface FileDropzoneProps {
@@ -32,6 +35,16 @@ export const FileDropzone = memo(function FileDropzone({
 
   // Memoize accepted extensions parsing
   const acceptedExtensions = useMemo(() => accept.split(",").map((a) => a.trim().toLowerCase()), [accept]);
+
+  // Buffer integration — show compatible buffered files
+  const { items: bufferItems, toFile } = useFileBuffer();
+  const compatibleBufferItems = useMemo(() => {
+    return bufferItems.filter((item: BufferItem) => {
+      const extensions = MIME_TO_EXTENSIONS[item.mimeType];
+      if (!extensions) return false;
+      return extensions.some((ext) => acceptedExtensions.includes(ext));
+    });
+  }, [bufferItems, acceptedExtensions]);
 
   const handleFiles = useCallback(
     (files: FileList | null) => {
@@ -81,9 +94,20 @@ export const FileDropzone = memo(function FileDropzone({
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
+
+      // Check if this is a buffer item drag
+      const bufferId = e.dataTransfer.getData("application/x-buffer-id");
+      if (bufferId) {
+        const item = bufferItems.find((i: BufferItem) => i.id === bufferId);
+        if (item) {
+          onFilesSelected([toFile(item)]);
+          return;
+        }
+      }
+
       handleFiles(e.dataTransfer.files);
     },
-    [handleFiles],
+    [handleFiles, bufferItems, toFile, onFilesSelected],
   );
 
   const handleClick = useCallback(() => {
@@ -216,6 +240,41 @@ export const FileDropzone = memo(function FileDropzone({
           </div>
         )}
       </div>
+
+      {/* Buffer files */}
+      {compatibleBufferItems.length > 0 && (
+        <div
+          className="absolute bottom-0 left-0 right-0 z-20 border-t-2 border-foreground bg-card px-4 py-3"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          role="presentation"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <BufferIcon className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              From Buffer
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {compatibleBufferItems.map((item: BufferItem) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onFilesSelected([toFile(item)])}
+                className="flex items-center gap-2 px-3 py-1.5 border-2 border-foreground/20 hover:border-foreground hover:bg-accent text-sm font-medium transition-colors"
+                title={`Use ${item.filename} from ${item.sourceToolLabel}`}
+              >
+                {item.previewUrl ? (
+                  <img src={item.previewUrl} alt="" className="w-5 h-5 object-cover border border-foreground/20" />
+                ) : (
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase">{item.fileType}</span>
+                )}
+                <span className="truncate max-w-[140px]">{item.filename}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 });

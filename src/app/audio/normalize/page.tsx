@@ -15,7 +15,7 @@ import {
 import { NormalizeIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useAudioResult, useVideoToAudio } from "@/hooks";
+import { useAudioResult, useFileBuffer, useVideoToAudio } from "@/hooks";
 import { formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
@@ -141,6 +141,19 @@ export default function NormalizeAudioPage() {
     setDuration(0);
   };
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "audio",
+      sourceToolLabel: "Normalize Audio",
+    });
+  }, [result, addToBuffer]);
+
   const isProcessing = processingState !== "idle";
   const _selectedPreset = presets.find((p) => p.value === preset);
   const usedPresetInfo = presets.find((p) => p.value === usedPreset);
@@ -163,6 +176,7 @@ export default function NormalizeAudioPage() {
           subtitle={`Target: ${usedPresetInfo?.label} (${usedPresetInfo?.lufs}) | ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download Normalized Audio"
           onDownload={download}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Normalize Another"
         >

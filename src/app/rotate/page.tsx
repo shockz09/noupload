@@ -6,6 +6,7 @@ import { RotateIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, PageThumbnailCard, usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { rotatePDF } from "@/lib/pdf-utils";
@@ -154,6 +155,20 @@ export default function RotatePage() {
     setPageRotations({});
   }, []);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Rotate PDF",
+    });
+  }, [result, addToBuffer]);
+
   const rotatedCount = Object.values(pageRotations).filter((r) => r !== 0).length;
 
   return (
@@ -172,6 +187,7 @@ export default function RotatePage() {
             title="PDF Rotated!"
             downloadLabel="Download PDF"
             onDownload={handleDownload}
+            onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Rotate Another PDF"
           >

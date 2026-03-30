@@ -14,7 +14,7 @@ import { ReverseIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
+import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { formatDuration, formatFileSize, getAudioInfo, reverseAudio } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
@@ -91,6 +91,19 @@ export default function ReverseAudioPage() {
     if (file) processFile(file);
   }, [file, processFile]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "audio",
+      sourceToolLabel: "Reverse Audio",
+    });
+  }, [result, addToBuffer]);
+
   if (!isLoaded) return null;
 
   return (
@@ -109,6 +122,7 @@ export default function ReverseAudioPage() {
           subtitle={`${formatDuration(duration)} • ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download Reversed Audio"
           onDownload={download}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleClear}
           startOverLabel="Reverse Another"
         >

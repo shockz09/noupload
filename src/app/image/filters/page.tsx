@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { FiltersIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import {
   applyFilter,
@@ -375,6 +375,19 @@ export default function ImageFiltersPage() {
     setSelectedFilter(null);
   }, [revokePreview, revokeLivePreview, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Image Filters",
+    });
+  }, [result, addToBuffer]);
+
   const handleFilterSelect = useCallback((filter: FilterType) => setSelectedFilter(filter), []);
   const handleClearFilter = useCallback(() => setSelectedFilter(null), []);
 
@@ -403,6 +416,7 @@ export default function ImageFiltersPage() {
           downloadLabel="Download Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Apply to Another"
         >

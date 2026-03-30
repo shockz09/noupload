@@ -7,7 +7,7 @@ import { ComparisonDisplay, ErrorBox, ImageFileInfo, ImagePageHeader, SuccessCar
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useFileProcessing, useImagePaste } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useImagePaste } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { convertHeicToJpeg } from "@/lib/heic-utils";
 import { copyImageToClipboard, downloadImage, formatFileSize } from "@/lib/image-utils";
@@ -84,6 +84,19 @@ export default function HeicToJpegPage() {
     setResult(null);
   }, [clearError]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "HEIC to JPEG",
+    });
+  }, [result, addToBuffer]);
+
   if (!isLoaded) return null;
 
   return (
@@ -102,6 +115,7 @@ export default function HeicToJpegPage() {
           downloadLabel="Download JPEG"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleClear}
           startOverLabel="Convert Another"
         >

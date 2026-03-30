@@ -14,7 +14,7 @@ import {
 import { GripIcon, XIcon } from "@/components/icons/ui";
 import { AudioIcon, AudioMergeIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useAudioResult, useVideoToAudio } from "@/hooks";
+import { useAudioResult, useFileBuffer, useVideoToAudio } from "@/hooks";
 import { formatFileSize } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
@@ -114,6 +114,19 @@ export default function MergeAudioPage() {
     setProgress(0);
   };
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "audio",
+      sourceToolLabel: "Merge Audio",
+    });
+  }, [result, addToBuffer]);
+
   const isProcessing = processingState !== "idle";
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
@@ -133,6 +146,7 @@ export default function MergeAudioPage() {
           subtitle={`${files.length} files combined | ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download Merged Audio"
           onDownload={download}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Merge More Files"
         >

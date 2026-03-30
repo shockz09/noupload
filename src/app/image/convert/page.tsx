@@ -14,7 +14,7 @@ import {
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { convertFormat, copyImageToClipboard, formatFileSize, type ImageFormat } from "@/lib/image-utils";
 import { getFileBaseName } from "@/lib/utils";
@@ -128,6 +128,19 @@ export default function ImageConvertPage() {
     clearResult();
   }, [revokePreview, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Convert Image",
+    });
+  }, [result, addToBuffer]);
+
   const handleFormatSelect = useCallback((format: ImageFormat) => {
     setTargetFormat(format);
   }, []);
@@ -156,6 +169,7 @@ export default function ImageConvertPage() {
           downloadLabel={`Download ${result.metadata?.newFormat.toUpperCase()}`}
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Convert Another"
         >

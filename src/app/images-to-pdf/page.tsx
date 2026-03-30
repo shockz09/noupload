@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { useImagePaste } from "@/hooks";
+import { useFileBuffer, useImagePaste } from "@/hooks";
 import { GripIcon, LoaderIcon, UploadIcon, XIcon } from "@/components/icons/ui";
 import { CameraIcon, FileIcon } from "@/components/icons/pdf";
 import { CameraCapture } from "@/components/pdf/CameraCapture";
@@ -155,6 +155,20 @@ export default function ImagesToPdfPage() {
     setShowCamera(false);
   }, []);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Images to PDF",
+    });
+  }, [result, addToBuffer]);
+
   // Page size handlers
   const setPageSizeA4 = useCallback(() => setPageSize("a4"), []);
   const setPageSizeLetter = useCallback(() => setPageSize("letter"), []);
@@ -241,6 +255,7 @@ export default function ImagesToPdfPage() {
             title="PDF Created!"
             downloadLabel="Download PDF"
             onDownload={handleDownload}
+            onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Create Another PDF"
           >

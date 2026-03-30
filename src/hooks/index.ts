@@ -28,3 +28,4 @@ export {
   useProcessingResult,
 } from "./useProcessingResult";
 export { type ExtractionState, useVideoToAudio } from "./useVideoToAudio";
+export { useFileBuffer } from "./useFileBuffer";

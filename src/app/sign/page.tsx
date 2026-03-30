@@ -8,6 +8,7 @@ import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview"
 import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { SignatureDrawPad, SignatureUpload } from "@/components/signature";
+import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { addSignature } from "@/lib/pdf-utils";
@@ -171,6 +172,20 @@ export default function SignPage() {
     setPosition({ x: 70, y: 10 });
   }, []);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Sign PDF",
+    });
+  }, [result, addToBuffer]);
+
   // Mode toggle callbacks
   const setModeDraw = useCallback(() => setSignatureMode("draw"), []);
   const setModeUpload = useCallback(() => setSignatureMode("upload"), []);
@@ -194,6 +209,7 @@ export default function SignPage() {
             title="PDF Signed!"
             downloadLabel="Download Signed PDF"
             onDownload={handleDownload}
+            onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Sign Another PDF"
           >

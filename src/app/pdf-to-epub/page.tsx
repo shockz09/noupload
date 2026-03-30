@@ -6,7 +6,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProcessButton, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useFileProcessing } from "@/hooks";
+import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { convertPdfToEpub } from "@/lib/pdf-to-epub";
@@ -95,6 +95,19 @@ export default function PdfToEpubPage() {
     clearError();
   }, [clearError]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: "application/epub+zip",
+      size: result.blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "PDF to EPUB",
+    });
+  }, [result, addToBuffer]);
+
   if (!isLoaded) return null;
 
   return (
@@ -113,6 +126,7 @@ export default function PdfToEpubPage() {
           subtitle={`${result.pageCount} pages · ${result.chapterCount} chapters · ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download .epub"
           onDownload={handleDownload}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Convert Another PDF"
         />

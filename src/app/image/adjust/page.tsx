@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { BrightnessIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { adjustImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 
@@ -96,6 +96,19 @@ export default function ImageAdjustPage() {
     setSaturation(0);
   }, [revokePreview, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Adjust Image",
+    });
+  }, [result, addToBuffer]);
+
   const handleBrightnessChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setBrightness(Number(e.target.value));
   }, []);
@@ -132,6 +145,7 @@ export default function ImageAdjustPage() {
           downloadLabel="Download Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Adjust Another"
         >

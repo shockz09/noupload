@@ -6,7 +6,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useFileProcessing } from "@/hooks";
+import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { useGhostscript } from "@/lib/ghostscript/useGhostscript";
@@ -121,6 +121,20 @@ export default function GrayscalePage() {
     instantTriggeredRef.current = false;
   }, [clearError]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Grayscale PDF",
+    });
+  }, [result, addToBuffer]);
+
   if (!isLoaded) return null;
 
   return (
@@ -138,6 +152,7 @@ export default function GrayscalePage() {
           title="PDF Converted to Grayscale!"
           downloadLabel="Download PDF"
           onDownload={handleDownload}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Convert Another"
         >

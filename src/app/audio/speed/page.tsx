@@ -12,7 +12,7 @@ import {
 } from "@/components/audio/shared";
 import { SpeedIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
+import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { changeSpeed, formatDuration, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
@@ -81,6 +81,19 @@ export default function SpeedAudioPage() {
     setSpeed(1);
   }, [revokeAudio, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "audio",
+      sourceToolLabel: "Change Speed",
+    });
+  }, [result, addToBuffer]);
+
   const handleSpeedSelect = useCallback((s: number) => setSpeed(s), []);
 
   const newDuration = duration / speed;
@@ -102,6 +115,7 @@ export default function SpeedAudioPage() {
           subtitle={`${usedSpeed}x speed • ${formatDuration(duration / usedSpeed)} • ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download Audio"
           onDownload={download}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Process Another"
         >

@@ -12,7 +12,7 @@ import {
 } from "@/components/audio/shared";
 import { FadeIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
+import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { applyFade, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
@@ -83,6 +83,19 @@ export default function FadeAudioPage() {
     setFadeOut(1);
   }, [revokeAudio, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "audio",
+      sourceToolLabel: "Fade Effect",
+    });
+  }, [result, addToBuffer]);
+
   const handleFadeInChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setFadeIn(Number(e.target.value));
   }, []);
@@ -110,6 +123,7 @@ export default function FadeAudioPage() {
           subtitle={`Fade in: ${usedFadeIn}s • Fade out: ${usedFadeOut}s • ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download Audio"
           onDownload={download}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Process Another"
         >

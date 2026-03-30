@@ -6,7 +6,7 @@ import { MergeIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { FileList } from "@/components/pdf/file-list";
 import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
-import { useFileProcessing, usePdfDataResult } from "@/hooks";
+import { useFileBuffer, useFileProcessing, usePdfDataResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { mergePDFs } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
@@ -110,6 +110,20 @@ export default function MergePage() {
     clearResult();
   }, [clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Merge PDF",
+    });
+  }, [result, addToBuffer]);
+
   const buttonLabel = files.length > 0 ? `Merge ${files.length} PDFs` : "Merge PDFs";
 
   return (
@@ -127,6 +141,7 @@ export default function MergePage() {
           title="PDFs Merged!"
           downloadLabel="Download PDF"
           onDownload={handleDownload}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Merge More Files"
         >

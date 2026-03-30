@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { ResizeIcon } from "@/components/icons/image";
 import { ComparisonDisplay, ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import {
   copyImageToClipboard,
@@ -127,6 +127,19 @@ export default function ImageResizePage() {
     clearResult();
   }, [revokePreview, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Resize Image",
+    });
+  }, [result, addToBuffer]);
+
   const handleMaintainAspectChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setMaintainAspect(e.target.checked);
   }, []);
@@ -152,6 +165,7 @@ export default function ImageResizePage() {
           downloadLabel="Download Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Resize Another"
         >

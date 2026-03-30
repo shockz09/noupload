@@ -1306,3 +1306,207 @@ input.markdown-editor:focus {
 .fabric-canvas-wrapper .upper-canvas {
   cursor: crosshair;
 }
+
+/* ============================================
+   FILE BUFFER DOCK
+   ============================================ */
+
+/* Mobile: bottom dock */
+.buffer-dock {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  z-index: 45;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0 16px 16px;
+}
+
+.buffer-dock.open {
+  transform: translateX(-50%) translateY(0);
+}
+
+.buffer-dock.closed {
+  transform: translateX(-50%) translateY(100%);
+}
+
+/* Desktop: right side dock */
+@media (min-width: 768px) {
+  .buffer-dock {
+    bottom: auto;
+    left: auto;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%) translateX(100%);
+    padding: 16px 16px 16px 0;
+  }
+
+  .buffer-dock.open {
+    transform: translateY(-50%) translateX(0);
+  }
+
+  .buffer-dock.closed {
+    transform: translateY(-50%) translateX(100%);
+  }
+}
+
+.dock-inner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: var(--card);
+  border: 1.5px solid var(--foreground);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.dock-inner.single {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Desktop: vertical layout */
+@media (min-width: 768px) {
+  .dock-inner {
+    flex-direction: column;
+    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .dock-inner.single {
+    box-shadow: none;
+  }
+}
+
+.dock-items {
+  display: flex;
+  gap: 3px;
+}
+
+@media (min-width: 768px) {
+  .dock-items {
+    flex-direction: column;
+  }
+}
+
+.dock-item-wrapper {
+  position: relative;
+}
+
+.dock-thumb {
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid var(--foreground)/40;
+  border-radius: 2px;
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  transition: all 0.15s ease;
+  overflow: hidden;
+}
+
+.dock-thumb:active {
+  cursor: grabbing;
+}
+
+.dock-thumb:hover {
+  border-color: var(--foreground);
+  transform: translateY(-2px);
+}
+
+@media (min-width: 768px) {
+  .dock-thumb:hover {
+    transform: translateX(-2px) translateY(0);
+  }
+}
+
+.dock-thumb.active {
+  border-color: var(--foreground);
+  background: var(--accent);
+}
+
+.dock-thumb-label {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Quick actions menu - mobile: pops up */
+.dock-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 180px;
+  background: var(--card);
+  border: 2px solid var(--foreground);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+  animation: dock-menu-in 0.15s ease;
+}
+
+/* Desktop: pops left */
+@media (min-width: 768px) {
+  .dock-menu {
+    bottom: auto;
+    left: auto;
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    animation: dock-menu-in-desktop 0.15s ease;
+  }
+}
+
+@keyframes dock-menu-in-desktop {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+@keyframes dock-menu-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.dock-menu-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dock-menu-section {
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.dock-menu-section:first-of-type {
+  border-top: none;
+}
+
+.dock-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: background 0.1s ease;
+}
+
+.dock-menu-item:hover {
+  background: var(--accent);
+}

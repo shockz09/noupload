@@ -6,7 +6,7 @@ import { CollageIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, ProgressBar, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
-import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { type CollageLayout, copyImageToClipboard, createCollage, formatFileSize } from "@/lib/image-utils";
 
@@ -188,6 +188,19 @@ export default function CollagePage() {
     revokePreview();
   }, [files, clearResult, revokePreview]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Collage Maker",
+    });
+  }, [result, addToBuffer]);
+
   const totalSize = useMemo(() => files.reduce((acc, f) => acc + f.file.size, 0), [files]);
 
   // CSS grid classes for live preview
@@ -229,6 +242,7 @@ export default function CollagePage() {
             downloadLabel="Download Collage"
             onDownload={handleDownload}
             onCopy={() => copyImageToClipboard(result.blob)}
+            onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Create Another"
           />

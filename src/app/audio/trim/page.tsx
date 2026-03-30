@@ -12,7 +12,7 @@ import {
 import { PauseIcon, PlayIcon } from "@/components/icons/ui";
 import { AudioIcon, TrimIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
+import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { formatDuration, formatFileSize, getAudioInfo, getWaveformData, trimAudio } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
@@ -130,6 +130,19 @@ export default function TrimAudioPage() {
     setWaveform([]);
   }, [revokeAudio, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "audio",
+      sourceToolLabel: "Trim Audio",
+    });
+  }, [result, addToBuffer]);
+
   const handleEnded = useCallback(() => setIsPlaying(false), []);
 
   // Drag handling for waveform selection
@@ -201,6 +214,7 @@ export default function TrimAudioPage() {
           subtitle={`Duration: ${formatDuration(selectedDuration)} • ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download Trimmed Audio"
           onDownload={download}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Trim Another Audio"
         >

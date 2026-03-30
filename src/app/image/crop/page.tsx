@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { CropIcon, ImageIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import {
   type CropArea,
@@ -223,6 +223,19 @@ export default function ImageCropPage() {
     setAspectRatio(null);
   }, [revokePreview, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Crop Image",
+    });
+  }, [result, addToBuffer]);
+
   const handleAspectRatioSelect = useCallback((value: number | null) => {
     setAspectRatio(value);
   }, []);
@@ -275,6 +288,7 @@ export default function ImageCropPage() {
           downloadLabel="Download Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Crop Another"
         >

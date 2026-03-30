@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { memo, useMemo } from "react";
+import { BufferDock } from "@/components/file-buffer";
 import { InstantModeNavToggle } from "@/components/shared/InstantModeToggle";
 
 export const Header = memo(function Header() {
@@ -17,13 +18,18 @@ export const Header = memo(function Header() {
   }, [pathname]);
 
   return (
-    <header className="header-main sticky top-0 z-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-        <Link href="/" className="header-logo">
-          noupload{section && <span>/{section.name}</span>}
-        </Link>
-        <InstantModeNavToggle />
-      </div>
-    </header>
+    <>
+      <header className="header-main sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+          <Link href="/" className="header-logo">
+            noupload{section && <span>/{section.name}</span>}
+          </Link>
+          <div className="flex items-center gap-2">
+            <InstantModeNavToggle />
+          </div>
+        </div>
+      </header>
+      <BufferDock />
+    </>
   );
 });

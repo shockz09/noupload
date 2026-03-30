@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { BorderIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { addBorder, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 
@@ -76,6 +76,19 @@ export default function ImageBorderPage() {
     clearResult();
   }, [revokePreview, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Add Border",
+    });
+  }, [result, addToBuffer]);
+
   const handleWidthPreset = useCallback((width: number) => {
     setBorderWidth(width);
   }, []);
@@ -110,6 +123,7 @@ export default function ImageBorderPage() {
           downloadLabel="Download Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Add Border to Another"
         >

@@ -7,6 +7,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
+import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { addPageNumbers, organizePDF } from "@/lib/pdf-utils";
@@ -225,6 +226,20 @@ export default function OrganizePage() {
     prevPagesLength.current = 0;
   };
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Organize PDF",
+    });
+  }, [result, addToBuffer]);
+
   // Memoize hasChanges calculation
   const hasChanges = useMemo(() => {
     if (pageItems.length !== pages.length) return true;
@@ -247,6 +262,7 @@ export default function OrganizePage() {
             title="PDF Organized!"
             downloadLabel="Download PDF"
             onDownload={handleDownload}
+            onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Organize Another PDF"
           >

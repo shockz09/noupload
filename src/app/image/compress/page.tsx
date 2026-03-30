@@ -15,7 +15,7 @@ import {
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox, QualitySlider } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { compressImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 
@@ -101,6 +101,19 @@ export default function ImageCompressPage() {
     clearResult();
   }, [revokePreview, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Compress Image",
+    });
+  }, [result, addToBuffer]);
+
   const savings = result?.metadata ? Math.round((1 - result.metadata.compressedSize / result.metadata.originalSize) * 100) : 0;
 
   if (!isLoaded) return null;
@@ -121,6 +134,7 @@ export default function ImageCompressPage() {
           downloadLabel="Download Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Compress Another"
         >

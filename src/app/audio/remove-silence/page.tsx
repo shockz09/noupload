@@ -15,7 +15,7 @@ import {
 import { SilenceIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useAudioResult, useVideoToAudio } from "@/hooks";
+import { useAudioResult, useFileBuffer, useVideoToAudio } from "@/hooks";
 import { formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
@@ -137,6 +137,19 @@ export default function RemoveSilencePage() {
     setDuration(0);
   };
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "audio",
+      sourceToolLabel: "Remove Silence",
+    });
+  }, [result, addToBuffer]);
+
   const isProcessing = processingState !== "idle";
 
   if (!isLoaded) return null;
@@ -157,6 +170,7 @@ export default function RemoveSilencePage() {
           subtitle={`${usedMode === "trim-ends" ? "Ends trimmed" : "All silence removed"} | ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download Trimmed Audio"
           onDownload={download}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Process Another"
         >

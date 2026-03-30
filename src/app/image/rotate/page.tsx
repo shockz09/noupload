@@ -6,7 +6,7 @@ import { FlipHorizontalIcon, FlipVerticalIcon } from "@/components/icons/image";
 import { RotateIcon } from "@/components/icons/pdf";
 import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { copyImageToClipboard, flipImage, formatFileSize, getOutputFilename, rotateImage } from "@/lib/image-utils";
 
@@ -86,6 +86,19 @@ export default function ImageRotatePage() {
     setFlipV(false);
   }, [revokePreview, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Rotate & Flip",
+    });
+  }, [result, addToBuffer]);
+
   const handleFlipH = useCallback(() => setFlipH((prev) => !prev), []);
   const handleFlipV = useCallback(() => setFlipV((prev) => !prev), []);
 
@@ -124,6 +137,7 @@ export default function ImageRotatePage() {
           downloadLabel="Download Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Transform Another"
         >

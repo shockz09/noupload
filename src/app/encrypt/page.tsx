@@ -7,6 +7,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PasswordInput } from "@/components/pdf/PasswordInput";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
+import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { useQpdf } from "@/lib/qpdf";
@@ -115,6 +116,20 @@ export default function EncryptPage() {
     clearError();
   };
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Encrypt PDF",
+    });
+  }, [result, addToBuffer]);
+
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
       <PdfPageHeader
@@ -130,6 +145,7 @@ export default function EncryptPage() {
           title="PDF Encrypted!"
           downloadLabel="Download Protected PDF"
           onDownload={handleDownload}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Encrypt Another"
         >

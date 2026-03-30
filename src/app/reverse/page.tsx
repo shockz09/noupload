@@ -6,7 +6,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useFileProcessing } from "@/hooks";
+import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { getPDFPageCount, reversePDF } from "@/lib/pdf-utils";
@@ -108,6 +108,20 @@ export default function ReversePage() {
     setPageCount(0);
   }, [clearError]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Reverse Pages",
+    });
+  }, [result, addToBuffer]);
+
   if (!isLoaded) return null;
 
   return (
@@ -125,6 +139,7 @@ export default function ReversePage() {
           title="Pages Reversed!"
           downloadLabel="Download PDF"
           onDownload={handleDownload}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Reverse Another"
         >

@@ -7,6 +7,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
+import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { addWatermark } from "@/lib/pdf-utils";
@@ -170,6 +171,20 @@ export default function WatermarkPage() {
     setPosition({ x: 50, y: 50 });
   }, []);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Add Watermark",
+    });
+  }, [result, addToBuffer]);
+
   // Input handlers
   const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setWatermarkText(e.target.value);
@@ -227,6 +242,7 @@ export default function WatermarkPage() {
             title="Watermark Added!"
             downloadLabel="Download PDF"
             onDownload={handleDownload}
+            onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Add Another Watermark"
           >

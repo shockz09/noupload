@@ -12,7 +12,7 @@ import {
 } from "@/components/audio/shared";
 import { VolumeIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useAudioResult, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
+import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { adjustVolume, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
@@ -79,6 +79,19 @@ export default function VolumeAudioPage() {
     setVolume(100);
   }, [revokeAudio, clearResult]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "audio",
+      sourceToolLabel: "Adjust Volume",
+    });
+  }, [result, addToBuffer]);
+
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(Number(e.target.value));
   }, []);
@@ -101,6 +114,7 @@ export default function VolumeAudioPage() {
           subtitle={`${usedVolume}% volume • ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download Audio"
           onDownload={download}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Process Another"
         >

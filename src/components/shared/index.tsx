@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { memo, type ReactNode } from "react";
-import { AlertIcon, ArrowLeftIcon, BufferIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { memo, useEffect, useRef, type ReactNode } from "react";
+import { AlertIcon, ArrowLeftIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { BackButton } from "./BackButton";
 
 // ============ Page Header ============
@@ -132,6 +133,16 @@ export const SuccessCard = memo(function SuccessCard({
   onStartOver,
   startOverLabel,
 }: SuccessCardProps) {
+  // Auto-buffer on mount (only in instant mode)
+  const { isInstant } = useInstantMode();
+  const bufferedRef = useRef(false);
+  useEffect(() => {
+    if (isInstant && onHoldInBuffer && !bufferedRef.current) {
+      bufferedRef.current = true;
+      onHoldInBuffer();
+    }
+  }, [isInstant, onHoldInBuffer]);
+
   return (
     <div className="animate-fade-up">
       <div className="success-card">
@@ -170,16 +181,6 @@ export const SuccessCard = memo(function SuccessCard({
               {startOverLabel}
             </button>
           </div>
-          {onHoldInBuffer && (
-            <button
-              type="button"
-              onClick={onHoldInBuffer}
-              className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors mt-1"
-            >
-              <BufferIcon className="w-3.5 h-3.5" />
-              Hold in Buffer
-            </button>
-          )}
         </div>
       </div>
     </div>

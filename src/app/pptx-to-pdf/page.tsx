@@ -5,7 +5,7 @@ import { PdfIcon, PptxIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfPageHeader, ProcessButton, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 import { FileInfo, InfoBox } from "@/components/shared";
-import { useFileProcessing } from "@/hooks";
+import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { useLibreOffice } from "@/lib/libreoffice";
@@ -84,6 +84,19 @@ export default function PptxToPdfPage() {
     setResult(null);
   }, []);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: "application/pdf",
+      size: result.blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "PPTX to PDF",
+    });
+  }, [result, addToBuffer]);
+
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
       <PdfPageHeader
@@ -116,6 +129,7 @@ export default function PptxToPdfPage() {
           subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.newSize)} · ${result.processingTimeSeconds.toFixed(1)}s`}
           downloadLabel="Download PDF"
           onDownload={handleDownload}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Convert Another"
         />

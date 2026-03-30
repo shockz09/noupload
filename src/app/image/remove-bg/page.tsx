@@ -13,7 +13,7 @@ import {
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useImagePaste, useObjectURL } from "@/hooks";
+import { useFileBuffer, useImagePaste, useObjectURL } from "@/hooks";
 import {
   compositeOnColor,
   compositeOnImage,
@@ -270,6 +270,19 @@ export default function RemoveBgPage() {
     instantTriggeredRef.current = false;
   }, [revokePreview, revokeBgImagePreview]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Remove Background",
+    });
+  }, [result, addToBuffer]);
+
   const displayError = error || bgError;
 
   if (!isLoaded) return null;
@@ -291,6 +304,7 @@ export default function RemoveBgPage() {
             downloadLabel="Download Image"
             onDownload={handleDownload}
             onCopy={() => copyImageToClipboard(result.blob)}
+            onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Remove Another"
           >

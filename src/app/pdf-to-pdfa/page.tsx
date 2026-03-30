@@ -6,7 +6,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useFileProcessing } from "@/hooks";
+import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { PDFA_DESCRIPTIONS, type PdfALevel, useGhostscript } from "@/lib/ghostscript/useGhostscript";
@@ -125,6 +125,20 @@ export default function PdfToPdfAPage() {
     instantTriggeredRef.current = false;
   }, [clearError]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "PDF to PDF/A",
+    });
+  }, [result, addToBuffer]);
+
   // Level selection handler
   const handleLevelSelect = useCallback((level: PdfALevel) => {
     setPdfaLevel(level);
@@ -147,6 +161,7 @@ export default function PdfToPdfAPage() {
           title="Converted to PDF/A!"
           downloadLabel="Download PDF/A"
           onDownload={handleDownload}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Convert Another"
         >

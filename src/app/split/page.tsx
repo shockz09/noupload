@@ -5,6 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { PdfIcon, SplitIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { useFileBuffer } from "@/hooks";
 import { downloadBlob, downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { extractPages, getPDFPageCount, splitPDF } from "@/lib/pdf-utils";
@@ -171,6 +172,20 @@ export default function SplitPage() {
     setRangeInput("");
   }, []);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result || result.files.length !== 1) return;
+    const blob = new Blob([new Uint8Array(result.files[0].data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.files[0].filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Split PDF",
+    });
+  }, [result, addToBuffer]);
+
   // Input handlers
   const handleExtractInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setExtractInput(e.target.value);
@@ -209,6 +224,7 @@ export default function SplitPage() {
           title="PDF Split!"
           downloadLabel={result.files.length === 1 ? "Download PDF" : `Download ${result.files.length} Files`}
           onDownload={handleDownload}
+          onHoldInBuffer={result.files.length === 1 ? handleHoldInBuffer : undefined}
           onStartOver={handleStartOver}
           startOverLabel="Split Another PDF"
         >

@@ -13,7 +13,7 @@ import {
 } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useFileProcessing } from "@/hooks";
+import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { COMPRESSION_DESCRIPTIONS, type CompressionLevel, useGhostscript } from "@/lib/ghostscript/useGhostscript";
@@ -103,6 +103,20 @@ export default function CompressPage() {
     clearError();
   }, [clearError]);
 
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Compress PDF",
+    });
+  }, [result, addToBuffer]);
+
   const savings = result ? Math.round((1 - result.compressedSize / result.originalSize) * 100) : 0;
 
   if (!isLoaded) return null;
@@ -122,6 +136,7 @@ export default function CompressPage() {
           title="PDF Compressed!"
           downloadLabel="Download PDF"
           onDownload={handleDownload}
+          onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Compress Another"
         >
