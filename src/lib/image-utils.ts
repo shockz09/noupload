@@ -173,8 +173,7 @@ export function isHeicFile(file: File): boolean {
 }
 
 // Canvas-based format conversion from a browser-renderable source
-async function canvasConvert(source: File | Blob, format: ImageFormat, quality: number): Promise<Blob> {
-  const file = source instanceof File ? source : new File([source], "image");
+async function canvasConvert(file: File, format: ImageFormat, quality: number): Promise<Blob> {
   const img = await loadImage(file);
 
   try {
@@ -202,28 +201,13 @@ export async function convertFormat(file: File, format: ImageFormat, quality: nu
     return canvasConvert(file, format, quality);
   }
 
-  // Strategy 1: heic2any (cross-browser, but old libheif can't parse some newer HEIC variants)
-  try {
-    const { convertHeic } = await import("@/lib/heic-utils");
-
-    // heic2any supports JPEG/PNG natively — use directly to avoid double-encoding
-    if (format === "jpeg") return await convertHeic(file, "image/jpeg", quality);
-    if (format === "png") return await convertHeic(file, "image/png", 1);
-
-    // WebP not supported by heic2any — high-quality intermediate then canvas
-    const jpegBlob = await convertHeic(file, "image/jpeg", 0.95);
-    return await canvasConvert(jpegBlob, format, quality);
-  } catch {
-    // Strategy 2: native browser rendering (Safari supports HEIC in <img>)
-    try {
-      return await canvasConvert(file, format, quality);
-    } catch {
-      throw new Error("Could not convert this HEIC file. Try opening it in Photos and re-exporting as JPEG first.");
-    }
-  }
+  // heic-decode (libheif-js 1.19.x) decodes to raw pixels, then canvas encodes to any format
+  const mimeType = format === "jpeg" ? "image/jpeg" : format === "png" ? "image/png" : "image/webp";
+  const { convertHeic } = await import("@/lib/heic-utils");
+  return convertHeic(file, mimeType as "image/jpeg" | "image/png" | "image/webp", quality);
 }
 
-// NOTE: convertHeicToJpeg moved to @/lib/heic-utils to avoid bundling heic2any (1.3MB) with this file
+// NOTE: convertHeicToJpeg moved to @/lib/heic-utils to avoid bundling libheif-js with this file
 // Import directly from "@/lib/heic-utils" when needed
 
 // Crop image
