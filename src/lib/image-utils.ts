@@ -172,22 +172,9 @@ export function isHeicFile(file: File): boolean {
   return ext === "heic" || ext === "heif" || file.type === "image/heic" || file.type === "image/heif";
 }
 
-// Convert image format (supports HEIC/HEIF input)
-export async function convertFormat(file: File, format: ImageFormat, quality: number = 0.92): Promise<Blob> {
-  // HEIC/HEIF: use heic2any which supports JPEG/PNG natively, avoiding double-encoding
-  if (isHeicFile(file)) {
-    const { convertHeic } = await import("@/lib/heic-utils");
-
-    if (format === "jpeg") return convertHeic(file, "image/jpeg", quality);
-    if (format === "png") return convertHeic(file, "image/png", 1);
-
-    // WebP not supported by heic2any — use high-quality JPEG intermediate, then canvas below
-    const jpegBlob = await convertHeic(file, "image/jpeg", 0.95);
-    file = new File([jpegBlob], file.name.replace(/\.heic$/i, ".jpg").replace(/\.heif$/i, ".jpg"), {
-      type: "image/jpeg",
-    });
-  }
-
+// Canvas-based format conversion from a browser-renderable source
+async function canvasConvert(source: File | Blob, format: ImageFormat, quality: number): Promise<Blob> {
+  const file = source instanceof File ? source : new File([source], "image");
   const img = await loadImage(file);
 
   try {
@@ -197,17 +184,42 @@ export async function convertFormat(file: File, format: ImageFormat, quality: nu
 
     const ctx = canvas.getContext("2d")!;
 
-    // For JPEG, fill white background (no transparency)
     if (format === "jpeg") {
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     ctx.drawImage(img, 0, 0);
-
     return await canvasToBlob(canvas, format, quality);
   } finally {
     URL.revokeObjectURL(img.src);
+  }
+}
+
+// Convert image format (supports HEIC/HEIF input)
+export async function convertFormat(file: File, format: ImageFormat, quality: number = 0.92): Promise<Blob> {
+  if (!isHeicFile(file)) {
+    return canvasConvert(file, format, quality);
+  }
+
+  // Strategy 1: heic2any (cross-browser, but old libheif can't parse some newer HEIC variants)
+  try {
+    const { convertHeic } = await import("@/lib/heic-utils");
+
+    // heic2any supports JPEG/PNG natively — use directly to avoid double-encoding
+    if (format === "jpeg") return await convertHeic(file, "image/jpeg", quality);
+    if (format === "png") return await convertHeic(file, "image/png", 1);
+
+    // WebP not supported by heic2any — high-quality intermediate then canvas
+    const jpegBlob = await convertHeic(file, "image/jpeg", 0.95);
+    return await canvasConvert(jpegBlob, format, quality);
+  } catch {
+    // Strategy 2: native browser rendering (Safari supports HEIC in <img>)
+    try {
+      return await canvasConvert(file, format, quality);
+    } catch {
+      throw new Error("Could not convert this HEIC file. Try opening it in Photos and re-exporting as JPEG first.");
+    }
   }
 }
 
