@@ -6,10 +6,11 @@ import { audioCategoryLabels, audioTools } from "./audio-tools-grid";
 import { imageCategoryLabels, imageTools } from "./image-tools-grid";
 import { pdfCategoryLabels, pdfTools } from "./pdf-tools-grid";
 import { qrCategoryLabels, qrTools } from "./qr-tools-grid";
+import { videoCategoryLabels, videoTools } from "./video-tools-grid";
 
 // ── Category definitions ─────────────────────────────────────
 
-type CategoryKey = "pdf" | "image" | "audio" | "qr";
+type CategoryKey = "pdf" | "image" | "audio" | "video" | "qr";
 
 interface CategoryDef {
   key: CategoryKey;
@@ -50,6 +51,15 @@ const categories: CategoryDef[] = [
     placeholder: "Search audio tools...",
   },
   {
+    key: "video",
+    label: "Video",
+    count: videoTools.length,
+    accentColor: "#E11D48",
+    tools: videoTools,
+    categoryLabels: videoCategoryLabels,
+    placeholder: "Search video tools...",
+  },
+  {
     key: "qr",
     label: "QR Code",
     count: qrTools.length,
@@ -63,7 +73,7 @@ const categories: CategoryDef[] = [
 // ── Component ────────────────────────────────────────────────
 
 const STORAGE_KEY = "noupload-active-tab";
-const VALID_KEYS = new Set<CategoryKey>(["pdf", "image", "audio", "qr"]);
+const VALID_KEYS = new Set<CategoryKey>(["pdf", "image", "audio", "video", "qr"]);
 
 function getSavedCategory(): CategoryKey {
   if (typeof window === "undefined") return "pdf";

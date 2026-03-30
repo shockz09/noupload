@@ -2,6 +2,8 @@
 
 // File extension constants for dropzones
 export const VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.avi,.webm,.flv,.wmv,.m4v,.3gp";
+// Formats mediabunny can actually demux (used by video tools)
+export const MEDIABUNNY_VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.webm,.m4v";
 export const AUDIO_EXTENSIONS = ".mp3,.wav,.ogg,.m4a,.aac,.flac";
 export const AUDIO_VIDEO_EXTENSIONS = `${AUDIO_EXTENSIONS},${VIDEO_EXTENSIONS}`;
 

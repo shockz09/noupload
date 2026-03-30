@@ -1,7 +1,6 @@
 import {
   AudioMergeIcon,
   DenoiseIcon,
-  ExtractIcon,
   FadeIcon,
   MicIcon,
   MusicTagIcon,
@@ -23,14 +22,6 @@ export const audioTools = [
     icon: ConvertIcon,
     category: "convert",
     colorClass: "tool-audio-convert",
-  },
-  {
-    title: "Extract Audio",
-    description: "Extract audio track from any video file",
-    href: "/audio/extract",
-    icon: ExtractIcon,
-    category: "convert",
-    colorClass: "tool-audio-extract",
   },
   {
     title: "Trim Audio",

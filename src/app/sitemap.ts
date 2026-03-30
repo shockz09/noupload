@@ -69,7 +69,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/audio/volume",
     "/audio/reverse",
     "/audio/fade",
-    "/audio/extract",
     "/audio/denoise",
     "/audio/normalize",
     "/audio/remove-silence",
@@ -78,13 +77,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/audio/record",
   ];
 
+  // Video Tools (5)
+  const videoTools = [
+    "/video/compress",
+    "/video/convert",
+    "/video/remove-audio",
+    "/video/extract-audio",
+    "/video/metadata",
+  ];
+
   // QR Tools (4)
   const qrTools = ["/qr", "/qr/generate", "/qr/scan", "/qr/bulk", "/qr/barcode"];
 
   // Other pages
   const otherPages = ["/privacy"];
 
-  const allPages = [...pdfTools, ...imageTools, ...audioTools, ...qrTools, ...otherPages];
+  const allPages = [...pdfTools, ...imageTools, ...audioTools, ...videoTools, ...qrTools, ...otherPages];
 
   return allPages.map((route) => ({
     url: `${baseUrl}${route}`,

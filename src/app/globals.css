@@ -471,6 +471,14 @@
 .tool-audio-silence { --tool-color: #BE185D; }
 .tool-audio-merge { --tool-color: #B91C1C; }
 .tool-audio-metadata { --tool-color: #7C3AED; }
+.tool-video-compress { --tool-color: #E11D48; }
+.tool-video-trim { --tool-color: #BE123C; }
+.tool-video-convert { --tool-color: #9F1239; }
+.tool-video-rotate { --tool-color: #881337; }
+.tool-video-resize { --tool-color: #C2410C; }
+.tool-video-crop { --tool-color: #B91C1C; }
+.tool-video-remove-audio { --tool-color: #991B1B; }
+.tool-video-metadata { --tool-color: #A21CAF; }
 .tool-metadata { --tool-color: #0369A1; }
 .tool-blur { --tool-color: #DC2626; }
 .tool-barcode { --tool-color: #1E3A5F; }
