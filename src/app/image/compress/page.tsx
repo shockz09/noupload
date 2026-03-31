@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { ImageCompressIcon, ImageIcon } from "@/components/icons/image";
 import {
   ComparisonDisplay,
@@ -17,27 +18,48 @@ import { InfoBox, QualitySlider } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
-import { compressImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { compressImage, copyImageToClipboard, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 
 interface CompressMetadata {
   originalSize: number;
   compressedSize: number;
 }
 
+interface FileItem {
+  id: string;
+  file: File;
+}
+
+interface CompressedItem {
+  original: File;
+  blob: Blob;
+  filename: string;
+}
+
 export default function ImageCompressPage() {
   const { isInstant, isLoaded } = useInstantMode();
-  const [file, setFile] = useState<File | null>(null);
   const [quality, setQuality] = useState(80);
 
-  // Use custom hooks for common patterns
+  // Single file state
+  const [file, setFile] = useState<File | null>(null);
   const { url: preview, setSource: setPreview, revoke: revokePreview } = useObjectURL();
-  const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError } = useFileProcessing();
+  const { isProcessing: isSingleProcessing, progress, error: singleError, startProcessing, stopProcessing, setProgress, setError: setSingleError } = useFileProcessing();
   const { result, setResult, clearResult, download } = useProcessingResult<CompressMetadata>();
+
+  // Multi file state
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkResults, setBulkResults] = useState<CompressedItem[]>([]);
+
+  const isMulti = files.length > 1 || (files.length > 0 && !file);
+
+  // --- Single file handlers ---
 
   const processFile = useCallback(
     async (fileToProcess: File, q: number) => {
       if (!startProcessing()) return;
-
       try {
         setProgress(30);
         const compressed = await compressImage(fileToProcess, q / 100);
@@ -48,45 +70,102 @@ export default function ImageCompressPage() {
         });
         setProgress(100);
       } catch (err) {
-        setError(getErrorMessage(err, "Failed to compress image"));
+        setSingleError(getErrorMessage(err, "Failed to compress image"));
       } finally {
         stopProcessing();
       }
     },
-    [startProcessing, setProgress, setResult, setError, stopProcessing],
+    [startProcessing, setProgress, setResult, setSingleError, stopProcessing],
   );
 
-  const handleFileSelected = useCallback(
-    (files: File[]) => {
-      if (files.length > 0) {
-        const selectedFile = files[0];
+  // --- File selection (handles both single and multi) ---
+
+  const handleFilesSelected = useCallback(
+    (newFiles: File[]) => {
+      if (newFiles.length === 1 && files.length === 0) {
+        // Single file path
+        const selectedFile = newFiles[0];
         setFile(selectedFile);
         clearResult();
         setPreview(selectedFile);
-
-        if (isInstant) {
-          processFile(selectedFile, 80);
-        }
+        if (isInstant) processFile(selectedFile, 80);
+      } else {
+        // Multi file path
+        setFile(null);
+        revokePreview();
+        clearResult();
+        const items = newFiles.map((f) => ({ id: crypto.randomUUID(), file: f }));
+        setFiles((prev) => [...prev, ...items]);
+        setBulkError(null);
+        setBulkResults([]);
       }
     },
-    [isInstant, processFile, clearResult, setPreview],
+    [files.length, isInstant, processFile, clearResult, setPreview, revokePreview],
   );
 
-  // Use clipboard paste hook
-  useImagePaste(handleFileSelected, !result);
+  useImagePaste(handleFilesSelected, !result && bulkResults.length === 0);
 
-  const handleClear = useCallback(() => {
+  // --- Multi file handlers ---
+
+  const handleRemoveFile = useCallback((id: string) => {
+    setFiles((prev) => prev.filter((f) => f.id !== id));
+  }, []);
+
+  const handleBulkCompress = useCallback(async () => {
+    if (files.length === 0) return;
+
+    setBulkProcessing(true);
+    setBulkError(null);
+    setBulkResults([]);
+    setBulkProgress({ current: 0, total: files.length });
+
+    const compressed: CompressedItem[] = [];
+    const BATCH_SIZE = 5;
+
+    try {
+      for (let i = 0; i < files.length; i += BATCH_SIZE) {
+        const batch = files.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map(async ({ file: f }) => {
+            const blob = await compressImage(f, quality / 100);
+            return { original: f, blob, filename: getOutputFilename(f.name, "jpeg", "_compressed") };
+          }),
+        );
+        compressed.push(...batchResults);
+        setBulkProgress({ current: Math.min(i + BATCH_SIZE, files.length), total: files.length });
+      }
+      setBulkResults(compressed);
+    } catch (err) {
+      setBulkError(getErrorMessage(err, "Failed to compress images"));
+    } finally {
+      setBulkProcessing(false);
+    }
+  }, [files, quality]);
+
+  const handleDownloadOne = useCallback((item: CompressedItem) => downloadImage(item.blob, item.filename), []);
+  const handleDownloadAll = useCallback(() => {
+    for (const item of bulkResults) downloadImage(item.blob, item.filename);
+  }, [bulkResults]);
+
+  // --- Shared handlers ---
+
+  const handleClearSingle = useCallback(() => {
     revokePreview();
     setFile(null);
     clearResult();
   }, [revokePreview, clearResult]);
 
-  const handleCompress = useCallback(async () => {
-    if (!file) return;
-    processFile(file, quality);
-  }, [file, quality, processFile]);
+  const handleStartOver = useCallback(() => {
+    revokePreview();
+    setFile(null);
+    clearResult();
+    setFiles([]);
+    setBulkResults([]);
+    setBulkError(null);
+    setBulkProgress({ current: 0, total: 0 });
+  }, [revokePreview, clearResult]);
 
-  const handleDownload = useCallback(
+  const handleSingleDownload = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -94,12 +173,6 @@ export default function ImageCompressPage() {
     },
     [download],
   );
-
-  const handleStartOver = useCallback(() => {
-    revokePreview();
-    setFile(null);
-    clearResult();
-  }, [revokePreview, clearResult]);
 
   const { add: addToBuffer } = useFileBuffer();
   const handleHoldInBuffer = useCallback(() => {
@@ -114,25 +187,91 @@ export default function ImageCompressPage() {
     });
   }, [result, addToBuffer]);
 
-  const savings = result?.metadata ? Math.round((1 - result.metadata.compressedSize / result.metadata.originalSize) * 100) : 0;
+  const singleSavings = result?.metadata ? Math.round((1 - result.metadata.compressedSize / result.metadata.originalSize) * 100) : 0;
+
+  const totalOriginalSize = useMemo(() => files.reduce((sum, f) => sum + f.file.size, 0), [files]);
+  const totalSavings = useMemo(() => {
+    if (bulkResults.length === 0 || totalOriginalSize === 0) return 0;
+    const totalCompressed = bulkResults.reduce((sum, r) => sum + r.blob.size, 0);
+    return Math.round((1 - totalCompressed / totalOriginalSize) * 100);
+  }, [bulkResults, totalOriginalSize]);
 
   if (!isLoaded) return null;
 
-  return (
-    <div className="page-enter max-w-2xl mx-auto space-y-8">
-      <ImagePageHeader
-        icon={<ImageCompressIcon className="w-7 h-7" />}
-        iconClass="tool-image-compress"
-        title="Compress Image"
-        description="Reduce file size while keeping quality"
-      />
+  // --- Multi results view ---
+  if (bulkResults.length > 0) {
+    return (
+      <div className="page-enter max-w-2xl mx-auto space-y-8">
+        <ImagePageHeader
+          icon={<ImageCompressIcon className="w-7 h-7" />}
+          iconClass="tool-image-compress"
+          title="Compress Image"
+          description="Reduce file size while keeping quality"
+        />
+        <div className="animate-fade-up space-y-6">
+          <div className="success-card">
+            <div className="success-stamp">
+              <span className="success-stamp-text">Done</span>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div className="space-y-4 mb-6">
+              <h2 className="text-3xl font-display">{bulkResults.length} Images Compressed!</h2>
+              <SavingsBadge savings={totalSavings} />
+            </div>
+            <button type="button" onClick={handleDownloadAll} className="btn-success w-full mb-4">
+              <DownloadIcon className="w-5 h-5" />
+              Download All ({bulkResults.length} files)
+            </button>
+          </div>
 
-      {result ? (
+          <div className="space-y-2">
+            {bulkResults.map((item) => {
+              const savings = Math.round((1 - item.blob.size / item.original.size) * 100);
+              return (
+                <div key={item.filename} className="flex items-center justify-between p-3 border-2 border-foreground bg-background">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm truncate">{item.filename}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatFileSize(item.original.size)} → {formatFileSize(item.blob.size)} ({savings}% saved)
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadOne(item)}
+                    className="text-sm font-bold text-primary hover:underline ml-4"
+                  >
+                    Download
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <button type="button" onClick={handleStartOver} className="btn-secondary w-full">
+            Compress More Images
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Single result view ---
+  if (result) {
+    return (
+      <div className="page-enter max-w-2xl mx-auto space-y-8">
+        <ImagePageHeader
+          icon={<ImageCompressIcon className="w-7 h-7" />}
+          iconClass="tool-image-compress"
+          title="Compress Image"
+          description="Reduce file size while keeping quality"
+        />
         <SuccessCard
           stampText="Optimized"
           title="Image Compressed!"
           downloadLabel="Download Image"
-          onDownload={handleDownload}
+          onDownload={handleSingleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
@@ -144,24 +283,113 @@ export default function ImageCompressPage() {
             newLabel="Compressed"
             newValue={formatFileSize(result.metadata?.compressedSize ?? 0)}
           />
-          <SavingsBadge savings={savings} />
+          <SavingsBadge savings={singleSavings} />
         </SuccessCard>
-      ) : !file ? (
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-enter max-w-2xl mx-auto space-y-8">
+      <ImagePageHeader
+        icon={<ImageCompressIcon className="w-7 h-7" />}
+        iconClass="tool-image-compress"
+        title="Compress Image"
+        description="Reduce file size while keeping quality"
+      />
+
+      {/* No files selected — dropzone */}
+      {!file && files.length === 0 ? (
         <div className="space-y-6">
           <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp"
-            multiple={false}
-            onFilesSelected={handleFileSelected}
-            title="Drop your image here"
-            subtitle="or click to browse · Ctrl+V to paste"
+            accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
+            multiple={true}
+            maxFiles={50}
+            onFilesSelected={handleFilesSelected}
+            title="Drop your images here"
+            subtitle="Single or multiple files · Ctrl+V to paste"
           />
           <InfoBox title={isInstant ? "Instant compression" : "About compression"}>
             {isInstant
               ? "Drop an image and it will be compressed at 80% quality automatically."
-              : "Compresses images using JPEG encoding. Adjust the quality slider to balance file size and visual quality."}
+              : "Compresses images using JPEG encoding. Drop one or multiple files."}
           </InfoBox>
         </div>
+      ) : isMulti ? (
+        /* Multiple files selected — bulk UI */
+        <div className="space-y-6">
+          <FileDropzone
+            accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
+            multiple={true}
+            maxFiles={50}
+            onFilesSelected={handleFilesSelected}
+            title="Add more images"
+            subtitle="Drop or click to add"
+          />
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="input-label">{files.length} files selected</span>
+              <button
+                type="button"
+                onClick={handleStartOver}
+                className="text-sm font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-1 border-2 border-foreground p-2">
+              {files.map((item) => (
+                <div key={item.id} className="flex items-center justify-between py-1 px-2 hover:bg-muted/50">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <ImageIcon className="w-4 h-4 shrink-0" />
+                    <span className="text-sm truncate">{item.file.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{formatFileSize(item.file.size)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFile(item.id)}
+                    className="text-xs text-muted-foreground hover:text-foreground ml-2"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Total: {formatFileSize(totalOriginalSize)}</p>
+          </div>
+
+          <QualitySlider label="Quality" value={quality} onChange={setQuality} />
+
+          {bulkError && <ErrorBox message={bulkError} />}
+          {bulkProcessing && (
+            <ProgressBar
+              progress={(bulkProgress.current / bulkProgress.total) * 100}
+              label={`Compressing ${bulkProgress.current} of ${bulkProgress.total}...`}
+            />
+          )}
+
+          <button
+            type="button"
+            onClick={handleBulkCompress}
+            disabled={bulkProcessing || files.length === 0}
+            className="btn-primary w-full"
+          >
+            {bulkProcessing ? (
+              <>
+                <LoaderIcon className="w-5 h-5" />
+                Compressing...
+              </>
+            ) : (
+              <>
+                <ImageCompressIcon className="w-5 h-5" />
+                Compress {files.length} Images
+              </>
+            )}
+          </button>
+        </div>
       ) : (
+        /* Single file selected — original UI */
         <div className="space-y-6">
           {preview && (
             <div className="border-2 border-foreground p-4 bg-muted/30">
@@ -176,20 +404,20 @@ export default function ImageCompressPage() {
           )}
 
           <ImageFileInfo
-            file={file}
-            fileSize={formatFileSize(file.size)}
-            onClear={handleClear}
+            file={file!}
+            fileSize={formatFileSize(file!.size)}
+            onClear={handleClearSingle}
             icon={<ImageIcon className="w-5 h-5" />}
           />
 
           <QualitySlider label="Quality" value={quality} onChange={setQuality} />
 
-          {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={progress} label="Compressing..." />}
+          {singleError && <ErrorBox message={singleError} />}
+          {isSingleProcessing && <ProgressBar progress={progress} label="Compressing..." />}
 
           <ProcessButton
-            onClick={handleCompress}
-            isProcessing={isProcessing}
+            onClick={() => processFile(file!, quality)}
+            isProcessing={isSingleProcessing}
             processingLabel="Compressing..."
             icon={<ImageCompressIcon className="w-5 h-5" />}
             label="Compress Image"

@@ -77,9 +77,6 @@ I would love if people would contribute and use this.
 | **Screenshot** | Capture webpage screenshots |
 | **Favicon Generator** | Create favicons from images |
 | **HEIC → JPEG** | Convert iPhone photos |
-| **Bulk Compress** | Compress multiple images |
-| **Bulk Resize** | Resize multiple images |
-| **Bulk Convert** | Convert multiple images |
 
 ### Audio Tools
 

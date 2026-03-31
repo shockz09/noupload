@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { LoaderIcon } from "@/components/icons/ui";
 import { SignatureIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
@@ -19,7 +19,20 @@ interface SignResult {
   filename: string;
 }
 
+// Box position/size stored as percentages of page dimensions
+interface SignatureBox {
+  pageNumber: number;
+  left: number; // % from left edge (0-100)
+  top: number; // % from top edge (0-100)
+  widthPct: number; // % of page width (5-50)
+}
+
 type SignatureMode = "draw" | "upload";
+type DragMode = "move" | "resize" | null;
+
+const DEFAULT_WIDTH_PCT = 25;
+const MIN_WIDTH_PCT = 5;
+const MAX_WIDTH_PCT = 50;
 
 export default function SignPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -30,15 +43,28 @@ export default function SignPage() {
   // Signature
   const [signatureMode, setSignatureMode] = useState<SignatureMode>("draw");
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
-  const [signatureWidth, setSignatureWidth] = useState(150);
+  const [sigAspectRatio, setSigAspectRatio] = useState(3); // width/height, default ~3:1
 
-  // Position as percentage (0-100)
-  const [position, setPosition] = useState({ x: 70, y: 10 });
-  const [isDragging, setIsDragging] = useState(false);
+  // Draggable box
+  const [box, setBox] = useState<SignatureBox | null>(null);
+  const [dragMode, setDragMode] = useState<DragMode>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origBox: SignatureBox } | null>(null);
 
   // Preview
-  const previewRef = useRef<HTMLDivElement>(null);
+  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const { pages, loading, progress } = usePdfPages(file, 0.8);
+
+  // Load signature dimensions when it changes
+  useEffect(() => {
+    if (!signatureDataUrl) return;
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth && img.naturalHeight) {
+        setSigAspectRatio(img.naturalWidth / img.naturalHeight);
+      }
+    };
+    img.src = signatureDataUrl;
+  }, [signatureDataUrl]);
 
   const handleFileSelected = useCallback((files: File[]) => {
     if (files.length > 0) {
@@ -52,114 +78,153 @@ export default function SignPage() {
     setFile(null);
     setError(null);
     setResult(null);
+    setBox(null);
   }, []);
 
-  // Handle signature ready from shared components
   const handleSignatureReady = useCallback((dataUrl: string) => {
     setSignatureDataUrl(dataUrl);
   }, []);
 
-  // Position from event - use ref to avoid stale closures in drag handlers
-  const isDraggingRef = useRef(isDragging);
-  isDraggingRef.current = isDragging;
-
-  const getPositionFromEvent = useCallback((clientX: number, clientY: number) => {
-    if (!previewRef.current) return null;
-    const rect = previewRef.current.getBoundingClientRect();
-    const x = ((clientX - rect.left) / rect.width) * 100;
-    const y = 100 - ((clientY - rect.top) / rect.height) * 100;
+  // Get mouse/touch position as % relative to a page element
+  const getPctFromEvent = useCallback((pageEl: HTMLDivElement, clientX: number, clientY: number) => {
+    const rect = pageEl.getBoundingClientRect();
     return {
-      x: Math.max(0, Math.min(100, x)),
-      y: Math.max(0, Math.min(100, y)),
+      xPct: ((clientX - rect.left) / rect.width) * 100,
+      yPct: ((clientY - rect.top) / rect.height) * 100,
     };
   }, []);
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  // Click on page background → place box centered at click
+  const handlePageClick = useCallback(
+    (pageNumber: number, e: React.MouseEvent) => {
+      if (!signatureDataUrl) return;
+      // Don't place if we just finished dragging
+      if (dragRef.current) return;
+
+      const pageEl = pageRefs.current.get(pageNumber);
+      if (!pageEl) return;
+
+      const { xPct, yPct } = getPctFromEvent(pageEl, e.clientX, e.clientY);
+      const w = DEFAULT_WIDTH_PCT;
+      const heightPct = (w / sigAspectRatio) * (pageEl.offsetWidth / pageEl.offsetHeight);
+
+      setBox({
+        pageNumber,
+        left: Math.max(0, Math.min(100 - w, xPct - w / 2)),
+        top: Math.max(0, Math.min(100 - heightPct, yPct - heightPct / 2)),
+        widthPct: w,
+      });
+    },
+    [signatureDataUrl, sigAspectRatio, getPctFromEvent],
+  );
+
+  // Start dragging the box (move or resize)
+  const handleBoxDragStart = useCallback(
+    (mode: "move" | "resize", e: React.MouseEvent | React.TouchEvent) => {
+      e.stopPropagation();
       e.preventDefault();
-      setIsDragging(true);
-      const pos = getPositionFromEvent(e.clientX, e.clientY);
-      if (pos) setPosition(pos);
+      if (!box) return;
+
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+      setDragMode(mode);
+      dragRef.current = { startX: clientX, startY: clientY, origBox: { ...box } };
     },
-    [getPositionFromEvent],
+    [box],
   );
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (!isDraggingRef.current) return;
-      const pos = getPositionFromEvent(e.clientX, e.clientY);
-      if (pos) setPosition(pos);
-    },
-    [getPositionFromEvent],
-  );
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      setIsDragging(true);
-      const touch = e.touches[0];
-      const pos = getPositionFromEvent(touch.clientX, touch.clientY);
-      if (pos) setPosition(pos);
-    },
-    [getPositionFromEvent],
-  );
-
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      if (!isDraggingRef.current) return;
-      const touch = e.touches[0];
-      const pos = getPositionFromEvent(touch.clientX, touch.clientY);
-      if (pos) setPosition(pos);
-    },
-    [getPositionFromEvent],
-  );
-
-  const handleTouchEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
+  // Global move/up handlers for dragging
   useEffect(() => {
-    const handleGlobalMouseUp = () => setIsDragging(false);
-    window.addEventListener("mouseup", handleGlobalMouseUp);
-    return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
-  }, []);
+    if (!dragMode || !dragRef.current) return;
+
+    const handleMove = (clientX: number, clientY: number) => {
+      if (!dragRef.current || !box) return;
+      const pageEl = pageRefs.current.get(box.pageNumber);
+      if (!pageEl) return;
+
+      const rect = pageEl.getBoundingClientRect();
+      const dxPct = ((clientX - dragRef.current.startX) / rect.width) * 100;
+      const dyPct = ((clientY - dragRef.current.startY) / rect.height) * 100;
+      const orig = dragRef.current.origBox;
+
+      if (dragMode === "move") {
+        const heightPct = (orig.widthPct / sigAspectRatio) * (rect.width / rect.height);
+        setBox({
+          ...orig,
+          left: Math.max(0, Math.min(100 - orig.widthPct, orig.left + dxPct)),
+          top: Math.max(0, Math.min(100 - heightPct, orig.top + dyPct)),
+        });
+      } else if (dragMode === "resize") {
+        const newWidth = Math.max(MIN_WIDTH_PCT, Math.min(MAX_WIDTH_PCT, orig.widthPct + dxPct));
+        // Constrain so box doesn't overflow right edge
+        const constrainedWidth = Math.min(newWidth, 100 - orig.left);
+        setBox({ ...orig, widthPct: constrainedWidth });
+      }
+    };
+
+    const onMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    const onEnd = () => {
+      setDragMode(null);
+      // Small delay so the page click handler doesn't fire right after drag
+      setTimeout(() => { dragRef.current = null; }, 50);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onEnd);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onEnd);
+
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onEnd);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [dragMode, box, sigAspectRatio]);
 
   const handleSign = useCallback(async () => {
-    if (!file || !signatureDataUrl) return;
+    if (!file || !signatureDataUrl || !box) return;
 
     setIsProcessing(true);
     setError(null);
     setResult(null);
 
     try {
+      // Convert box percentages to center-based coordinates for addSignature
+      const pageEl = pageRefs.current.get(box.pageNumber);
+      const elRatio = pageEl ? pageEl.offsetWidth / pageEl.offsetHeight : 1;
+      const heightPct = (box.widthPct / sigAspectRatio) * elRatio;
+
+      const centerX = box.left + box.widthPct / 2;
+      const centerY = 100 - (box.top + heightPct / 2);
+      const widthPts = box.widthPct * 10; // 50% → 500pts mapping
+
       const data = await addSignature(file, signatureDataUrl, {
-        x: position.x,
-        y: position.y,
-        width: signatureWidth,
+        x: centerX,
+        y: centerY,
+        width: widthPts,
+        pageNumbers: [box.pageNumber],
       });
 
       const baseName = getFileBaseName(file.name);
-      setResult({
-        data,
-        filename: `${baseName}_signed.pdf`,
-      });
+      setResult({ data, filename: `${baseName}_signed.pdf` });
     } catch (err) {
       setError(getErrorMessage(err, "Failed to sign PDF"));
     } finally {
       setIsProcessing(false);
     }
-  }, [file, signatureDataUrl, position.x, position.y, signatureWidth]);
+  }, [file, signatureDataUrl, box, sigAspectRatio]);
 
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (result) {
-        downloadBlob(result.data, result.filename);
-      }
+      if (result) downloadBlob(result.data, result.filename);
     },
     [result],
   );
@@ -169,7 +234,7 @@ export default function SignPage() {
     setResult(null);
     setError(null);
     setSignatureDataUrl(null);
-    setPosition({ x: 70, y: 10 });
+    setBox(null);
   }, []);
 
   const { add: addToBuffer } = useFileBuffer();
@@ -186,12 +251,15 @@ export default function SignPage() {
     });
   }, [result, addToBuffer]);
 
-  // Mode toggle callbacks
   const setModeDraw = useCallback(() => setSignatureMode("draw"), []);
   const setModeUpload = useCallback(() => setSignatureMode("upload"), []);
 
-
-  const previewPage = useMemo(() => pages[0], [pages]);
+  // Clear box when signature is removed
+  const prevSigRef = useRef(signatureDataUrl);
+  useEffect(() => {
+    if (prevSigRef.current && !signatureDataUrl) setBox(null);
+    prevSigRef.current = signatureDataUrl;
+  }, [signatureDataUrl]);
 
   return (
     <div className="page-enter max-w-6xl mx-auto space-y-8">
@@ -199,7 +267,7 @@ export default function SignPage() {
         icon={<SignatureIcon className="w-7 h-7" />}
         iconClass="tool-sign"
         title="Sign PDF"
-        description="Draw or upload your signature, then place it anywhere"
+        description="Draw or upload your signature, then place it on any page"
       />
 
       {result ? (
@@ -213,7 +281,7 @@ export default function SignPage() {
             onStartOver={handleStartOver}
             startOverLabel="Sign Another PDF"
           >
-            <p className="text-muted-foreground">Your signature has been added to the PDF</p>
+            <p className="text-muted-foreground">Your signature has been added to page {box?.pageNumber}</p>
           </SuccessCard>
         </div>
       ) : !file ? (
@@ -227,11 +295,15 @@ export default function SignPage() {
         </div>
       ) : (
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Left: PDF Preview with signature placement */}
+          {/* Left: Scrollable page view */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-lg">
-                {signatureDataUrl ? "Click or drag to position" : "Add signature first →"}
+                {signatureDataUrl
+                  ? box
+                    ? `Signature on page ${box.pageNumber}`
+                    : "Click on a page to place signature"
+                  : "Add signature first →"}
               </h3>
               <button
                 type="button"
@@ -244,81 +316,92 @@ export default function SignPage() {
 
             {loading ? (
               <PageGridLoading progress={progress} />
-            ) : previewPage ? (
-              <div
-                ref={previewRef}
-                role="application"
-                aria-label="Signature placement editor"
-                className={`relative border-2 border-foreground bg-white select-none overflow-hidden ${
-                  signatureDataUrl ? "cursor-crosshair" : "cursor-not-allowed opacity-75"
-                } ${isDragging ? "cursor-grabbing" : ""}`}
-                onMouseDown={signatureDataUrl ? handleMouseDown : undefined}
-                onMouseMove={signatureDataUrl ? handleMouseMove : undefined}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onTouchStart={signatureDataUrl ? handleTouchStart : undefined}
-                onTouchMove={signatureDataUrl ? handleTouchMove : undefined}
-                onTouchEnd={handleTouchEnd}
-              >
-                {/* PDF Page */}
-                <img
-                  src={previewPage.dataUrl}
-                  alt="PDF Preview"
-                  className="w-full h-auto block pointer-events-none"
-                  draggable={false}
-                  loading="lazy"
-                  decoding="async"
-                />
+            ) : (
+              <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-2 scrollbar-thin">
+                {pages.map((page) => {
+                  const isBoxPage = box?.pageNumber === page.pageNumber;
 
-                {/* Signature Overlay */}
-                {signatureDataUrl && (
-                  <div
-                    className="absolute pointer-events-none transition-all duration-75"
-                    style={{
-                      left: `${position.x}%`,
-                      bottom: `${position.y}%`,
-                      transform: "translate(-50%, 50%)",
-                      width: `${(signatureWidth / 500) * 50}%`,
-                    }}
-                  >
-                    <img
-                      src={signatureDataUrl}
-                      alt="Signature"
-                      className="w-full h-auto"
-                      draggable={false}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </div>
-                )}
+                  return (
+                    <div key={page.pageNumber} className="relative">
+                      {/* Page number label */}
+                      <div className="absolute top-3 left-3 z-10 file-number text-xs">
+                        {page.pageNumber}
+                      </div>
 
-                {/* Position Indicator */}
-                {signatureDataUrl && (
-                  <div
-                    className="absolute w-4 h-4 border-2 border-primary bg-primary/20 rounded-full pointer-events-none transition-all duration-75"
-                    style={{
-                      left: `${position.x}%`,
-                      bottom: `${position.y}%`,
-                      transform: "translate(-50%, 50%)",
-                    }}
-                  />
-                )}
+                      {/* Page */}
+                      <div
+                        ref={(el) => {
+                          if (el) pageRefs.current.set(page.pageNumber, el);
+                          else pageRefs.current.delete(page.pageNumber);
+                        }}
+                        role="application"
+                        aria-label={`Page ${page.pageNumber} — click to place signature`}
+                        className={`relative border-2 bg-white select-none overflow-hidden transition-all ${
+                          signatureDataUrl ? "cursor-crosshair" : "cursor-not-allowed opacity-75"
+                        } ${
+                          isBoxPage
+                            ? "border-primary ring-2 ring-primary/30"
+                            : "border-foreground hover:border-primary/50"
+                        }`}
+                        onClick={(e) => handlePageClick(page.pageNumber, e)}
+                      >
+                        <img
+                          src={page.dataUrl}
+                          alt={`Page ${page.pageNumber}`}
+                          className="w-full h-auto block pointer-events-none"
+                          draggable={false}
+                          loading="lazy"
+                          decoding="async"
+                        />
 
-                {/* Overlay when no signature */}
-                {!signatureDataUrl && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-foreground/5">
-                    <p className="text-muted-foreground font-medium px-4 py-2 bg-white/90 border-2 border-foreground">
-                      Create your signature first →
-                    </p>
-                  </div>
-                )}
+                        {/* Draggable signature box */}
+                        {signatureDataUrl && isBoxPage && box && (
+                          <div
+                            className={`absolute border-2 border-dashed border-primary/80 bg-primary/5 ${
+                              dragMode === "move" ? "cursor-grabbing" : "cursor-grab"
+                            }`}
+                            style={{
+                              left: `${box.left}%`,
+                              top: `${box.top}%`,
+                              width: `${box.widthPct}%`,
+                            }}
+                            onMouseDown={(e) => handleBoxDragStart("move", e)}
+                            onTouchStart={(e) => handleBoxDragStart("move", e)}
+                          >
+                            <img
+                              src={signatureDataUrl}
+                              alt="Signature"
+                              className="w-full h-auto block pointer-events-none"
+                              draggable={false}
+                            />
+
+                            {/* Resize handle — bottom right corner */}
+                            <div
+                              className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-primary border-2 border-white cursor-nwse-resize z-10"
+                              onMouseDown={(e) => handleBoxDragStart("resize", e)}
+                              onTouchStart={(e) => handleBoxDragStart("resize", e)}
+                            />
+                          </div>
+                        )}
+
+                        {/* Overlay when no signature */}
+                        {!signatureDataUrl && page.pageNumber === 1 && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-foreground/5">
+                            <p className="text-muted-foreground font-medium px-4 py-2 bg-white/90 border-2 border-foreground">
+                              Create your signature first →
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ) : null}
-
+            )}
           </div>
 
-          {/* Right: Signature creation */}
-          <div className="space-y-6">
+          {/* Right: Signature creation (sticky) */}
+          <div className="space-y-6 lg:sticky lg:top-4 lg:self-start">
             {/* Mode Toggle */}
             <div className="flex border-2 border-foreground">
               <button
@@ -350,67 +433,11 @@ export default function SignPage() {
               )}
             </div>
 
-            {/* Size */}
-            {signatureDataUrl && (
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground shrink-0">Size</span>
-                <div className="flex items-center gap-2 flex-1">
-                  <button
-                    type="button"
-                    onClick={() => { setSignatureWidth((w) => Math.max(50, w - 30)); navigator.vibrate?.(5); }}
-                    className="w-8 h-8 flex items-center justify-center border-2 border-foreground font-bold text-sm hover:bg-accent transition-colors"
-                  >
-                    −
-                  </button>
-                  <div
-                    className="flex-1 h-2 bg-muted border border-foreground/20 relative cursor-pointer"
-                    onClick={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                      setSignatureWidth(Math.round(50 + pct * 450));
-                      navigator.vibrate?.(5);
-                    }}
-                    onMouseDown={(e) => {
-                      const bar = e.currentTarget;
-                      let last = -1;
-                      const onMove = (ev: MouseEvent) => {
-                        const rect = bar.getBoundingClientRect();
-                        const pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-                        const val = Math.round(50 + pct * 450);
-                        if (val !== last) {
-                          last = val;
-                          setSignatureWidth(val);
-                          navigator.vibrate?.(2);
-                        }
-                      };
-                      const onUp = () => {
-                        window.removeEventListener("mousemove", onMove);
-                        window.removeEventListener("mouseup", onUp);
-                      };
-                      window.addEventListener("mousemove", onMove);
-                      window.addEventListener("mouseup", onUp);
-                    }}
-                  >
-                    <div
-                      className="absolute inset-y-0 left-0 bg-foreground pointer-events-none"
-                      style={{ width: `${((signatureWidth - 50) / 450) * 100}%` }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setSignatureWidth((w) => Math.min(500, w + 30)); navigator.vibrate?.(5); }}
-                    className="w-8 h-8 flex items-center justify-center border-2 border-foreground font-bold text-sm hover:bg-accent transition-colors"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Info */}
             <InfoBox>
-              Signature will be added to all {pages.length} pages. This is a visual signature, not a cryptographic
-              one.
+              {box
+                ? `Drag to reposition, pull corner to resize. Click another page to move it.`
+                : "Click on any page to place your signature. This is a visual signature, not a cryptographic one."}
             </InfoBox>
 
             {error && <ErrorBox message={error} />}
@@ -420,7 +447,7 @@ export default function SignPage() {
             <button
               type="button"
               onClick={handleSign}
-              disabled={isProcessing || !signatureDataUrl}
+              disabled={isProcessing || !signatureDataUrl || !box}
               className="btn-primary w-full"
             >
               {isProcessing ? (
@@ -431,7 +458,7 @@ export default function SignPage() {
               ) : (
                 <>
                   <SignatureIcon className="w-5 h-5" />
-                  Sign {pages.length} Pages
+                  {box ? `Sign Page ${box.pageNumber}` : "Place Signature First"}
                 </>
               )}
             </button>

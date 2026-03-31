@@ -61,17 +61,3 @@ export const NORMALIZE_PRESETS = [
   },
 ] as const;
 
-// Image resize presets
-export const IMAGE_RESIZE_PRESETS = [
-  { label: "HD (1280×720)", width: 1280, height: 720 },
-  { label: "Full HD (1920×1080)", width: 1920, height: 1080 },
-  { label: "Instagram (1080×1080)", width: 1080, height: 1080 },
-  { label: "Thumbnail (300×300)", width: 300, height: 300 },
-];
-
-// Image format options (bulk operations)
-export const IMAGE_FORMATS_BULK = [
-  { value: "jpeg" as const, label: "JPEG", ext: "jpg" },
-  { value: "png" as const, label: "PNG", ext: "png" },
-  { value: "webp" as const, label: "WebP", ext: "webp" },
-];
