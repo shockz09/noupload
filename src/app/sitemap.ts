@@ -64,6 +64,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/audio",
     "/audio/trim",
     "/audio/merge",
+    "/audio/compress",
     "/audio/convert",
     "/audio/speed",
     "/audio/volume",

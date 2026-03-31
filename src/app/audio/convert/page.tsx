@@ -6,123 +6,96 @@ import {
   AudioFileInfo,
   AudioPageHeader,
   ErrorBox,
-  FFmpegNotice,
-  ProcessButton,
-  ProgressBar,
-  VideoExtractionProgress,
 } from "@/components/audio/shared";
-import { DownloadIcon } from "@/components/icons/ui";
 import { ConvertIcon } from "@/components/icons/image";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { FormatSelector } from "@/components/shared";
-import { useAudioResult, useVideoToAudio } from "@/hooks";
-import { type AudioFormat, convertAudioFormat, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
-import { AUDIO_BITRATES, AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { useInstantMode } from "@/components/shared/InstantModeToggle";
+import { useAudioResult, useFileProcessing } from "@/hooks";
+import { formatFileSize, getAudioInfo } from "@/lib/audio-utils";
+import { convertAudio, type AudioOutputFormat } from "@/lib/audio/convert";
+import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
-import { type ConvertOutputFormat, convertAudioFFmpeg, isFFmpegLoaded } from "@/lib/ffmpeg-utils";
-import { getFileBaseName } from "@/lib/utils";
 
-type OutputFormat = "mp3" | "wav" | "ogg" | "flac" | "aac" | "webm";
-
-const outputFormats: {
-  value: OutputFormat;
-  label: string;
-  desc: string;
-  needsFFmpeg: boolean;
-}[] = [
-  { value: "mp3", label: "MP3", desc: "Universal", needsFFmpeg: false },
-  { value: "wav", label: "WAV", desc: "Lossless", needsFFmpeg: false },
-  { value: "ogg", label: "OGG", desc: "Open format", needsFFmpeg: true },
-  { value: "flac", label: "FLAC", desc: "Lossless", needsFFmpeg: true },
-  { value: "aac", label: "AAC", desc: "Apple/web", needsFFmpeg: true },
-  { value: "webm", label: "WebM", desc: "Web video", needsFFmpeg: true },
+const FORMATS: { key: AudioOutputFormat; label: string; desc: string }[] = [
+  { key: "mp3", label: "MP3", desc: "Universal" },
+  { key: "wav", label: "WAV", desc: "Lossless" },
+  { key: "ogg", label: "OGG", desc: "Open format" },
+  { key: "flac", label: "FLAC", desc: "Lossless" },
+  { key: "aac", label: "AAC", desc: "Apple/web" },
 ];
 
-type ProcessingState = "idle" | "loading-ffmpeg" | "converting";
+const BITRATES = [
+  { value: 64, desc: "Low" },
+  { value: 128, desc: "Good" },
+  { value: 192, desc: "High" },
+  { value: 320, desc: "Best" },
+];
 
 export default function AudioConvertPage() {
+  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
-  const [outputFormat, setOutputFormat] = useState<OutputFormat>("mp3");
+  const [outputFormat, setOutputFormat] = useState<AudioOutputFormat>("mp3");
   const [bitrate, setBitrate] = useState(192);
-  const [processingState, setProcessingState] = useState<ProcessingState>("idle");
-  const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+
+  const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
+    useFileProcessing();
   const { result, setResult, clearResult, download } = useAudioResult();
-  const { processFileSelection, extractionState, extractionProgress, isExtracting, videoFilename } = useVideoToAudio();
 
-  const handleAudioReady = useCallback(
-    async (files: File[]) => {
-      if (files.length > 0) {
-        const selectedFile = files[0];
-        setFile(selectedFile);
-        setError(null);
-        clearResult();
+  const processFile = useCallback(
+    async (f: File, fmt: AudioOutputFormat, br: number) => {
+      if (!startProcessing()) return;
 
-        try {
-          const info = await getAudioInfo(selectedFile);
-          setDuration(info.duration);
-        } catch {
-          // Duration not critical
-        }
+      try {
+        const r = await convertAudio(f, fmt, br * 1000, (p) => setProgress(p * 100));
+        setResult(r.blob, r.filename);
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to convert audio"));
+      } finally {
+        stopProcessing();
       }
     },
-    [clearResult],
+    [startProcessing, setProgress, setResult, setError, stopProcessing],
   );
 
   const handleFileSelected = useCallback(
-    (files: File[]) => {
-      processFileSelection(files, handleAudioReady);
-    },
-    [processFileSelection, handleAudioReady],
-  );
+    async (files: File[]) => {
+      if (files.length === 0) return;
+      const f = files[0];
+      setFile(f);
+      clearResult();
+      clearError();
 
-  const handleConvert = async () => {
-    if (!file) return;
-    setError(null);
-    setProgress(0);
-
-    try {
-      const selectedFormat = outputFormats.find((f) => f.value === outputFormat);
-      const needsFFmpeg = selectedFormat?.needsFFmpeg ?? false;
-
-      let blob: Blob;
-
-      if (needsFFmpeg) {
-        if (!isFFmpegLoaded()) {
-          setProcessingState("loading-ffmpeg");
-        }
-        setProcessingState("converting");
-
-        blob = await convertAudioFFmpeg(file, outputFormat as ConvertOutputFormat, bitrate, (p) => setProgress(p));
-      } else {
-        setProcessingState("converting");
-        blob = await convertAudioFormat(file, outputFormat as AudioFormat, {
-          bitrate,
-        });
+      try {
+        const info = await getAudioInfo(f);
+        setDuration(info.duration);
+      } catch {
+        // Duration not critical
       }
 
-      const baseName = getFileBaseName(file.name);
-      setResult(blob, `${baseName}.${outputFormat}`);
-    } catch (err) {
-      setError(getErrorMessage(err, "Conversion failed"));
-    } finally {
-      setProcessingState("idle");
-    }
-  };
+      if (isInstant) {
+        processFile(f, "mp3", 192);
+      }
+    },
+    [clearResult, clearError, isInstant, processFile],
+  );
 
-  const handleStartOver = () => {
+  const handleConvert = useCallback(() => {
+    if (!file) return;
+    processFile(file, outputFormat, bitrate);
+  }, [file, outputFormat, bitrate, processFile]);
+
+  const handleStartOver = useCallback(() => {
     clearResult();
     setFile(null);
-    setError(null);
-    setProgress(0);
-  };
+    setDuration(0);
+    clearError();
+  }, [clearResult, clearError]);
 
   const inputFormat = file?.name.split(".").pop()?.toUpperCase() || "AUDIO";
-  const selectedFormat = outputFormats.find((f) => f.value === outputFormat);
-  const needsFFmpeg = selectedFormat?.needsFFmpeg ?? false;
   const isLossless = outputFormat === "wav" || outputFormat === "flac";
-  const isProcessing = processingState !== "idle";
+
+  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -175,7 +148,6 @@ export default function AudioConvertPage() {
             <AudioPlayer src={result.url} />
 
             <button type="button" onClick={download} className="btn-success w-full mb-4">
-              <DownloadIcon className="w-5 h-5" />
               Download {outputFormat.toUpperCase()}
             </button>
           </div>
@@ -183,8 +155,6 @@ export default function AudioConvertPage() {
             Convert Another
           </button>
         </div>
-      ) : isExtracting ? (
-        <VideoExtractionProgress state={extractionState} progress={extractionProgress} filename={videoFilename} />
       ) : !file ? (
         <FileDropzone
           accept={AUDIO_VIDEO_EXTENSIONS}
@@ -198,19 +168,28 @@ export default function AudioConvertPage() {
           <AudioFileInfo file={file} duration={duration} onClear={handleStartOver} />
 
           <div className="border-2 border-foreground p-4 bg-card space-y-4">
-            <FormatSelector
-              label="Output Format"
-              formats={outputFormats}
-              value={outputFormat}
-              onChange={(v) => setOutputFormat(v as OutputFormat)}
-              columns={3}
-            />
+            <fieldset className="space-y-3">
+              <legend className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Output Format</legend>
+              <div className="grid grid-cols-5 gap-2">
+                {FORMATS.map((f) => (
+                  <button
+                    type="button"
+                    key={f.key}
+                    onClick={() => setOutputFormat(f.key)}
+                    className={`px-3 py-3 text-sm font-bold border-2 border-foreground transition-colors ${outputFormat === f.key ? "bg-foreground text-background" : "hover:bg-muted"}`}
+                  >
+                    <span className="block">{f.label}</span>
+                    <span className={`block text-xs ${outputFormat === f.key ? "text-background/70" : "text-muted-foreground"}`}>{f.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
 
             {!isLossless && (
               <div className="space-y-2 pt-2 border-t border-foreground/10">
                 <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Quality (kbps)</span>
                 <div className="flex gap-1">
-                  {AUDIO_BITRATES.map((br) => (
+                  {BITRATES.map((br) => (
                     <button
                       type="button"
                       key={br.value}
@@ -222,9 +201,7 @@ export default function AudioConvertPage() {
                       }`}
                     >
                       <span className="block text-sm font-bold">{br.value}</span>
-                      <span
-                        className={`block text-xs ${bitrate === br.value ? "text-background/70" : "text-muted-foreground"}`}
-                      >
+                      <span className={`block text-xs ${bitrate === br.value ? "text-background/70" : "text-muted-foreground"}`}>
                         {br.desc}
                       </span>
                     </button>
@@ -234,24 +211,21 @@ export default function AudioConvertPage() {
             )}
           </div>
 
-          {needsFFmpeg && !isFFmpegLoaded() && <FFmpegNotice />}
-
           {error && <ErrorBox message={error} />}
 
-          {isProcessing && needsFFmpeg && (
-            <ProgressBar
-              progress={progress}
-              label={processingState === "loading-ffmpeg" ? "Loading audio engine..." : "Converting..."}
-            />
-          )}
-
-          <ProcessButton
-            onClick={handleConvert}
-            isProcessing={isProcessing}
-            processingLabel={processingState === "loading-ffmpeg" ? "Loading..." : "Converting..."}
-            icon={<ConvertIcon className="w-5 h-5" />}
-            label={`Convert to ${outputFormat.toUpperCase()}`}
-          />
+          <button type="button" onClick={handleConvert} disabled={isProcessing} className="btn-primary w-full">
+            {isProcessing ? (
+              <>
+                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Converting... {Math.round(progress)}%
+              </>
+            ) : (
+              <>
+                <ConvertIcon className="w-5 h-5" />
+                Convert to {outputFormat.toUpperCase()}
+              </>
+            )}
+          </button>
         </div>
       )}
     </div>

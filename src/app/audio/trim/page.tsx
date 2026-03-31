@@ -13,10 +13,11 @@ import { PauseIcon, PlayIcon } from "@/components/icons/ui";
 import { AudioIcon, TrimIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
-import { formatDuration, formatFileSize, getAudioInfo, getWaveformData, trimAudio } from "@/lib/audio-utils";
+import { formatDuration, formatFileSize, getAudioInfo, getWaveformData } from "@/lib/audio-utils";
+import { trimAudio } from "@/lib/audio/trim";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
-import { getFileBaseName } from "@/lib/utils";
+
 
 export default function TrimAudioPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -113,8 +114,7 @@ export default function TrimAudioPage() {
 
     try {
       const trimmed = await trimAudio(file, startTime, endTime);
-      const baseName = getFileBaseName(file.name);
-      setResult(trimmed, `${baseName}_trimmed.wav`);
+      setResult(trimmed.blob, trimmed.filename);
     } catch (err) {
       setError(getErrorMessage(err, "Failed to trim audio"));
     } finally {

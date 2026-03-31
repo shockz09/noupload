@@ -462,6 +462,7 @@
 .tool-audio-volume { --tool-color: #1E4A7C; }
 .tool-audio-speed { --tool-color: #92400E; }
 .tool-audio-fade { --tool-color: #166534; }
+.tool-audio-compress { --tool-color: #D97706; }
 .tool-audio-reverse { --tool-color: #7C1E4A; }
 .tool-audio-waveform { --tool-color: #0E7490; }
 .tool-audio-convert { --tool-color: #0891B2; }

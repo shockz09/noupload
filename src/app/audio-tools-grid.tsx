@@ -13,8 +13,17 @@ import {
   WaveformIcon,
 } from "@/components/icons/audio";
 import { ConvertIcon } from "@/components/icons/image";
+import { CompressIcon } from "@/components/icons/pdf";
 
 export const audioTools = [
+  {
+    title: "Compress",
+    description: "Reduce audio file size",
+    href: "/audio/compress",
+    icon: CompressIcon,
+    category: "optimize",
+    colorClass: "tool-audio-compress",
+  },
   {
     title: "Convert",
     description: "Convert between audio formats",
@@ -122,6 +131,7 @@ export const audioTools = [
 ];
 
 export const audioCategoryLabels: Record<string, string> = {
+  optimize: "Optimize",
   edit: "Edit",
   create: "Create",
   effects: "Effects",
