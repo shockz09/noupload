@@ -63,6 +63,7 @@ export const PdfPreview = memo(function PdfPreview({ data }: { data: Uint8Array 
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const urlRef = useRef<string | null>(null);
@@ -72,16 +73,23 @@ export const PdfPreview = memo(function PdfPreview({ data }: { data: Uint8Array 
     let cancelled = false;
 
     async function load() {
-      const pdfjsLib = await (await import("@/lib/pdfjs-config")).loadPdfjs();
-      const arrayBuffer = data instanceof Blob
-        ? await data.arrayBuffer()
-        : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+      try {
+        const pdfjsLib = await (await import("@/lib/pdfjs-config")).loadPdfjs();
+        const arrayBuffer = data instanceof Blob
+          ? await data.arrayBuffer()
+          : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 
-      if (cancelled) return;
-      pdfRef.current = pdf;
-      setTotalPages(pdf.numPages);
-      setCurrentPage(1);
+        if (cancelled) return;
+        pdfRef.current = pdf;
+        setTotalPages(pdf.numPages);
+        setCurrentPage(1);
+      } catch {
+        if (!cancelled) {
+          setError("Preview unavailable for encrypted PDFs");
+          setInitialLoading(false);
+        }
+      }
     }
 
     load();
@@ -119,7 +127,15 @@ export const PdfPreview = memo(function PdfPreview({ data }: { data: Uint8Array 
     <div className="border-2 border-foreground bg-muted/20 relative group">
       {/* Page display — always show current image, no spinner on page change */}
       <div className="flex items-center justify-center bg-muted/30" style={{ minHeight: 200 }}>
-        {pageUrl ? (
+        {error ? (
+          <div className="flex items-center gap-2 py-12 px-4 text-muted-foreground">
+            <svg aria-hidden="true" className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <span className="text-sm font-medium">{error}</span>
+          </div>
+        ) : pageUrl ? (
           <img
             src={pageUrl}
             alt={`Page ${currentPage}`}
@@ -134,7 +150,7 @@ export const PdfPreview = memo(function PdfPreview({ data }: { data: Uint8Array 
       </div>
 
       {/* Bottom control bar */}
-      <div className="h-8 border-t-2 border-foreground bg-background flex items-center justify-between px-3">
+      {!error && <div className="h-8 border-t-2 border-foreground bg-background flex items-center justify-between px-3">
         {/* Page indicator */}
         <div className="flex items-center gap-2">
           <svg aria-hidden="true" className="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -176,7 +192,7 @@ export const PdfPreview = memo(function PdfPreview({ data }: { data: Uint8Array 
             </button>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 });
