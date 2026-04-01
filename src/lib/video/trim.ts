@@ -144,7 +144,8 @@ export async function trimVideoRanges(
     // Video frames
     for await (const sample of videoSink.samples(range.start, range.end)) {
       const originalPts = sample.timestamp;
-      sample.setTimestamp((originalPts - range.start) + timeOffset);
+      const adjustedPts = Math.max(0, (originalPts - range.start) + timeOffset);
+      sample.setTimestamp(adjustedPts);
       await videoSource.add(sample);
       sample.close();
 
@@ -155,7 +156,8 @@ export async function trimVideoRanges(
     // Audio samples
     if (audioSink && audioSource) {
       for await (const sample of audioSink.samples(range.start, range.end)) {
-        sample.setTimestamp((sample.timestamp - range.start) + timeOffset);
+        const adjustedPts = Math.max(0, (sample.timestamp - range.start) + timeOffset);
+        sample.setTimestamp(adjustedPts);
         await audioSource.add(sample);
         sample.close();
       }
