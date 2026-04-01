@@ -21,24 +21,29 @@ export type FFmpegLoadState = "idle" | "loading" | "ready" | "error";
 
 // Cached fetch with Cache API - persists across browser sessions
 async function cachedToBlobURL(url: string, mimeType: string): Promise<string> {
-  // Check if Cache API is available (not in SSR or older browsers)
-  if (typeof caches === "undefined") {
-    // Fallback to regular fetch
-    const { toBlobURL } = await import("@ffmpeg/util");
-    return toBlobURL(url, mimeType);
+  const { toBlobURL } = await import("@ffmpeg/util");
+
+  // Try Cache API first for cross-session persistence
+  if (typeof caches !== "undefined") {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(url);
+      if (cached) {
+        const blob = await cached.blob();
+        return URL.createObjectURL(blob);
+      }
+
+      // Not cached — use toBlobURL (handles CORS/COEP correctly), then cache the blob
+      const blobUrl = await toBlobURL(url, mimeType);
+      const resp = await fetch(blobUrl);
+      await cache.put(url, resp);
+      return blobUrl;
+    } catch {
+      // Cache API blocked (COEP, quota, etc.) — fall through
+    }
   }
 
-  const cache = await caches.open(CACHE_NAME);
-
-  let response = await cache.match(url);
-  if (!response) {
-    // Not cached - fetch from CDN and store
-    response = await fetch(url);
-    await cache.put(url, response.clone());
-  }
-
-  const blob = await response.blob();
-  return URL.createObjectURL(blob);
+  return toBlobURL(url, mimeType);
 }
 
 // Lazy load FFmpeg singleton

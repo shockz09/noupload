@@ -18,23 +18,7 @@ export function VideoToolIcon({ className = "w-6 h-6" }: { className?: string })
   );
 }
 
-export function VideoCompressIcon({ className = "w-6 h-6" }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="2" y="4" width="20" height="16" rx="2" />
-      <path d="M8 12h8M12 8v8" />
-    </svg>
-  );
-}
+export { CompressIcon as VideoCompressIcon } from "@/components/icons/pdf";
 
 export function VideoTrimIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
@@ -148,6 +132,36 @@ export function VideoMetadataIcon({ className = "w-6 h-6" }: { className?: strin
       <rect x="2" y="4" width="20" height="16" rx="2" />
       <circle cx="12" cy="12" r="1" />
       <path d="M12 8v1M12 15v1" />
+    </svg>
+  );
+}
+
+export function VideoToGifIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <text
+        x="12"
+        y="13.5"
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="currentColor"
+        stroke="none"
+        fontSize="7"
+        fontWeight="bold"
+        fontFamily="system-ui, sans-serif"
+      >
+        GIF
+      </text>
     </svg>
   );
 }

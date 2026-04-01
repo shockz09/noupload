@@ -475,6 +475,7 @@
 .tool-video-resize { --tool-color: #C2410C; }
 .tool-video-crop { --tool-color: #B91C1C; }
 .tool-video-remove-audio { --tool-color: #991B1B; }
+.tool-video-to-gif { --tool-color: #9F1239; }
 .tool-video-metadata { --tool-color: #A21CAF; }
 .tool-metadata { --tool-color: #0369A1; }
 .tool-blur { --tool-color: #DC2626; }

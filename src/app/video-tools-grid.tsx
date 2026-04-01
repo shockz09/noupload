@@ -3,6 +3,7 @@ import {
   VideoConvertIcon,
   VideoTrimIcon,
   VideoMetadataIcon,
+  VideoToGifIcon,
   RemoveAudioIcon,
 } from "@/components/icons/video";
 import { ExtractIcon } from "@/components/icons/audio";
@@ -39,6 +40,14 @@ export const videoTools = [
     icon: RemoveAudioIcon,
     category: "edit",
     colorClass: "tool-video-remove-audio",
+  },
+  {
+    title: "To GIF",
+    description: "Convert video clips to animated GIFs",
+    href: "/video/to-gif",
+    icon: VideoToGifIcon,
+    category: "convert",
+    colorClass: "tool-video-to-gif",
   },
   {
     title: "Extract Audio",
