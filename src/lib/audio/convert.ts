@@ -1,14 +1,13 @@
+import { audioBufferToWav, loadAudioFile } from "@/lib/audio-utils";
 import { getFileBaseName } from "@/lib/utils";
-import { createAudioInput, registerAudioEncoders } from "./utils";
+import { registerAudioEncoders } from "./utils";
 
 export type AudioOutputFormat = "mp3" | "wav" | "ogg" | "flac" | "aac";
-
-type AudioCodec = "mp3" | "aac" | "opus" | "flac";
 
 interface FormatConfig {
   ext: string;
   mimeType: string;
-  codec?: AudioCodec;
+  codec?: string;
   encoder?: "aac" | "mp3";
 }
 
@@ -20,6 +19,23 @@ const FORMAT_CONFIGS: Record<AudioOutputFormat, FormatConfig> = {
   aac: { ext: "m4a", mimeType: "audio/mp4", codec: "aac", encoder: "aac" },
 };
 
+function createOutputFormat(format: AudioOutputFormat, mod: typeof import("mediabunny")) {
+  switch (format) {
+    case "ogg": return new mod.OggOutputFormat();
+    case "mp3": return new mod.Mp3OutputFormat();
+    case "flac": return new mod.FlacOutputFormat();
+    default: return new mod.Mp4OutputFormat({ fastStart: "in-memory" });
+  }
+}
+
+/**
+ * Convert audio using:
+ *   Web Audio API (decode any format) → encode to target
+ *
+ * WAV/FLAC: pure Web Audio API (no mediabunny needed for WAV, FLAC uses PCM codec)
+ * MP3/AAC: Web Audio API decode → AudioBufferSource encode → muxer
+ * OGG/Opus: Same, but relies on native WebCodecs Opus support (Chrome only)
+ */
 export async function convertAudio(
   file: File,
   format: AudioOutputFormat,
@@ -27,51 +43,51 @@ export async function convertAudio(
   onProgress?: (progress: number) => void,
 ): Promise<{ blob: Blob; filename: string }> {
   const config = FORMAT_CONFIGS[format];
+  const baseName = getFileBaseName(file.name);
 
+  onProgress?.(0.1);
+  const audioBuffer = await loadAudioFile(file);
+
+  // WAV: direct conversion, no mediabunny needed
+  if (format === "wav") {
+    onProgress?.(0.5);
+    const blob = audioBufferToWav(audioBuffer);
+    onProgress?.(1);
+    return { blob, filename: `${baseName}.wav` };
+  }
+
+  // For encoded formats, use mediabunny's AudioBufferSource
   if (config.encoder) {
     await registerAudioEncoders([config.encoder]);
   }
 
   const mod = await import("mediabunny");
-  const { Output, Conversion, BufferTarget } = mod;
 
-  const input = await createAudioInput(file);
-
-  try {
-    const outputFormat =
-      format === "wav"
-        ? new mod.WavOutputFormat()
-        : format === "ogg"
-          ? new mod.OggOutputFormat()
-          : format === "mp3"
-            ? new mod.Mp3OutputFormat()
-            : format === "flac"
-              ? new mod.FlacOutputFormat()
-              : new mod.Mp4OutputFormat({ fastStart: "in-memory" });
-
-    const output = new Output({ format: outputFormat, target: new BufferTarget() });
-
-    const isLossless = format === "wav" || format === "flac";
-
-    const conversion = await Conversion.init({
-      input,
-      output,
-      video: { discard: true },
-      ...(config.codec
-        ? { audio: { codec: config.codec, ...(!isLossless ? { bitrate } : {}) } }
-        : {}),
-    });
-
-    if (!conversion.isValid) {
-      throw new Error("Cannot convert this file. The format may not be supported by your browser.");
-    }
-
-    if (onProgress) conversion.onProgress = onProgress;
-    await conversion.execute();
-
-    const blob = new Blob([output.target.buffer!], { type: config.mimeType });
-    return { blob, filename: `${getFileBaseName(file.name)}.${config.ext}` };
-  } finally {
-    input[Symbol.dispose]();
+  // Check if encoding is actually supported before proceeding
+  if (config.codec && !(await mod.canEncodeAudio(config.codec as Parameters<typeof mod.canEncodeAudio>[0]))) {
+    throw new Error(`${format.toUpperCase()} encoding is not supported by your browser.`);
   }
+
+  onProgress?.(0.3);
+  const { Output, AudioBufferSource, BufferTarget } = mod;
+
+  const isLossless = format === "flac";
+  const codec = config.codec as "mp3" | "aac" | "opus" | "flac";
+  const source = new AudioBufferSource({
+    codec,
+    ...(!isLossless ? { bitrate } : {}),
+  });
+  const output = new Output({
+    format: createOutputFormat(format, mod),
+    target: new BufferTarget(),
+  });
+  output.addAudioTrack(source);
+
+  await source.add(audioBuffer);
+  await output.finalize();
+
+  onProgress?.(1);
+
+  const blob = new Blob([output.target.buffer!], { type: config.mimeType });
+  return { blob, filename: `${baseName}.${config.ext}` };
 }

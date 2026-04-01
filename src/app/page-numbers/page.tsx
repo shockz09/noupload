@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { NumbersIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
-import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
@@ -251,17 +251,17 @@ export default function PageNumbersPage() {
 
       {result ? (
         <div className="max-w-2xl mx-auto">
-          <SuccessCard
-            stampText="Complete"
+          <PdfResultView
             title="Page Numbers Added!"
+            subtitle={`All ${pages.length} pages now have numbers`}
+            data={result.data}
+            size={result.data.length}
             downloadLabel="Download PDF"
             onDownload={handleDownload}
             onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Number Another PDF"
-          >
-            <p className="text-muted-foreground">All {pages.length} pages now have numbers</p>
-          </SuccessCard>
+          />
         </div>
       ) : !file ? (
         <div className="max-w-2xl mx-auto">

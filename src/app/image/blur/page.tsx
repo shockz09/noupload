@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BlurIcon, ImageIcon } from "@/components/icons/image";
-import { ErrorBox, ImageFileInfo, ImagePageHeader, ProgressBar, SuccessCard } from "@/components/image/shared";
+import { ErrorBox, ImageFileInfo, ImagePageHeader, ImageResultView, ProgressBar } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
@@ -219,8 +219,8 @@ export default function ImageBlurPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Protected"
+        <ImageResultView
+          blob={result.blob}
           title="Image Protected!"
           subtitle={`${regions.length} area${regions.length !== 1 ? "s" : ""} blurred`}
           downloadLabel="Download Image"

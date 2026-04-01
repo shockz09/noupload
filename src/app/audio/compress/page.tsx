@@ -4,13 +4,13 @@ import { useCallback, useState } from "react";
 import {
   AudioFileInfo,
   AudioPageHeader,
+  AudioResultView,
   ErrorBox,
 } from "@/components/audio/shared";
 import { CompressIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ComparisonDisplay, SavingsBadge, SuccessCard } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
-import { useFileBuffer, useFileProcessing } from "@/hooks";
+import { useFileBuffer, useFileProcessing, useObjectURL } from "@/hooks";
 import { getAudioInfo } from "@/lib/audio-utils";
 import { compressAudio } from "@/lib/audio/compress";
 import { AUDIO_EXTENSIONS } from "@/lib/constants";
@@ -51,6 +51,7 @@ export default function AudioCompressPage() {
   const [duration, setDuration] = useState(0);
   const [preset, setPreset] = useState<PresetKey>("balanced");
   const [result, setResult] = useState<{ blob: Blob; filename: string; originalSize: number; compressedSize: number } | null>(null);
+  const { url: resultUrl, setSource: setResultSource, revoke: revokeResult } = useObjectURL();
 
   const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
     useFileProcessing();
@@ -63,6 +64,7 @@ export default function AudioCompressPage() {
       try {
         const compressed = await compressAudio(f, bitrate, (p) => setProgress(p * 100));
         setResult(compressed);
+        setResultSource(compressed.blob);
       } catch (err) {
         setError(getErrorMessage(err, "Failed to compress audio"));
       } finally {
@@ -99,21 +101,17 @@ export default function AudioCompressPage() {
     processFile(file, PRESETS[preset].bitrate);
   }, [file, preset, processFile]);
 
-  const handleDownload = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (result) downloadBlob(result.blob, result.filename, "audio/mp4");
-    },
-    [result],
-  );
+  const handleDownload = useCallback(() => {
+    if (result) downloadBlob(result.blob, result.filename, "audio/mp4");
+  }, [result]);
 
   const handleStartOver = useCallback(() => {
     setFile(null);
     setResult(null);
+    revokeResult();
     setDuration(0);
     clearError();
-  }, [clearError]);
+  }, [clearError, revokeResult]);
 
   const { add: addToBuffer } = useFileBuffer();
   const handleHoldInBuffer = useCallback(() => {
@@ -154,25 +152,19 @@ export default function AudioCompressPage() {
               </button>
             </div>
           </div>
-        ) : (
-          <SuccessCard
-            stampText="Compressed"
+        ) : resultUrl ? (
+          <AudioResultView
+            url={resultUrl}
+            blobSize={result.blob.size}
             title="Audio Compressed!"
+            subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.compressedSize)} · ${savings}% smaller`}
             downloadLabel="Download Audio"
             onDownload={handleDownload}
             onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Compress Another"
-          >
-            <ComparisonDisplay
-              originalLabel="Original"
-              originalValue={formatFileSize(result.originalSize)}
-              newLabel="Compressed"
-              newValue={formatFileSize(result.compressedSize)}
-            />
-            <SavingsBadge savings={savings} />
-          </SuccessCard>
-        )
+          />
+        ) : null
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone

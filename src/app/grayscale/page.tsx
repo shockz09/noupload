@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
@@ -147,21 +147,17 @@ export default function GrayscalePage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Converted"
+        <PdfResultView
           title="PDF Converted to Grayscale!"
+          subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.newSize)}`}
+          data={result.data}
+          size={result.newSize}
           downloadLabel="Download PDF"
           onDownload={handleDownload}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Convert Another"
-        >
-          <div className="text-center text-sm text-muted-foreground">
-            <p>
-              {formatFileSize(result.originalSize)} → {formatFileSize(result.newSize)}
-            </p>
-          </div>
-        </SuccessCard>
+        />
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone

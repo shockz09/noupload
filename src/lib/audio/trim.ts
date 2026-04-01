@@ -1,6 +1,11 @@
+import { loadAudioFile } from "@/lib/audio-utils";
 import { getFileBaseName } from "@/lib/utils";
-import { createAudioInput, registerAudioEncoders } from "./utils";
+import { registerAudioEncoders } from "./utils";
 
+/**
+ * Trim audio to AAC/M4A using:
+ *   Web Audio API (decode + slice) → AudioBufferSource (encode to AAC) → Mp4 muxer
+ */
 export async function trimAudio(
   file: File,
   startTime: number,
@@ -9,33 +14,38 @@ export async function trimAudio(
 ): Promise<{ blob: Blob; filename: string }> {
   await registerAudioEncoders(["aac"]);
 
-  const { Output, Conversion, BufferTarget, Mp4OutputFormat } = await import("mediabunny");
+  const { Output, AudioBufferSource, BufferTarget, Mp4OutputFormat } = await import("mediabunny");
 
-  const input = await createAudioInput(file);
+  onProgress?.(0.1);
+  const fullBuffer = await loadAudioFile(file);
 
-  try {
-    const output = new Output({
-      format: new Mp4OutputFormat({ fastStart: "in-memory" }),
-      target: new BufferTarget(),
-    });
+  // Slice the AudioBuffer to the trim region
+  const sampleRate = fullBuffer.sampleRate;
+  const startSample = Math.floor(startTime * sampleRate);
+  const endSample = Math.min(Math.floor(endTime * sampleRate), fullBuffer.length);
+  const newLength = endSample - startSample;
 
-    const conversion = await Conversion.init({
-      input,
-      output,
-      video: { discard: true },
-      trim: { start: startTime, end: endTime },
-    });
-
-    if (!conversion.isValid) {
-      throw new Error("Cannot trim this file. The format may not be supported by your browser.");
-    }
-
-    if (onProgress) conversion.onProgress = onProgress;
-    await conversion.execute();
-
-    const blob = new Blob([output.target.buffer!], { type: "audio/mp4" });
-    return { blob, filename: `${getFileBaseName(file.name)}_trimmed.m4a` };
-  } finally {
-    input[Symbol.dispose]();
+  const ctx = new OfflineAudioContext(fullBuffer.numberOfChannels, newLength, sampleRate);
+  const trimmedBuffer = ctx.createBuffer(fullBuffer.numberOfChannels, newLength, sampleRate);
+  for (let ch = 0; ch < fullBuffer.numberOfChannels; ch++) {
+    const src = fullBuffer.getChannelData(ch);
+    const dst = trimmedBuffer.getChannelData(ch);
+    dst.set(src.subarray(startSample, endSample));
   }
+
+  onProgress?.(0.3);
+  const source = new AudioBufferSource({ codec: "aac", bitrate: 192_000 });
+  const output = new Output({
+    format: new Mp4OutputFormat({ fastStart: "in-memory" }),
+    target: new BufferTarget(),
+  });
+  output.addAudioTrack(source);
+
+  await source.add(trimmedBuffer);
+  await output.finalize();
+
+  onProgress?.(1);
+
+  const blob = new Blob([output.target.buffer!], { type: "audio/mp4" });
+  return { blob, filename: `${getFileBaseName(file.name)}_trimmed.m4a` };
 }

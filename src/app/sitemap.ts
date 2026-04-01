@@ -75,9 +75,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/audio/record",
   ];
 
-  // Video Tools (5)
+  // Video Tools (6)
   const videoTools = [
     "/video/compress",
+    "/video/trim",
     "/video/convert",
     "/video/remove-audio",
     "/video/extract-audio",

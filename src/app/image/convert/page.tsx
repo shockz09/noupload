@@ -4,13 +4,12 @@ import { useCallback, useState } from "react";
 import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { ConvertIcon, ImageIcon } from "@/components/icons/image";
 import {
-  ComparisonDisplay,
   ErrorBox,
   ImageFileInfo,
   ImagePageHeader,
+  ImageResultView,
   ProcessButton,
   ProgressBar,
-  SuccessCard,
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
@@ -273,24 +272,17 @@ export default function ImageConvertPage() {
           title="Convert Image"
           description="Convert between PNG, JPEG, and WebP formats"
         />
-        <SuccessCard
-          stampText="Converted"
+        <ImageResultView
+          blob={result.blob}
           title="Image Converted!"
+          subtitle={`${result.metadata?.originalFormat ?? ""} → ${result.metadata?.newFormat.toUpperCase() ?? ""}`}
           downloadLabel={`Download ${result.metadata?.newFormat.toUpperCase()}`}
           onDownload={handleSingleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Convert Another"
-        >
-          <ComparisonDisplay
-            originalLabel="Original"
-            originalValue={result.metadata?.originalFormat ?? ""}
-            newLabel="New Format"
-            newValue={result.metadata?.newFormat.toUpperCase() ?? ""}
-          />
-          <p className="text-sm text-muted-foreground">File size: {formatFileSize(result.blob.size)}</p>
-        </SuccessCard>
+        />
       </div>
     );
   }

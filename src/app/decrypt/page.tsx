@@ -5,7 +5,7 @@ import { UnlockIcon } from "@/components/icons/ui";
 import { PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PasswordInput } from "@/components/pdf/PasswordInput";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -114,17 +114,17 @@ export default function DecryptPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Unlocked"
+        <PdfResultView
           title="PDF Decrypted!"
+          subtitle="Password protection has been removed"
+          data={result.data}
+          size={result.data.length}
           downloadLabel="Download Unlocked PDF"
           onDownload={handleDownload}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Decrypt Another"
-        >
-          <div className="text-center text-sm text-muted-foreground">Password protection has been removed</div>
-        </SuccessCard>
+        />
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { XIcon } from "@/components/icons/ui";
 import { CollageIcon } from "@/components/icons/image";
-import { ErrorBox, ImagePageHeader, ProgressBar, SuccessCard } from "@/components/image/shared";
+import { ErrorBox, ImagePageHeader, ImageResultView, ProgressBar } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
@@ -234,24 +234,17 @@ export default function CollagePage() {
       />
 
       {result ? (
-        <div className="space-y-6">
-          <SuccessCard
-            stampText="Created"
-            title="Collage Created!"
-            subtitle={`${files.length} images combined`}
-            downloadLabel="Download Collage"
-            onDownload={handleDownload}
-            onCopy={() => copyImageToClipboard(result.blob)}
-            onHoldInBuffer={handleHoldInBuffer}
-            onStartOver={handleStartOver}
-            startOverLabel="Create Another"
-          />
-          {previewUrl && (
-            <div className="border-2 border-foreground overflow-hidden">
-              <img src={previewUrl} alt="Collage preview" className="w-full h-auto" />
-            </div>
-          )}
-        </div>
+        <ImageResultView
+          blob={result.blob}
+          title="Collage Created!"
+          subtitle={`${files.length} images combined`}
+          downloadLabel="Download Collage"
+          onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
+          onStartOver={handleStartOver}
+          startOverLabel="Create Another"
+        />
       ) : (
         <div className="space-y-6">
           {files.length === 0 ? (

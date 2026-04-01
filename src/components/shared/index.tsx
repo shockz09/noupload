@@ -109,7 +109,7 @@ export const ProcessButton = memo(function ProcessButton({
 
 // ============ Success Card ============
 interface SuccessCardProps {
-  stampText: string;
+  stampText?: string;
   title: string;
   subtitle?: string; // Simple text subtitle
   children?: ReactNode; // Custom content
@@ -146,12 +146,14 @@ export const SuccessCard = memo(function SuccessCard({
   return (
     <div className="animate-fade-up">
       <div className="success-card">
-        <div className="success-stamp">
-          <span className="success-stamp-text">{stampText}</span>
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
+        {stampText && (
+          <div className="success-stamp">
+            <span className="success-stamp-text">{stampText}</span>
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+        )}
 
         <div className="space-y-4 mb-8">
           <h2 className="text-3xl font-display">{title}</h2>
@@ -210,80 +212,6 @@ export const FileInfo = memo(function FileInfo({ file, fileSize, onClear, icon }
       >
         Change file
       </button>
-    </div>
-  );
-});
-
-// ============ Comparison Display ============
-interface ComparisonDisplayProps {
-  originalLabel: string;
-  originalValue: string;
-  newLabel: string;
-  newValue: string;
-}
-
-export const ComparisonDisplay = memo(function ComparisonDisplay({
-  originalLabel,
-  originalValue,
-  newLabel,
-  newValue,
-}: ComparisonDisplayProps) {
-  return (
-    <div className="flex items-center justify-center gap-6">
-      <div className="text-center">
-        <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">{originalLabel}</p>
-        <p className="text-xl font-bold">{originalValue}</p>
-      </div>
-      <div className="w-12 h-12 flex items-center justify-center bg-foreground text-background">
-        <svg
-          aria-hidden="true"
-          className="w-5 h-5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      </div>
-      <div className="text-center">
-        <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">{newLabel}</p>
-        <p className="text-xl font-bold">{newValue}</p>
-      </div>
-    </div>
-  );
-});
-
-// ============ Savings Badge ============
-interface SavingsBadgeProps {
-  savings: number;
-}
-
-export const SavingsBadge = memo(function SavingsBadge({ savings }: SavingsBadgeProps) {
-  return (
-    <div
-      className={`inline-flex items-center gap-2 px-4 py-2 border-2 font-bold text-sm ${
-        savings > 0 ? "bg-[#2D5A3D] text-white border-foreground" : "bg-muted text-muted-foreground border-border"
-      }`}
-    >
-      {savings > 0 ? (
-        <>
-          <svg
-            aria-hidden="true"
-            className="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-          >
-            <polyline points="17 11 12 6 7 11" />
-            <path d="M12 6v12" />
-          </svg>
-          {savings}% smaller
-        </>
-      ) : (
-        "Already optimized"
-      )}
     </div>
   );
 });

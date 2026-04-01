@@ -5,7 +5,7 @@ import { LockIcon } from "@/components/icons/ui";
 import { PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PasswordInput } from "@/components/pdf/PasswordInput";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
@@ -140,17 +140,17 @@ export default function EncryptPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Protected"
+        <PdfResultView
           title="PDF Encrypted!"
+          subtitle="Your PDF is now password protected"
+          data={result.data}
+          size={result.data.length}
           downloadLabel="Download Protected PDF"
           onDownload={handleDownload}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Encrypt Another"
-        >
-          <div className="text-center text-sm text-muted-foreground">Your PDF is now password protected</div>
-        </SuccessCard>
+        />
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone

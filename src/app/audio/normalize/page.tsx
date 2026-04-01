@@ -1,22 +1,21 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioFileInfo,
   AudioPageHeader,
+  AudioResultView,
   ErrorBox,
   FFmpegNotice,
   ProcessButton,
   ProgressBar,
-  SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
 import { NormalizeIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useFileBuffer, useVideoToAudio } from "@/hooks";
-import { formatFileSize, getAudioInfo } from "@/lib/audio-utils";
+import { getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
 import { isFFmpegLoaded, type NormalizePreset, normalizeAudio } from "@/lib/ffmpeg-utils";
@@ -170,18 +169,17 @@ export default function NormalizeAudioPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Normalized"
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
           title="Audio Normalized!"
-          subtitle={`Target: ${usedPresetInfo?.label} (${usedPresetInfo?.lufs}) | ${formatFileSize(result.blob.size)}`}
+          subtitle={`Target: ${usedPresetInfo?.label} (${usedPresetInfo?.lufs})`}
           downloadLabel="Download Normalized Audio"
           onDownload={download}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Normalize Another"
-        >
-          <AudioPlayer src={result.url} />
-        </SuccessCard>
+        />
       ) : isExtracting ? (
         <VideoExtractionProgress state={extractionState} progress={extractionProgress} filename={videoFilename} />
       ) : !file ? (

@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { RotateIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, PageThumbnailCard, usePdfPages } from "@/components/pdf/pdf-page-preview";
-import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -182,19 +182,17 @@ export default function RotatePage() {
 
       {result ? (
         <div className="max-w-2xl mx-auto">
-          <SuccessCard
-            stampText="Complete"
+          <PdfResultView
             title="PDF Rotated!"
+            subtitle={`${rotatedCount} ${rotatedCount === 1 ? "page" : "pages"} rotated successfully`}
+            data={result.data}
+            size={result.data.length}
             downloadLabel="Download PDF"
             onDownload={handleDownload}
             onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Rotate Another PDF"
-          >
-            <p className="text-muted-foreground">
-              {rotatedCount} {rotatedCount === 1 ? "page" : "pages"} rotated successfully
-            </p>
-          </SuccessCard>
+          />
         </div>
       ) : !file ? (
         <div className="max-w-2xl mx-auto">

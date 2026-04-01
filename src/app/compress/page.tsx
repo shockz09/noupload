@@ -4,12 +4,10 @@ import { useCallback, useState } from "react";
 import { CompressIcon, PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import {
-  ComparisonDisplay,
   ErrorBox,
   PdfFileInfo,
   PdfPageHeader,
-  SavingsBadge,
-  SuccessCard,
+  PdfResultView,
 } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
@@ -131,23 +129,17 @@ export default function CompressPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Optimized"
+        <PdfResultView
           title="PDF Compressed!"
+          subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.compressedSize)} · ${savings}% smaller`}
+          data={result.data}
+          size={result.compressedSize}
           downloadLabel="Download PDF"
           onDownload={handleDownload}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Compress Another"
-        >
-          <ComparisonDisplay
-            originalLabel="Original"
-            originalValue={formatFileSize(result.originalSize)}
-            newLabel="Compressed"
-            newValue={formatFileSize(result.compressedSize)}
-          />
-          <SavingsBadge savings={savings} />
-        </SuccessCard>
+        />
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone

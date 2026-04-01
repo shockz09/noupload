@@ -6,7 +6,7 @@ import { GripIcon, LoaderIcon, UploadIcon, XIcon } from "@/components/icons/ui";
 import { CameraIcon, FileIcon } from "@/components/icons/pdf";
 import { CameraCapture } from "@/components/pdf/CameraCapture";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, PdfResultView, ProgressBar } from "@/components/pdf/shared";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { imagesToPdf } from "@/lib/pdf-image-utils";
@@ -250,17 +250,17 @@ export default function ImagesToPdfPage() {
 
       {result ? (
         <div className="max-w-2xl mx-auto">
-          <SuccessCard
-            stampText="Complete"
+          <PdfResultView
             title="PDF Created!"
+            subtitle={`${result.pageCount} page${result.pageCount !== 1 ? "s" : ""} scanned into one PDF`}
+            data={result.data}
+            size={result.data.length}
             downloadLabel="Download PDF"
             onDownload={handleDownload}
             onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Create Another PDF"
-          >
-            <p className="text-muted-foreground">{result.pageCount} page{result.pageCount !== 1 ? 's' : ''} scanned into one PDF</p>
-          </SuccessCard>
+          />
         </div>
       ) : (
         <div className="space-y-6">

@@ -5,7 +5,7 @@ import * as exifr from "exifr";
 import { ImageIcon } from "@/components/icons/image";
 import { MetadataIcon } from "@/components/icons/pdf";
 import { LoaderIcon, ShieldIcon } from "@/components/icons/ui";
-import { ErrorBox, ImageFileInfo, ImagePageHeader, SuccessCard } from "@/components/image/shared";
+import { ErrorBox, ImageFileInfo, ImagePageHeader, ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
@@ -360,29 +360,16 @@ export default function StripMetadataPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Clean"
+        <ImageResultView
+          blob={result.blob}
           title="Metadata Removed!"
+          subtitle={`${formatFileSize(result.metadata?.originalSize ?? 0)} → ${formatFileSize(result.blob.size)} · GPS, camera, dates stripped`}
           downloadLabel="Download Clean Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
           onStartOver={handleStartOver}
           startOverLabel="Clean Another"
-        >
-          <div className="bg-muted/50 border-2 border-foreground p-4 text-left">
-            <p className="font-bold text-sm mb-2">Removed data includes:</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• Camera make and model</li>
-              <li>• GPS coordinates and location</li>
-              <li>• Date and time taken</li>
-              <li>• Software used</li>
-            </ul>
-          </div>
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Original: {formatFileSize(result.metadata?.originalSize ?? 0)}</span>
-            <span>Clean: {formatFileSize(result.blob.size)}</span>
-          </div>
-        </SuccessCard>
+        />
       ) : showProcessingState ? (
         <div className="border-2 border-foreground p-12 bg-card">
           <div className="flex flex-col items-center justify-center gap-4">

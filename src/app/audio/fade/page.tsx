@@ -5,15 +5,15 @@ import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioFileInfo,
   AudioPageHeader,
+  AudioResultView,
   ErrorBox,
   ProcessButton,
-  SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
 import { FadeIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
-import { applyFade, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
+import { applyFade, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
@@ -117,18 +117,17 @@ export default function FadeAudioPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Done"
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
           title="Fade Applied!"
-          subtitle={`Fade in: ${usedFadeIn}s • Fade out: ${usedFadeOut}s • ${formatFileSize(result.blob.size)}`}
+          subtitle={`Fade in: ${usedFadeIn}s • Fade out: ${usedFadeOut}s`}
           downloadLabel="Download Audio"
           onDownload={download}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Process Another"
-        >
-          <AudioPlayer src={result.url} />
-        </SuccessCard>
+        />
       ) : isExtracting ? (
         <VideoExtractionProgress state={extractionState} progress={extractionProgress} filename={videoFilename} />
       ) : !file ? (

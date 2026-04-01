@@ -5,15 +5,15 @@ import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioFileInfo,
   AudioPageHeader,
+  AudioResultView,
   ErrorBox,
   ProcessButton,
-  SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
 import { VolumeIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
-import { adjustVolume, formatFileSize, getAudioInfo } from "@/lib/audio-utils";
+import { adjustVolume, getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
@@ -108,18 +108,17 @@ export default function VolumeAudioPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Done"
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
           title="Volume Adjusted!"
-          subtitle={`${usedVolume}% volume • ${formatFileSize(result.blob.size)}`}
+          subtitle={`${usedVolume}% volume`}
           downloadLabel="Download Audio"
           onDownload={download}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Process Another"
-        >
-          <AudioPlayer src={result.url} />
-        </SuccessCard>
+        />
       ) : isExtracting ? (
         <VideoExtractionProgress state={extractionState} progress={extractionProgress} filename={videoFilename} />
       ) : !file ? (

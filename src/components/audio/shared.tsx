@@ -1,9 +1,11 @@
 "use client";
 
-import { memo, type ReactNode } from "react";
-import { InfoIcon, LoaderIcon } from "@/components/icons/ui";
+import { memo, useEffect, useRef, type ReactNode } from "react";
+import { AudioPlayer as AudioPlayerDirect } from "@/components/audio/AudioPlayer";
+import { DownloadIcon, InfoIcon, LoaderIcon } from "@/components/icons/ui";
 import { AudioIcon, VideoIcon } from "@/components/icons/audio";
 import { ProgressBar as BaseProgressBar, FileInfo, PageHeader } from "@/components/shared";
+import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import type { ExtractionState } from "@/hooks/useVideoToAudio";
 import { formatDuration, formatFileSize } from "@/lib/audio-utils";
 
@@ -118,6 +120,80 @@ export const VideoExtractionProgress = memo(function VideoExtractionProgress({
         </div>
       </div>
       {state === "extracting" && <BaseProgressBar progress={progress} label={`${Math.round(progress)}%`} />}
+    </div>
+  );
+});
+
+// ============ Audio Result View ============
+// AudioPlayer hero on top, compact action bar below — same pattern as VideoResultView / ImageResultView
+
+interface AudioResultProps {
+  url: string;
+  blobSize: number;
+  title: string;
+  subtitle?: string;
+  downloadLabel: string;
+  onDownload: () => void;
+  onHoldInBuffer?: () => void;
+  onStartOver: () => void;
+  startOverLabel: string;
+  children?: ReactNode;
+}
+
+export const AudioResultView = memo(function AudioResultView({
+  url,
+  blobSize,
+  title,
+  subtitle,
+  downloadLabel,
+  onDownload,
+  onHoldInBuffer,
+  onStartOver,
+  startOverLabel,
+  children,
+}: AudioResultProps) {
+  const { isInstant } = useInstantMode();
+  const bufferedRef = useRef(false);
+
+  useEffect(() => {
+    if (isInstant && onHoldInBuffer && !bufferedRef.current) {
+      bufferedRef.current = true;
+      onHoldInBuffer();
+    }
+  }, [isInstant, onHoldInBuffer]);
+
+  return (
+    <div className="animate-fade-up space-y-0">
+      {/* Audio player hero — AudioPlayer has its own border-2 border-foreground */}
+      <AudioPlayerDirect src={url} />
+
+      {/* Action bar */}
+      <div className="border-2 border-t-0 border-foreground bg-background p-4 space-y-3">
+        {/* Title row */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold truncate">{title}</h2>
+            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {children}
+            <span className="text-xs font-mono text-muted-foreground">
+              {formatFileSize(blobSize)}
+            </span>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-2">
+          <button type="button" onClick={onDownload} className="btn-success flex-1">
+            <DownloadIcon className="w-4 h-4 shrink-0" />
+            {downloadLabel}
+          </button>
+          <button type="button" onClick={onStartOver} className="btn-secondary">
+            {startOverLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 });

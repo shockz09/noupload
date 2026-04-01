@@ -5,8 +5,8 @@ import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioFileInfo,
   AudioPageHeader,
+  AudioResultView,
   ErrorBox,
-  SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
 import { LoaderIcon } from "@/components/icons/ui";
@@ -15,7 +15,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
-import { formatDuration, formatFileSize, getAudioInfo, reverseAudio } from "@/lib/audio-utils";
+import { formatDuration, getAudioInfo, reverseAudio } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
@@ -116,18 +116,17 @@ export default function ReverseAudioPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Reversed"
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
           title="Audio Reversed!"
-          subtitle={`${formatDuration(duration)} • ${formatFileSize(result.blob.size)}`}
+          subtitle={formatDuration(duration)}
           downloadLabel="Download Reversed Audio"
           onDownload={download}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleClear}
           startOverLabel="Reverse Another"
-        >
-          <AudioPlayer src={result.url} />
-        </SuccessCard>
+        />
       ) : isProcessing ? (
         <div className="border-2 border-foreground p-12 bg-card overflow-hidden">
           <div className="flex flex-col items-center justify-center gap-4 max-w-full">

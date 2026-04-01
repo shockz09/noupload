@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioPageHeader,
+  AudioResultView,
   ErrorBox,
   ProcessButton,
-  SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
 import { PauseIcon, PlayIcon } from "@/components/icons/ui";
@@ -208,18 +207,17 @@ export default function TrimAudioPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Trimmed"
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
           title="Audio Trimmed!"
-          subtitle={`Duration: ${formatDuration(selectedDuration)} • ${formatFileSize(result.blob.size)}`}
+          subtitle={`Duration: ${formatDuration(selectedDuration)}`}
           downloadLabel="Download Trimmed Audio"
           onDownload={download}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Trim Another Audio"
-        >
-          <AudioPlayer src={result.url} />
-        </SuccessCard>
+        />
       ) : isExtracting ? (
         <VideoExtractionProgress state={extractionState} progress={extractionProgress} filename={videoFilename} />
       ) : !file ? (

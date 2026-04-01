@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { MetadataIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView, ProgressBar } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useFileProcessing, useProcessingResult } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
@@ -168,32 +168,30 @@ export default function MetadataPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText={result.metadata?.mode === "strip" ? "Cleaned" : "Updated"}
+        <PdfResultView
           title={result.metadata?.mode === "strip" ? "PDF Sanitized!" : "Metadata Updated!"}
+          subtitle={
+            result.metadata?.mode === "strip" && result.metadata.removedFields
+              ? `Removed ${result.metadata.removedFields.length} metadata ${result.metadata.removedFields.length === 1 ? "field" : "fields"}`
+              : undefined
+          }
+          data={result.blob}
+          size={result.blob.size}
           downloadLabel="Download PDF"
           onDownload={handleDownload}
           onStartOver={handleClear}
           startOverLabel="Edit Another PDF"
         >
-          {result.metadata?.mode === "strip" && result.metadata.removedFields && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Removed {result.metadata.removedFields.length} metadata{" "}
-                {result.metadata.removedFields.length === 1 ? "field" : "fields"}
-              </p>
-              {result.metadata.removedFields.length > 0 && (
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {result.metadata.removedFields.map((field) => (
-                    <span key={field} className="px-2 py-1 bg-muted text-xs font-medium rounded">
-                      {field}
-                    </span>
-                  ))}
-                </div>
-              )}
+          {result.metadata?.mode === "strip" && result.metadata.removedFields && result.metadata.removedFields.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {result.metadata.removedFields.map((field) => (
+                <span key={field} className="px-2 py-1 bg-muted text-xs font-medium rounded">
+                  {field}
+                </span>
+              ))}
             </div>
           )}
-        </SuccessCard>
+        </PdfResultView>
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone

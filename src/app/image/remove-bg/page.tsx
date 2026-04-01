@@ -6,9 +6,9 @@ import {
   ErrorBox,
   ImageFileInfo,
   ImagePageHeader,
+  ImageResultView,
   ProcessButton,
   ProgressBar,
-  SuccessCard,
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
@@ -298,45 +298,18 @@ export default function RemoveBgPage() {
 
       {result ? (
         <div className="space-y-6">
-          <SuccessCard
-            stampText="Removed"
+          <ImageResultView
+            blob={result.blob}
             title="Background Removed!"
+            subtitle={`Processed in ${result.processingTimeSeconds.toFixed(2)}s${capability ? ` · ${capabilityLabel(capability)}` : ""}`}
             downloadLabel="Download Image"
             onDownload={handleDownload}
             onCopy={() => copyImageToClipboard(result.blob)}
             onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Remove Another"
-          >
-            <div className="relative">
-              {/* Checkerboard pattern for transparency */}
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{
-                  backgroundImage: `
-										linear-gradient(45deg, #808080 25%, transparent 25%),
-										linear-gradient(-45deg, #808080 25%, transparent 25%),
-										linear-gradient(45deg, transparent 75%, #808080 75%),
-										linear-gradient(-45deg, transparent 75%, #808080 75%)
-									`,
-                  backgroundSize: "20px 20px",
-                  backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
-                }}
-              />
-              <img
-                src={result.url}
-                alt="Result"
-                className="relative max-h-64 mx-auto object-contain"
-                loading="lazy"
-                decoding="async"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              Processed in {result.processingTimeSeconds.toFixed(2)}s
-              {capability && ` · ${capabilityLabel(capability)}`}
-            </p>
-          </SuccessCard>
-
+            transparent
+          />
           {/* Background Options */}
           <div className="border-2 border-foreground p-4 space-y-4">
             <h3 className="font-bold text-sm">Background</h3>

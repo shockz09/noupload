@@ -5,7 +5,7 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { SignatureIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
-import { ErrorBox, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, PdfResultView, ProgressBar } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { SignatureDrawPad, SignatureUpload } from "@/components/signature";
 import { useFileBuffer } from "@/hooks";
@@ -272,17 +272,17 @@ export default function SignPage() {
 
       {result ? (
         <div className="max-w-2xl mx-auto">
-          <SuccessCard
-            stampText="Signed"
+          <PdfResultView
             title="PDF Signed!"
+            subtitle={`Your signature has been added to page ${box?.pageNumber}`}
+            data={result.data}
+            size={result.data.length}
             downloadLabel="Download Signed PDF"
             onDownload={handleDownload}
             onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Sign Another PDF"
-          >
-            <p className="text-muted-foreground">Your signature has been added to page {box?.pageNumber}</p>
-          </SuccessCard>
+          />
         </div>
       ) : !file ? (
         <div className="max-w-2xl mx-auto">

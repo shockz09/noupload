@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { LoaderIcon } from "@/components/icons/ui";
 import { BrightnessIcon } from "@/components/icons/image";
-import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
+import { ErrorBox, ImagePageHeader, ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
@@ -139,8 +139,8 @@ export default function ImageAdjustPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Adjusted"
+        <ImageResultView
+          blob={result.blob}
           title="Image Adjusted!"
           downloadLabel="Download Image"
           onDownload={handleDownload}
@@ -148,9 +148,7 @@ export default function ImageAdjustPage() {
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Adjust Another"
-        >
-          <p className="text-muted-foreground">File size: {formatFileSize(result.blob.size)}</p>
-        </SuccessCard>
+        />
       ) : !file ? (
         <div className="max-w-2xl mx-auto">
           <FileDropzone

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { ImageIcon, ResizeIcon } from "@/components/icons/image";
-import { ComparisonDisplay, ErrorBox, ImagePageHeader, ProgressBar, SuccessCard } from "@/components/image/shared";
+import { ErrorBox, ImagePageHeader, ImageResultView, ProgressBar } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
@@ -343,24 +343,17 @@ export default function ImageResizePage() {
           title="Resize Image"
           description="Change image dimensions with presets or custom sizes"
         />
-        <SuccessCard
-          stampText="Resized"
+        <ImageResultView
+          blob={result.blob}
           title="Image Resized!"
+          subtitle={`${result.metadata?.originalDimensions.width}×${result.metadata?.originalDimensions.height} → ${result.metadata?.newDimensions.width}×${result.metadata?.newDimensions.height}`}
           downloadLabel="Download Image"
           onDownload={handleSingleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Resize Another"
-        >
-          <ComparisonDisplay
-            originalLabel="Original"
-            originalValue={`${result.metadata?.originalDimensions.width}×${result.metadata?.originalDimensions.height}`}
-            newLabel="New Size"
-            newValue={`${result.metadata?.newDimensions.width}×${result.metadata?.newDimensions.height}`}
-          />
-          <p className="text-sm text-muted-foreground">File size: {formatFileSize(result.blob.size)}</p>
-        </SuccessCard>
+        />
       </div>
     );
   }

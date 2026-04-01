@@ -5,7 +5,7 @@ import { GripIcon, LoaderIcon, TrashIcon } from "@/components/icons/ui";
 import { NumbersIcon, OrganizeIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { PageGridLoading, usePdfPages } from "@/components/pdf/pdf-page-preview";
-import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
@@ -257,17 +257,17 @@ export default function OrganizePage() {
 
       {result ? (
         <div className="max-w-2xl mx-auto">
-          <SuccessCard
-            stampText="Organized"
+          <PdfResultView
             title="PDF Organized!"
+            subtitle={`${pageItems.length} pages in your new order`}
+            data={result.data}
+            size={result.data.length}
             downloadLabel="Download PDF"
             onDownload={handleDownload}
             onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Organize Another PDF"
-          >
-            <p className="text-muted-foreground">{pageItems.length} pages in your new order</p>
-          </SuccessCard>
+          />
         </div>
       ) : !file ? (
         <div className="max-w-2xl mx-auto">

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoaderIcon } from "@/components/icons/ui";
 import { CropIcon, ImageIcon } from "@/components/icons/image";
-import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
+import { ErrorBox, ImagePageHeader, ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
@@ -282,20 +282,17 @@ export default function ImageCropPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Cropped"
+        <ImageResultView
+          blob={result.blob}
           title="Image Cropped!"
+          subtitle={`${result.metadata?.width}×${result.metadata?.height}`}
           downloadLabel="Download Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Crop Another"
-        >
-          <p className="text-muted-foreground">
-            New size: {result.metadata?.width}×{result.metadata?.height} • {formatFileSize(result.blob.size)}
-          </p>
-        </SuccessCard>
+        />
       ) : !file ? (
         <FileDropzone
           accept=".jpg,.jpeg,.png,.webp"

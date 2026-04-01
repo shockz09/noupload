@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView, ProgressBar } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
@@ -156,21 +156,17 @@ export default function PdfToPdfAPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText={`PDF/A-${result.level}`}
+        <PdfResultView
           title="Converted to PDF/A!"
+          subtitle={`PDF/A-${result.level} · ${formatFileSize(result.originalSize)} → ${formatFileSize(result.newSize)}`}
+          data={result.data}
+          size={result.newSize}
           downloadLabel="Download PDF/A"
           onDownload={handleDownload}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Convert Another"
-        >
-          <div className="text-center text-sm text-muted-foreground">
-            <p>
-              {formatFileSize(result.originalSize)} → {formatFileSize(result.newSize)}
-            </p>
-          </div>
-        </SuccessCard>
+        />
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone

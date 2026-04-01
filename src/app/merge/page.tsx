@@ -5,11 +5,11 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { MergeIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { FileList } from "@/components/pdf/file-list";
-import { ErrorBox, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { useFileBuffer, useFileProcessing, usePdfDataResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { mergePDFs } from "@/lib/pdf-utils";
-import { formatFileSize, getFileBaseName } from "@/lib/utils";
+import { getFileBaseName } from "@/lib/utils";
 
 interface FileItem {
   file: File;
@@ -136,36 +136,17 @@ export default function MergePage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Complete"
+        <PdfResultView
           title="PDFs Merged!"
+          subtitle={`${result.metadata?.originalCount} files combined into one PDF`}
+          data={result.data}
+          size={result.data.length}
           downloadLabel="Download PDF"
           onDownload={handleDownload}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Merge More Files"
-        >
-          <p className="text-muted-foreground">{result.metadata?.originalCount} files combined into one PDF</p>
-          <div className="inline-flex items-center gap-4 px-5 py-4 bg-muted border-2 border-foreground">
-            <div className="pdf-icon-box">
-              <svg
-                aria-hidden="true"
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path d="M14 2v6h6" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <p className="font-bold text-foreground truncate max-w-[200px]">{result.filename}</p>
-              <p className="text-sm text-muted-foreground">{formatFileSize(result.data.length)}</p>
-            </div>
-          </div>
-        </SuccessCard>
+        />
       ) : (
         <div className="space-y-6">
           <FileDropzone

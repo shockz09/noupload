@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { LoaderIcon } from "@/components/icons/ui";
 import { PdfIcon, SplitIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { useFileBuffer } from "@/hooks";
 import { downloadBlob, downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -219,19 +219,17 @@ export default function SplitPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Complete"
+        <PdfResultView
           title="PDF Split!"
+          subtitle={result.files.length === 1 ? "Your extracted pages are ready" : `Created ${result.files.length} PDF files`}
+          data={result.files.length === 1 ? result.files[0].data : undefined}
+          size={result.files.length === 1 ? result.files[0].data.length : undefined}
           downloadLabel={result.files.length === 1 ? "Download PDF" : `Download ${result.files.length} Files`}
           onDownload={handleDownload}
           onHoldInBuffer={result.files.length === 1 ? handleHoldInBuffer : undefined}
           onStartOver={handleStartOver}
           startOverLabel="Split Another PDF"
-        >
-          <p className="text-muted-foreground">
-            {result.files.length === 1 ? "Your extracted pages are ready" : `Created ${result.files.length} PDF files`}
-          </p>
-        </SuccessCard>
+        />
       ) : !file ? (
         <FileDropzone
           accept=".pdf"

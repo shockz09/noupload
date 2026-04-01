@@ -1,5 +1,6 @@
+import { loadAudioFile } from "@/lib/audio-utils";
 import { getFileBaseName } from "@/lib/utils";
-import { createAudioInput, registerAudioEncoders } from "./utils";
+import { registerAudioEncoders } from "./utils";
 
 export interface CompressAudioResult {
   blob: Blob;
@@ -8,6 +9,10 @@ export interface CompressAudioResult {
   compressedSize: number;
 }
 
+/**
+ * Compress audio to AAC/M4A using:
+ *   Web Audio API (decode any format) → AudioBufferSource (encode to AAC) → Mp4 muxer
+ */
 export async function compressAudio(
   file: File,
   bitrate: number,
@@ -15,39 +20,30 @@ export async function compressAudio(
 ): Promise<CompressAudioResult> {
   await registerAudioEncoders(["aac"]);
 
-  const { Output, Conversion, BufferTarget, Mp4OutputFormat } = await import("mediabunny");
+  const { Output, AudioBufferSource, BufferTarget, Mp4OutputFormat } = await import("mediabunny");
 
-  const input = await createAudioInput(file);
+  onProgress?.(0.1);
+  const audioBuffer = await loadAudioFile(file);
 
-  try {
-    const output = new Output({
-      format: new Mp4OutputFormat({ fastStart: "in-memory" }),
-      target: new BufferTarget(),
-    });
+  onProgress?.(0.3);
+  const source = new AudioBufferSource({ codec: "aac", bitrate });
+  const output = new Output({
+    format: new Mp4OutputFormat({ fastStart: "in-memory" }),
+    target: new BufferTarget(),
+  });
+  output.addAudioTrack(source);
 
-    const conversion = await Conversion.init({
-      input,
-      output,
-      video: { discard: true },
-      audio: { codec: "aac", bitrate },
-    });
+  await source.add(audioBuffer);
+  await output.finalize();
 
-    if (!conversion.isValid) {
-      throw new Error("Cannot compress this audio file. The format may not be supported by your browser.");
-    }
+  onProgress?.(1);
 
-    if (onProgress) conversion.onProgress = onProgress;
-    await conversion.execute();
+  const blob = new Blob([output.target.buffer!], { type: "audio/mp4" });
 
-    const blob = new Blob([output.target.buffer!], { type: "audio/mp4" });
-
-    return {
-      blob,
-      filename: `${getFileBaseName(file.name)}_compressed.m4a`,
-      originalSize: file.size,
-      compressedSize: blob.size,
-    };
-  } finally {
-    input[Symbol.dispose]();
-  }
+  return {
+    blob,
+    filename: `${getFileBaseName(file.name)}_compressed.m4a`,
+    originalSize: file.size,
+    compressedSize: blob.size,
+  };
 }

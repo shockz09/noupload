@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioPageHeader,
+  AudioResultView,
   ErrorBox,
   FFmpegNotice,
   ProcessButton,
   ProgressBar,
-  SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
 import { GripIcon, XIcon } from "@/components/icons/ui";
@@ -140,18 +139,17 @@ export default function MergeAudioPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Merged"
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
           title="Audio Merged!"
-          subtitle={`${files.length} files combined | ${formatFileSize(result.blob.size)}`}
+          subtitle={`${files.length} files combined`}
           downloadLabel="Download Merged Audio"
           onDownload={download}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Merge More Files"
-        >
-          <AudioPlayer src={result.url} />
-        </SuccessCard>
+        />
       ) : (
         <div className="space-y-4">
           {isExtracting ? (

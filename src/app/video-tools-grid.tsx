@@ -1,6 +1,7 @@
 import {
   VideoCompressIcon,
   VideoConvertIcon,
+  VideoTrimIcon,
   VideoMetadataIcon,
   RemoveAudioIcon,
 } from "@/components/icons/video";
@@ -14,6 +15,14 @@ export const videoTools = [
     icon: VideoCompressIcon,
     category: "optimize",
     colorClass: "tool-video-compress",
+  },
+  {
+    title: "Trim",
+    description: "Visually select and cut video clips",
+    href: "/video/trim",
+    icon: VideoTrimIcon,
+    category: "edit",
+    colorClass: "tool-video-trim",
   },
   {
     title: "Convert",

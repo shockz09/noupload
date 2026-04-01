@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { BookIcon, PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, ProcessButton, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView, ProcessButton, ProgressBar } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
@@ -120,10 +120,10 @@ export default function PdfToEpubPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Converted"
+        <PdfResultView
           title="EPUB Created!"
-          subtitle={`${result.pageCount} pages · ${result.chapterCount} chapters · ${formatFileSize(result.blob.size)}`}
+          subtitle={`${result.pageCount} pages · ${result.chapterCount} chapters`}
+          size={result.blob.size}
           downloadLabel="Download .epub"
           onDownload={handleDownload}
           onHoldInBuffer={handleHoldInBuffer}

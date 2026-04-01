@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { DownloadIcon } from "@/components/icons/ui";
 import { VideoConvertIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, InfoBox, ProgressBar, SuccessCard, VideoFileInfo, VideoPageHeader } from "@/components/video/shared";
+import { ErrorBox, InfoBox, ProgressBar, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob, downloadMultiple } from "@/lib/download";
@@ -238,10 +238,10 @@ export default function ConvertVideoPage() {
 
       {/* ── Single mode result ── */}
       {!isBulk && result ? (
-        <SuccessCard
-          stampText="Converted"
+        <VideoResultView
+          blob={result.blob}
           title="Video Converted!"
-          subtitle={`${format.toUpperCase()} · ${formatFileSize(result.blob.size)}`}
+          subtitle={format.toUpperCase()}
           downloadLabel={`Download ${format.toUpperCase()}`}
           onDownload={handleDownload}
           onHoldInBuffer={handleHoldInBuffer}

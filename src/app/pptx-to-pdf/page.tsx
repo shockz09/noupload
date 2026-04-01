@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { PdfIcon, PptxIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfPageHeader, ProcessButton, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfPageHeader, PdfResultView, ProcessButton, ProgressBar } from "@/components/pdf/shared";
 import { FileInfo, InfoBox } from "@/components/shared";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
@@ -123,10 +123,11 @@ export default function PptxToPdfPage() {
       {engineError && <ErrorBox message={engineError} />}
 
       {result ? (
-        <SuccessCard
-          stampText="Converted"
+        <PdfResultView
           title="PDF Ready"
           subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.newSize)} · ${result.processingTimeSeconds.toFixed(1)}s`}
+          data={result.blob}
+          size={result.newSize}
           downloadLabel="Download PDF"
           onDownload={handleDownload}
           onHoldInBuffer={handleHoldInBuffer}

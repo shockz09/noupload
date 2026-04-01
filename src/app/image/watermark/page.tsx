@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { LoaderIcon } from "@/components/icons/ui";
 import { WatermarkIcon } from "@/components/icons/pdf";
-import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
+import { ErrorBox, ImagePageHeader, ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
@@ -152,8 +152,8 @@ export default function ImageWatermarkPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Done"
+        <ImageResultView
+          blob={result.blob}
           title="Watermark Added!"
           downloadLabel="Download Image"
           onDownload={handleDownload}
@@ -161,9 +161,7 @@ export default function ImageWatermarkPage() {
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Watermark Another"
-        >
-          <p className="text-muted-foreground">File size: {formatFileSize(result.blob.size)}</p>
-        </SuccessCard>
+        />
       ) : !file ? (
         <div className="max-w-2xl mx-auto">
           <FileDropzone

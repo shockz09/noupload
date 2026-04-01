@@ -4,14 +4,12 @@ import { useCallback, useMemo, useState } from "react";
 import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { ImageCompressIcon, ImageIcon } from "@/components/icons/image";
 import {
-  ComparisonDisplay,
   ErrorBox,
   ImageFileInfo,
   ImagePageHeader,
+  ImageResultView,
   ProcessButton,
   ProgressBar,
-  SavingsBadge,
-  SuccessCard,
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox, QualitySlider } from "@/components/shared";
@@ -218,7 +216,7 @@ export default function ImageCompressPage() {
             </div>
             <div className="space-y-4 mb-6">
               <h2 className="text-3xl font-display">{bulkResults.length} Images Compressed!</h2>
-              <SavingsBadge savings={totalSavings} />
+              <p className="text-sm text-muted-foreground">{totalSavings}% smaller overall</p>
             </div>
             <button type="button" onClick={handleDownloadAll} className="btn-success w-full mb-4">
               <DownloadIcon className="w-5 h-5" />
@@ -267,24 +265,17 @@ export default function ImageCompressPage() {
           title="Compress Image"
           description="Reduce file size while keeping quality"
         />
-        <SuccessCard
-          stampText="Optimized"
+        <ImageResultView
+          blob={result.blob}
           title="Image Compressed!"
+          subtitle={`${formatFileSize(result.metadata?.originalSize ?? 0)} → ${formatFileSize(result.metadata?.compressedSize ?? 0)} · ${singleSavings}% smaller`}
           downloadLabel="Download Image"
           onDownload={handleSingleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Compress Another"
-        >
-          <ComparisonDisplay
-            originalLabel="Original"
-            originalValue={formatFileSize(result.metadata?.originalSize ?? 0)}
-            newLabel="Compressed"
-            newValue={formatFileSize(result.metadata?.compressedSize ?? 0)}
-          />
-          <SavingsBadge savings={singleSavings} />
-        </SuccessCard>
+        />
       </div>
     );
   }

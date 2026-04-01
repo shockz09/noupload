@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LoaderIcon } from "@/components/icons/ui";
 import { FiltersIcon } from "@/components/icons/image";
-import { ErrorBox, ImagePageHeader, SuccessCard } from "@/components/image/shared";
+import { ErrorBox, ImagePageHeader, ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
@@ -410,23 +410,17 @@ export default function ImageFiltersPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Filtered"
+        <ImageResultView
+          blob={result.blob}
           title="Filter Applied!"
+          subtitle={result.metadata?.filter ? `${result.metadata.filter.charAt(0).toUpperCase()}${result.metadata.filter.slice(1)} filter` : undefined}
           downloadLabel="Download Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Apply to Another"
-        >
-          <p className="text-muted-foreground">
-            {result.metadata?.filter
-              ? result.metadata.filter.charAt(0).toUpperCase() + result.metadata.filter.slice(1)
-              : ""}{" "}
-            filter • {formatFileSize(result.blob.size)}
-          </p>
-        </SuccessCard>
+        />
       ) : !file ? (
         <div className="max-w-2xl mx-auto">
           <FileDropzone

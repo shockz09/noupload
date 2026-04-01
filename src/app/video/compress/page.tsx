@@ -5,14 +5,12 @@ import { DownloadIcon } from "@/components/icons/ui";
 import { VideoCompressIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import {
-  ComparisonDisplay,
   ErrorBox,
   InfoBox,
   ProgressBar,
-  SavingsBadge,
-  SuccessCard,
   VideoFileInfo,
   VideoPageHeader,
+  VideoResultView,
 } from "@/components/video/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
@@ -333,23 +331,16 @@ export default function VideoCompressPage() {
             </div>
           </div>
         ) : (
-          <SuccessCard
-            stampText="Compressed"
+          <VideoResultView
+            blob={result.blob}
             title="Video Compressed!"
+            subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.compressedSize)} · ${savings}% smaller`}
             downloadLabel="Download Video"
             onDownload={handleDownload}
             onHoldInBuffer={handleHoldInBuffer}
             onStartOver={handleStartOver}
             startOverLabel="Compress Another"
-          >
-            <ComparisonDisplay
-              originalLabel="Original"
-              originalValue={formatFileSize(result.originalSize)}
-              newLabel="Compressed"
-              newValue={formatFileSize(result.compressedSize)}
-            />
-            <SavingsBadge savings={savings} />
-          </SuccessCard>
+          />
         )
 
       /* ── Bulk mode results ── */
@@ -366,7 +357,9 @@ export default function VideoCompressPage() {
               <h2 className="text-3xl font-display">
                 {successfulResults.length} Video{successfulResults.length !== 1 ? "s" : ""} Compressed!
               </h2>
-              {totalBulkSavings > 0 && <SavingsBadge savings={totalBulkSavings} />}
+              {totalBulkSavings > 0 && (
+                <p className="text-sm text-muted-foreground">{totalBulkSavings}% smaller overall</p>
+              )}
             </div>
             {successfulResults.length > 0 && (
               <button type="button" onClick={handleBulkDownloadAll} className="btn-success w-full mb-4">

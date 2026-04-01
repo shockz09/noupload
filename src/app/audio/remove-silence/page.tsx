@@ -1,22 +1,21 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioFileInfo,
   AudioPageHeader,
+  AudioResultView,
   ErrorBox,
   FFmpegNotice,
   ProcessButton,
   ProgressBar,
-  SuccessCard,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
 import { SilenceIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useFileBuffer, useVideoToAudio } from "@/hooks";
-import { formatFileSize, getAudioInfo } from "@/lib/audio-utils";
+import { getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
 import { isFFmpegLoaded, removeSilence, type SilenceMode } from "@/lib/ffmpeg-utils";
@@ -164,18 +163,17 @@ export default function RemoveSilencePage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Trimmed"
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
           title="Silence Removed!"
-          subtitle={`${usedMode === "trim-ends" ? "Ends trimmed" : "All silence removed"} | ${formatFileSize(result.blob.size)}`}
+          subtitle={usedMode === "trim-ends" ? "Ends trimmed" : "All silence removed"}
           downloadLabel="Download Trimmed Audio"
           onDownload={download}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Process Another"
-        >
-          <AudioPlayer src={result.url} />
-        </SuccessCard>
+        />
       ) : isExtracting ? (
         <VideoExtractionProgress state={extractionState} progress={extractionProgress} filename={videoFilename} />
       ) : !file ? (

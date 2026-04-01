@@ -3,7 +3,7 @@
 import type React from "react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView, ProgressBar } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
@@ -24,7 +24,6 @@ export interface ToolPageTemplateProps<T> {
 
   // Success rendering
   renderSuccessContent?: (result: T) => React.ReactNode;
-  successStamp: string;
   successTitle: string;
   downloadLabel: string;
   startOverLabel: string;
@@ -64,7 +63,6 @@ export const ToolPageTemplate = memo(function ToolPageTemplate<T extends { data:
     accept,
     processFile,
     renderSuccessContent,
-    successStamp,
     successTitle,
     downloadLabel,
     startOverLabel,
@@ -154,16 +152,17 @@ export const ToolPageTemplate = memo(function ToolPageTemplate<T extends { data:
       <PdfPageHeader icon={icon} iconClass={iconClass} title={title} description={description} />
 
       {result ? (
-        <SuccessCard
-          stampText={successStamp}
+        <PdfResultView
           title={successTitle}
+          data={result.data}
+          size={result.data instanceof Blob ? result.data.size : result.data.length}
           downloadLabel={downloadLabel}
           onDownload={handleDownload}
           onStartOver={handleStartOver}
           startOverLabel={startOverLabel}
         >
           {renderSuccessContent?.(result)}
-        </SuccessCard>
+        </PdfResultView>
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone

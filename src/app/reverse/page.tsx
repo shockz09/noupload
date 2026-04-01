@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { PdfIcon, ReversePagesIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, SuccessCard } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
@@ -134,27 +134,17 @@ export default function ReversePage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Reversed"
+        <PdfResultView
           title="Pages Reversed!"
+          subtitle={`${result.pageCount} pages flipped · Page 1 → ${result.pageCount}, Page ${result.pageCount} → 1`}
+          data={result.data}
+          size={result.data.length}
           downloadLabel="Download PDF"
           onDownload={handleDownload}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Reverse Another"
-        >
-          <div className="flex items-center justify-center gap-4 text-sm">
-            <div className="text-center">
-              <div className="text-2xl font-bold">{result.pageCount}</div>
-              <div className="text-muted-foreground">pages flipped</div>
-            </div>
-            <div className="text-muted-foreground">
-              Page 1 → Page {result.pageCount}
-              <br />
-              Page {result.pageCount} → Page 1
-            </div>
-          </div>
-        </SuccessCard>
+        />
       ) : !file ? (
         <div className="space-y-6">
           <FileDropzone

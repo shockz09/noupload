@@ -1,17 +1,17 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import {
   AudioFileInfo,
   AudioPageHeader,
+  AudioResultView,
   ErrorBox,
 } from "@/components/audio/shared";
 import { ConvertIcon } from "@/components/icons/image";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useFileProcessing } from "@/hooks";
-import { formatFileSize, getAudioInfo } from "@/lib/audio-utils";
+import { getAudioInfo } from "@/lib/audio-utils";
 import { convertAudio, type AudioOutputFormat } from "@/lib/audio/convert";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/error";
@@ -107,54 +107,16 @@ export default function AudioConvertPage() {
       />
 
       {result ? (
-        <div className="animate-fade-up">
-          <div className="success-card">
-            <div className="success-stamp">
-              <span className="success-stamp-text">Converted</span>
-              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              <h2 className="text-3xl font-display">Conversion Complete!</h2>
-
-              <div className="flex items-center justify-center gap-4">
-                <div className="text-center">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">From</p>
-                  <p className="text-xl font-bold">{inputFormat}</p>
-                  <p className="text-sm text-muted-foreground">{formatFileSize(file?.size || 0)}</p>
-                </div>
-                <div className="w-10 h-10 flex items-center justify-center bg-foreground text-background">
-                  <svg
-                    aria-hidden="true"
-                    className="w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">To</p>
-                  <p className="text-xl font-bold">{outputFormat.toUpperCase()}</p>
-                  <p className="text-sm text-muted-foreground">{formatFileSize(result.blob.size)}</p>
-                </div>
-              </div>
-            </div>
-
-            <AudioPlayer src={result.url} />
-
-            <button type="button" onClick={download} className="btn-success w-full mb-4">
-              Download {outputFormat.toUpperCase()}
-            </button>
-          </div>
-          <button type="button" onClick={handleStartOver} className="btn-secondary w-full mt-4">
-            Convert Another
-          </button>
-        </div>
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
+          title="Conversion Complete!"
+          subtitle={`${inputFormat} → ${outputFormat.toUpperCase()}`}
+          downloadLabel={`Download ${outputFormat.toUpperCase()}`}
+          onDownload={download}
+          onStartOver={handleStartOver}
+          startOverLabel="Convert Another"
+        />
       ) : !file ? (
         <FileDropzone
           accept={AUDIO_VIDEO_EXTENSIONS}

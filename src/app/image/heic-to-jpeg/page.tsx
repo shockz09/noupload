@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { LoaderIcon } from "@/components/icons/ui";
 import { HeicIcon, ImageIcon } from "@/components/icons/image";
-import { ComparisonDisplay, ErrorBox, ImageFileInfo, ImagePageHeader, SuccessCard } from "@/components/image/shared";
+import { ErrorBox, ImageFileInfo, ImagePageHeader, ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
@@ -109,21 +109,17 @@ export default function HeicToJpegPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Converted"
+        <ImageResultView
+          blob={result.blob}
           title="HEIC Converted!"
+          subtitle={`HEIC → JPEG · ${formatFileSize(result.originalSize)} → ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download JPEG"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleClear}
           startOverLabel="Convert Another"
-        >
-          <ComparisonDisplay originalLabel="Original" originalValue="HEIC" newLabel="Converted" newValue="JPEG" />
-          <p className="text-sm text-muted-foreground">
-            {formatFileSize(result.originalSize)} → {formatFileSize(result.blob.size)}
-          </p>
-        </SuccessCard>
+        />
       ) : isProcessing ? (
         <div className="border-2 border-foreground p-12 bg-card">
           <div className="flex flex-col items-center justify-center gap-4">
