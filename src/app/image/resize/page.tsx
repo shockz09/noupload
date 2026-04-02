@@ -6,6 +6,7 @@ import { ImageIcon, ResizeIcon } from "@/components/icons/image";
 import { ErrorBox, ImagePageHeader, ImageResultView, ProgressBar } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import {
   copyImageToClipboard,
@@ -177,7 +178,10 @@ export default function ImageResizePage() {
 
   const handleDownloadOne = useCallback((item: ResizedItem) => downloadImage(item.blob, item.filename), []);
   const handleDownloadAll = useCallback(() => {
-    for (const item of bulkResults) downloadImage(item.blob, item.filename);
+    downloadMultiple(
+      bulkResults.map((item) => ({ data: item.blob, filename: item.filename })),
+      "resized_images.zip",
+    );
   }, [bulkResults]);
 
   // --- Shared handlers ---

@@ -722,14 +722,6 @@ export async function copyImageToClipboard(blob: Blob): Promise<boolean> {
   }
 }
 
-// Download multiple images (with stagger to prevent browser blocking)
-export async function downloadMultipleImages(images: Array<{ blob: Blob; filename: string }>): Promise<void> {
-  for (const { blob, filename } of images) {
-    downloadImage(blob, filename);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-}
-
 // Bulk process helper
 export async function bulkProcess<T>(
   files: File[],

@@ -5,6 +5,7 @@ import { CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { BackButton } from "@/components/shared/BackButton";
 import { QRCustomizePanel } from "@/components/qr/customize-panel";
 import { ErrorBox } from "@/components/shared";
+import { downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { copyImageToClipboard } from "@/lib/image-utils";
 import {
@@ -129,9 +130,10 @@ export default function BulkQRGeneratePage() {
         }),
       );
 
-      for (let i = 0; i < blobs.length; i++) {
-        downloadQR(blobs[i], `qrcode-${i + 1}.png`);
-      }
+      downloadMultiple(
+        blobs.map((blob, i) => ({ data: blob, filename: `qrcode-${i + 1}.png` })),
+        "qrcodes.zip",
+      );
     } catch (err) {
       setError(getErrorMessage(err, "Failed to download QR codes"));
     } finally {

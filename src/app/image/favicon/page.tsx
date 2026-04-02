@@ -8,6 +8,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing, useImagePaste, useObjectURL } from "@/hooks";
+import { downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { downloadImage, type FaviconSet, formatFileSize, generateFavicons } from "@/lib/image-utils";
 
@@ -96,21 +97,18 @@ export default function FaviconPage() {
     [result],
   );
 
-  const handleDownloadAll = useCallback(async () => {
+  const handleDownloadAll = useCallback(() => {
     if (!result) return;
 
+    const items: { data: Blob; filename: string }[] = [];
     if (result.favicons.svg) {
-      downloadImage(result.favicons.svg, "favicon.svg");
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      items.push({ data: result.favicons.svg, filename: "favicon.svg" });
     }
-
     for (const size of pngSizes) {
       const blob = result.favicons[size.key as keyof FaviconSet];
-      if (blob) {
-        downloadImage(blob, size.filename);
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
+      if (blob) items.push({ data: blob, filename: size.filename });
     }
+    downloadMultiple(items, "favicons.zip");
   }, [result]);
 
   const handleStartOver = useCallback(() => {

@@ -15,6 +15,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { convertFormat, copyImageToClipboard, downloadImage, formatFileSize, type ImageFormat } from "@/lib/image-utils";
 import { getFileBaseName } from "@/lib/utils";
@@ -164,7 +165,10 @@ export default function ImageConvertPage() {
 
   const handleDownloadOne = useCallback((item: ConvertedItem) => downloadImage(item.blob, item.filename), []);
   const handleDownloadAll = useCallback(() => {
-    for (const item of bulkResults) downloadImage(item.blob, item.filename);
+    downloadMultiple(
+      bulkResults.map((item) => ({ data: item.blob, filename: item.filename })),
+      "converted_images.zip",
+    );
   }, [bulkResults]);
 
   // --- Shared handlers ---

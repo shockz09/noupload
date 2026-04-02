@@ -155,7 +155,8 @@ export default function SplitPage() {
         if (result.files.length === 1) {
           downloadBlob(result.files[0].data, result.files[0].filename);
         } else {
-          downloadMultiple(result.files);
+          const baseName = getFileBaseName(file!.name);
+          downloadMultiple(result.files, `${baseName}_split.zip`);
         }
       }
     },

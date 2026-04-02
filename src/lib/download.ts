@@ -42,14 +42,24 @@ export function downloadFile(url: string, filename: string): void {
 }
 
 /**
- * Trigger download with stagger for multiple files (prevents browser blocking)
+ * Download multiple files as a single ZIP archive
  */
 export async function downloadMultiple(
   items: Array<{ data: Blob | Uint8Array; filename: string }>,
-  delay = 100,
+  zipName = "files.zip",
 ): Promise<void> {
+  const { zipSync } = await import("fflate");
+
+  const files: Record<string, Uint8Array> = {};
   for (const { data, filename } of items) {
-    downloadBlob(data, filename);
-    await new Promise((resolve) => setTimeout(resolve, delay));
+    if (data instanceof Blob) {
+      files[filename] = new Uint8Array(await data.arrayBuffer());
+    } else {
+      files[filename] = data instanceof Uint8Array ? data : new Uint8Array(data);
+    }
   }
+
+  const zipped = zipSync(files);
+  const blob = new Blob([zipped as BlobPart], { type: "application/zip" });
+  downloadBlob(blob, zipName);
 }

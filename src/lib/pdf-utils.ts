@@ -232,12 +232,6 @@ export function downloadBlob(data: Uint8Array, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function downloadMultiple(files: { data: Uint8Array; filename: string }[]) {
-  files.forEach(({ data, filename }, index) => {
-    setTimeout(() => downloadBlob(data, filename), index * 100);
-  });
-}
-
 export async function addSignature(
   file: File,
   signatureDataUrl: string,

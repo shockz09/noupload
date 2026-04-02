@@ -7,7 +7,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useFileProcessing } from "@/hooks";
-import { downloadFile } from "@/lib/download";
+import { downloadFile, downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { extractImagesFromPDF } from "@/lib/pdf-utils";
 import { formatFileSize, getFileBaseName } from "@/lib/utils";
@@ -77,10 +77,12 @@ export default function ExtractImagesPage() {
   }, []);
 
   const handleDownloadAll = useCallback(() => {
-    for (const image of images) {
-      handleDownloadOne(image);
-    }
-  }, [images, handleDownloadOne]);
+    const baseName = file ? getFileBaseName(file.name) : "extracted";
+    downloadMultiple(
+      images.map((img) => ({ data: img.blob, filename: img.name })),
+      `${baseName}_images.zip`,
+    );
+  }, [images, file]);
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

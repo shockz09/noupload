@@ -15,6 +15,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox, QualitySlider } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { compressImage, copyImageToClipboard, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
 
@@ -142,7 +143,10 @@ export default function ImageCompressPage() {
 
   const handleDownloadOne = useCallback((item: CompressedItem) => downloadImage(item.blob, item.filename), []);
   const handleDownloadAll = useCallback(() => {
-    for (const item of bulkResults) downloadImage(item.blob, item.filename);
+    downloadMultiple(
+      bulkResults.map((item) => ({ data: item.blob, filename: item.filename })),
+      "compressed_images.zip",
+    );
   }, [bulkResults]);
 
   // --- Shared handlers ---

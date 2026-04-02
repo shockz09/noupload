@@ -273,7 +273,7 @@ export default function VideoCompressPage() {
   );
 
   const handleBulkDownloadAll = useCallback(() => {
-    downloadMultiple(successfulResults.map((r) => ({ data: r.blob, filename: r.filename })));
+    downloadMultiple(successfulResults.map((r) => ({ data: r.blob, filename: r.filename })), "compressed_videos.zip");
   }, [successfulResults]);
 
   const handleBulkDownloadOne = useCallback((item: BulkCompressItem) => {

@@ -203,7 +203,7 @@ export default function ConvertVideoPage() {
   );
 
   const handleBulkDownloadAll = useCallback(() => {
-    downloadMultiple(successfulResults.map((r) => ({ data: r.blob, filename: r.filename })));
+    downloadMultiple(successfulResults.map((r) => ({ data: r.blob, filename: r.filename })), "converted_videos.zip");
   }, [successfulResults]);
 
   const handleBulkDownloadOne = useCallback((item: BulkConvertItem) => {
