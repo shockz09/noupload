@@ -71,6 +71,9 @@ importers:
       fabric:
         specifier: '6'
         version: 6.9.1
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.2
       file-saver:
         specifier: ^2.0.5
         version: 2.0.5

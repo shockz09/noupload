@@ -339,11 +339,16 @@ async function dataUrlToJpegBytes(dataUrl: string): Promise<Uint8Array> {
 }
 
 export async function downloadImagesAsZip(images: ConvertedImage[], baseName: string, format: "png" | "jpeg") {
-  // Download each image individually since we're avoiding additional dependencies
+  const { zipSync } = await import("fflate");
   const ext = format === "png" ? "png" : "jpg";
-  images.forEach((img, index) => {
-    setTimeout(() => {
-      downloadBlob(img.blob, `${baseName}_page${img.pageNumber}.${ext}`);
-    }, index * 100);
-  });
+
+  const files: Record<string, Uint8Array> = {};
+  for (const img of images) {
+    const name = `${baseName}_page${img.pageNumber}.${ext}`;
+    files[name] = new Uint8Array(await img.blob.arrayBuffer());
+  }
+
+  const zipped = zipSync(files);
+  const blob = new Blob([zipped as BlobPart], { type: "application/zip" });
+  downloadBlob(blob, `${baseName}_images.zip`);
 }
