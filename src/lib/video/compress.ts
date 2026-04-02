@@ -65,6 +65,27 @@ export interface CompressResult {
   compressedSize: number;
 }
 
+type MediabunnyMod = typeof import("mediabunny");
+type MBVideoCodec = Parameters<MediabunnyMod["canEncodeVideo"]>[0];
+
+const VIDEO_CODEC_FALLBACKS: MBVideoCodec[] = ["avc", "vp9", "vp8", "hevc", "av1"];
+
+async function resolveVideoCodec(
+  mod: MediabunnyMod,
+  preferred: MBVideoCodec,
+  bitrate: number,
+  height: number | null,
+): Promise<MBVideoCodec> {
+  const opts = { bitrate, ...(height ? { height } : {}) };
+  const codecs: MBVideoCodec[] = [preferred, ...VIDEO_CODEC_FALLBACKS.filter((c) => c !== preferred)];
+  for (const codec of codecs) {
+    if (await mod.canEncodeVideo(codec, opts)) return codec;
+  }
+  throw new Error(
+    "Your browser does not support video encoding with these settings. Try the Light preset, or use Chrome/Edge.",
+  );
+}
+
 export async function compressVideo(
   file: File,
   options: CompressOptions,
@@ -78,6 +99,9 @@ export async function compressVideo(
     registerAacEncoder();
   }
 
+  const targetHeight = RESOLUTION_HEIGHTS[options.resolution];
+  const videoCodec = await resolveVideoCodec(mod, options.codec, options.videoBitrate, targetHeight);
+
   const input = await createInput(file);
 
   try {
@@ -87,11 +111,10 @@ export async function compressVideo(
     });
 
     const videoOpts: Record<string, unknown> = {
-      codec: options.codec,
+      codec: videoCodec,
       bitrate: options.videoBitrate,
     };
 
-    const targetHeight = RESOLUTION_HEIGHTS[options.resolution];
     if (targetHeight) videoOpts.height = targetHeight;
     if (options.frameRate) videoOpts.frameRate = options.frameRate;
 
@@ -100,7 +123,14 @@ export async function compressVideo(
       output,
       video: videoOpts,
       audio: { codec: "aac", bitrate: options.audioBitrate },
+      showWarnings: false,
     });
+
+    if (!conversion.isValid) {
+      throw new Error(
+        "Cannot compress this video — your browser doesn't support encoding the required codecs. Try Chrome or Edge.",
+      );
+    }
 
     if (onProgress) conversion.onProgress = onProgress;
     await conversion.execute();

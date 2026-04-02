@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { VideoToGifIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader } from "@/components/video/shared";
-import { ImageResultView, ProgressBar } from "@/components/image/shared";
+import { ImageResultView } from "@/components/image/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
@@ -181,7 +181,6 @@ export default function VideoToGifPage() {
           )}
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={progress} />}
 
           <button
             type="button"

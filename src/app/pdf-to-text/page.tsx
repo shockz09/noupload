@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { DownloadIcon } from "@/components/icons/ui";
 import { PdfIcon, TextIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, ProgressBar } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
@@ -209,13 +209,11 @@ export default function PdfToTextPage() {
           />
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={progress} label="Extracting text..." />}
-
           <button type="button" onClick={handleExtract} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (
               <>
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Extracting...
+                Extracting... {progress > 0 ? `${Math.round(progress)}%` : ""}
               </>
             ) : (
               <>

@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView, ProgressBar } from "@/components/pdf/shared";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
@@ -247,8 +247,6 @@ export default function PdfToPdfAPage() {
           )}
 
           {error && <ErrorBox message={error} />}
-          {isProcessing && <ProgressBar progress={-1} label={gsProgress || "Processing..."} />}
-
           <button type="button" onClick={handleConvert} disabled={isProcessing} className="btn-primary w-full">
             {isProcessing ? (
               <>

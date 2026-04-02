@@ -33,9 +33,15 @@ export async function convertVideo(
 
     const conversion = await Conversion.init(
       format === "webm"
-        ? { input, output, video: { codec: "vp9" }, audio: { codec: "opus" } }
-        : { input, output },
+        ? { input, output, video: { codec: "vp9" }, audio: { codec: "opus" }, showWarnings: false }
+        : { input, output, showWarnings: false },
     );
+
+    if (!conversion.isValid) {
+      throw new Error(
+        `Cannot convert to ${format.toUpperCase()} — your browser doesn't support encoding the required codecs. Try Chrome or Edge.`,
+      );
+    }
 
     if (onProgress) conversion.onProgress = onProgress;
     await conversion.execute();
