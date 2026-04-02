@@ -32,6 +32,7 @@ export async function compressAudio(
     target: new BufferTarget(),
   });
   output.addAudioTrack(source);
+  await output.start();
 
   await source.add(audioBuffer);
   await output.finalize();

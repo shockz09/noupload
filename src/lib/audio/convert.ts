@@ -82,6 +82,7 @@ export async function convertAudio(
     target: new BufferTarget(),
   });
   output.addAudioTrack(source);
+  await output.start();
 
   await source.add(audioBuffer);
   await output.finalize();

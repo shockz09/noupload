@@ -40,6 +40,7 @@ export async function trimAudio(
     target: new BufferTarget(),
   });
   output.addAudioTrack(source);
+  await output.start();
 
   await source.add(trimmedBuffer);
   await output.finalize();
