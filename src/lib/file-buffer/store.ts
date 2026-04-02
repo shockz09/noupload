@@ -11,6 +11,7 @@ class FileBufferStore {
   private items: BufferItem[] = [];
   private listeners = new Set<Listener>();
   private loaded = false;
+  private pendingItemId: string | null = null;
 
   constructor() {
     // Hydrate from IndexedDB on creation (fire-and-forget)
@@ -49,6 +50,7 @@ class FileBufferStore {
     }
 
     const isImage = input.mimeType.startsWith("image/");
+    const isPdf = input.mimeType === "application/pdf";
 
     const item: BufferItem = {
       ...input,
@@ -60,6 +62,11 @@ class FileBufferStore {
     this.items.push(item);
     this.notify();
     this.persistToIDB();
+
+    // Generate PDF thumbnail async — renders page 1 at thumbnail size
+    if (isPdf) {
+      this.generatePdfThumbnail(item).catch(() => {});
+    }
 
     return { ok: true };
   }
@@ -85,6 +92,56 @@ class FileBufferStore {
 
   toFile(item: BufferItem): File {
     return new File([item.blob], item.filename, { type: item.mimeType });
+  }
+
+  setPendingItem(id: string): void {
+    this.pendingItemId = id;
+  }
+
+  consumePendingItem(): File | null {
+    if (!this.pendingItemId) return null;
+    const item = this.items.find((i) => i.id === this.pendingItemId);
+    this.pendingItemId = null;
+    return item ? this.toFile(item) : null;
+  }
+
+  private async generatePdfThumbnail(item: BufferItem): Promise<void> {
+    // Bail early if item was removed before we start
+    if (!this.items.find((i) => i.id === item.id)) return;
+
+    const { loadPdfjs } = await import("@/lib/pdfjs-config");
+    const pdfjsLib = await loadPdfjs();
+    const pdf = await pdfjsLib.getDocument({ data: await item.blob.arrayBuffer() }).promise;
+    const page = await pdf.getPage(1);
+
+    const thumbHeight = 80;
+    const viewport = page.getViewport({ scale: 1 });
+    const scale = thumbHeight / viewport.height;
+    const scaled = page.getViewport({ scale });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(scaled.width);
+    canvas.height = Math.round(scaled.height);
+    const ctx = canvas.getContext("2d")!;
+    await page.render({ canvasContext: ctx, viewport: scaled, canvas }).promise;
+    pdf.destroy();
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/png");
+    });
+    canvas.width = 0;
+    canvas.height = 0;
+
+    if (!blob) return;
+
+    const url = URL.createObjectURL(blob);
+    const existing = this.items.find((i) => i.id === item.id);
+    if (existing) {
+      existing.previewUrl = url;
+      this.notify();
+    } else {
+      URL.revokeObjectURL(url);
+    }
   }
 
   private notify(): void {
@@ -123,6 +180,13 @@ class FileBufferStore {
         this.items = items;
         this.purgeExpired();
         this.notify();
+
+        // Regenerate PDF thumbnails (blob URLs don't survive page reloads)
+        for (const item of this.items) {
+          if (item.mimeType === "application/pdf" && !item.previewUrl) {
+            this.generatePdfThumbnail(item).catch(() => {});
+          }
+        }
       }
     } catch {
       // IDB load failure is non-fatal

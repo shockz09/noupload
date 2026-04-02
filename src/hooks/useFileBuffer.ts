@@ -17,5 +17,7 @@ export function useFileBuffer() {
     remove: fileBufferStore.remove.bind(fileBufferStore),
     clear: fileBufferStore.clear.bind(fileBufferStore),
     toFile: fileBufferStore.toFile.bind(fileBufferStore),
+    setPendingItem: fileBufferStore.setPendingItem.bind(fileBufferStore),
+    consumePendingItem: fileBufferStore.consumePendingItem.bind(fileBufferStore),
   };
 }

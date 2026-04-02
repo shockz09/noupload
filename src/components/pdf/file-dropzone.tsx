@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BufferIcon, UploadIcon } from "@/components/icons/ui";
 import { useFileBuffer } from "@/hooks/useFileBuffer";
 import type { BufferItem } from "@/lib/file-buffer";
@@ -36,8 +36,15 @@ export const FileDropzone = memo(function FileDropzone({
   // Memoize accepted extensions parsing
   const acceptedExtensions = useMemo(() => accept.split(",").map((a) => a.trim().toLowerCase()), [accept]);
 
-  // Buffer integration — show compatible buffered files
-  const { items: bufferItems, toFile } = useFileBuffer();
+  // Buffer integration — show compatible buffered files & auto-consume pending items
+  const { items: bufferItems, toFile, consumePendingItem } = useFileBuffer();
+  const pendingConsumed = useRef(false);
+  useEffect(() => {
+    if (pendingConsumed.current) return;
+    pendingConsumed.current = true;
+    const file = consumePendingItem();
+    if (file) onFilesSelected([file]);
+  }, [consumePendingItem, onFilesSelected]);
   const compatibleBufferItems = useMemo(() => {
     return bufferItems.filter((item: BufferItem) => {
       const extensions = MIME_TO_EXTENSIONS[item.mimeType];

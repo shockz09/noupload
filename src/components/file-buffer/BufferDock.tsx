@@ -52,7 +52,7 @@ function DockItem({
 }: {
   item: BufferItem;
   onRemove: (id: string) => void;
-  onNavigate: (href: string) => void;
+  onNavigate: (itemId: string, href: string) => void;
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -91,7 +91,7 @@ function DockItem({
                   type="button"
                   onClick={() => {
                     setShowMenu(false);
-                    onNavigate(tool.href);
+                    onNavigate(item.id, tool.href);
                   }}
                   className="dock-menu-item"
                 >
@@ -158,7 +158,7 @@ function DockItem({
 }
 
 export const BufferDock = memo(function BufferDock() {
-  const { items, remove } = useFileBuffer();
+  const { items, remove, setPendingItem } = useFileBuffer();
   const { isInstant } = useInstantMode();
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(false);
@@ -176,9 +176,10 @@ export const BufferDock = memo(function BufferDock() {
 
   const reversedItems = useMemo(() => [...items].reverse(), [items]);
 
-  const handleNavigate = useCallback((href: string) => {
+  const handleNavigate = useCallback((itemId: string, href: string) => {
+    setPendingItem(itemId);
     router.push(href);
-  }, [router]);
+  }, [router, setPendingItem]);
 
   if (!isVisible) return null;
 
