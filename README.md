@@ -38,71 +38,23 @@ I would love if people would contribute and use this.
 
 ### PDF Tools
 
-| Tool | Description |
-|------|-------------|
-| **Organize** | Drag & drop to reorder, add, or delete pages |
-| **Merge** | Combine multiple PDFs into one |
-| **Split** | Extract pages or divide into multiple files |
-| **Compress** | Reduce file size (metadata removal, structure optimization) |
-| **Rotate** | Rotate pages in any direction |
-| **Watermark** | Add text watermarks to documents |
-| **Page Numbers** | Add page numbers to your PDF |
-| **Sign** | Draw or upload your signature |
-| **OCR** | Extract text from scanned documents |
-| **PDF → Images** | Convert pages to JPG or PNG |
-| **Images → PDF** | Create a PDF from images |
-| **PDF → Text** | Extract text content from PDFs |
-| **Sanitize** | Remove metadata and hidden data |
-| **Encrypt** | Add password protection |
-| **Decrypt** | Remove password from protected PDFs |
-| **Reverse Pages** | Flip the order of all pages |
-| **Duplicate Pages** | Copy and append pages |
-| **Delete Pages** | Remove unwanted pages |
+Merge, Split, Compress (Ghostscript), Organize, Rotate, Watermark, Page Numbers, Sign, OCR, Grayscale, Encrypt, Decrypt, Sanitize, PDF to Images, Images to PDF, PDF to Text, PDF to EPUB, PDF to PDF/A, HTML to PDF, Markdown to PDF, PPTX to PDF, Extract Images, Reverse Pages, Duplicate Pages, Delete Pages, Edit Metadata
 
 ### Image Tools
 
-| Tool | Description |
-|------|-------------|
-| **Compress** | Reduce image file size |
-| **Resize** | Change image dimensions |
-| **Convert** | Convert between formats (PNG, JPG, WebP, etc.) |
-| **Crop** | Crop images to any size |
-| **Rotate** | Rotate and flip images |
-| **Border** | Add borders and frames |
-| **Watermark** | Add text watermarks |
-| **Adjust** | Brightness, contrast, saturation |
-| **Filters** | Apply image filters |
-| **Strip Metadata** | Remove EXIF data |
-| **To Base64** | Convert to Base64 string |
-| **Screenshot** | Capture webpage screenshots |
-| **Favicon Generator** | Create favicons from images |
-| **HEIC → JPEG** | Convert iPhone photos |
+Compress, Resize, Convert, Crop, Rotate, Blur & Pixelate, Border, Watermark, Adjust (brightness/contrast/saturation), Filters, Beautify, Collage, Color Palette, Remove Background, Edit, Strip Metadata, To Base64, Screenshot, Favicon Generator, HEIC to JPEG
+
+### Video Tools
+
+Trim, Compress, Convert, Crop, Rotate, Resize, Remove Audio, Extract Audio, To GIF, View Metadata
 
 ### Audio Tools
 
-| Tool | Description |
-|------|-------------|
-| **Trim** | Cut audio to specific length |
-| **Convert** | Convert between formats (MP3, WAV, OGG, etc.) |
-| **Merge** | Combine multiple audio files |
-| **Extract** | Extract audio from video |
-| **Speed** | Change playback speed |
-| **Volume** | Adjust audio volume |
-| **Fade** | Add fade in/out effects |
-| **Normalize** | Normalize audio levels |
-| **Denoise** | Reduce background noise |
-| **Remove Silence** | Trim silent sections |
-| **Reverse** | Reverse audio playback |
-| **Waveform** | Generate waveform visualization |
-| **Record** | Record audio from microphone |
+Trim, Compress, Convert, Merge, Fade, Speed, Volume, Normalize, Denoise, Remove Silence, Reverse, Waveform, Record, Edit Metadata
 
 ### QR Code Tools
 
-| Tool | Description |
-|------|-------------|
-| **Generate** | Create QR codes from text/URLs |
-| **Scan** | Scan QR codes from images or camera |
-| **Bulk Generate** | Create multiple QR codes at once |
+Generate, Scan, Bulk Generate, Barcode Generator
 
 ---
 
@@ -110,12 +62,15 @@ I would love if people would contribute and use this.
 
 - [Next.js 16](https://nextjs.org/) — React framework
 - [React 19](https://react.dev/) — UI library
-- [Tailwind CSS](https://tailwindcss.com/) — Styling
+- [Tailwind CSS 4](https://tailwindcss.com/) — Styling
 - [shadcn/ui](https://ui.shadcn.com/) — UI components
 - [pdf-lib](https://pdf-lib.js.org/) — PDF manipulation
 - [react-pdf](https://github.com/wojtekmaj/react-pdf) (PDF.js) — PDF rendering
 - [Tesseract.js](https://tesseract.projectnaptha.com/) — OCR engine
-- [FFmpeg.wasm](https://ffmpegwasm.netlify.app/) — Audio/video processing
+- [Mediabunny](https://mediabunny.dev/) — Video processing (WebCodecs)
+- [FFmpeg.wasm](https://ffmpegwasm.netlify.app/) — Audio processing
+- [gifenc](https://github.com/mattdesl/gifenc) — GIF encoding
+- [fflate](https://github.com/101arrowz/fflate) — ZIP compression
 - [qrcode](https://github.com/soldair/node-qrcode) — QR code generation
 - [html5-qrcode](https://github.com/mebjas/html5-qrcode) — QR code scanning
 - [heic-decode](https://github.com/nicolo-ribaudo/heic-decode) — HEIC conversion
@@ -133,10 +88,10 @@ git clone https://github.com/shockz09/noupload.git
 cd noupload
 
 # Install dependencies
-bun install
+pnpm install
 
 # Start dev server
-bun dev
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
@@ -144,8 +99,8 @@ Open [http://localhost:3000](http://localhost:3000)
 ## Building for Production
 
 ```bash
-bun run build
-bun start
+pnpm build
+pnpm start
 ```
 
 ---
@@ -175,7 +130,10 @@ Built with these amazing open source libraries:
 - [pdf-lib](https://github.com/Hopding/pdf-lib) — PDF creation and modification
 - [PDF.js](https://github.com/mozilla/pdf.js) — PDF rendering
 - [Tesseract.js](https://github.com/naptha/tesseract.js) — OCR engine
-- [FFmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) — Audio/video processing
+- [Mediabunny](https://github.com/nickkies/mediabunny) — Hardware-accelerated video processing
+- [FFmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) — Audio processing
+- [gifenc](https://github.com/mattdesl/gifenc) — Pure JS GIF encoding
+- [fflate](https://github.com/101arrowz/fflate) — Fast ZIP compression
 - [shadcn/ui](https://github.com/shadcn-ui/ui) — Beautiful UI components
 - [qrcode](https://github.com/soldair/node-qrcode) — QR code generation
 - [html5-qrcode](https://github.com/mebjas/html5-qrcode) — QR code scanning
