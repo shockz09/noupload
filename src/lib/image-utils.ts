@@ -823,24 +823,32 @@ function pixelateRegion(ctx: CanvasRenderingContext2D, region: BlurRegion, block
 function blurRegion(ctx: CanvasRenderingContext2D, img: HTMLImageElement, region: BlurRegion, radius: number): void {
   const { x, y, width, height } = region;
 
-  // Use OffscreenCanvas for blur effect
+  // Expand temp canvas by blur radius so edge pixels blur against real neighbors, not transparency
+  const pad = Math.ceil(radius * 2);
+  const sx = Math.max(0, x - pad);
+  const sy = Math.max(0, y - pad);
+  const sw = Math.min(img.width - sx, width + pad * 2);
+  const sh = Math.min(img.height - sy, height + pad * 2);
+
   const tempCanvas = document.createElement("canvas");
-  tempCanvas.width = width;
-  tempCanvas.height = height;
+  tempCanvas.width = sw;
+  tempCanvas.height = sh;
   const tempCtx = tempCanvas.getContext("2d")!;
 
-  // Draw the region to temp canvas
-  tempCtx.drawImage(img, x, y, width, height, 0, 0, width, height);
+  // Draw the expanded region (includes surrounding pixels for blur context)
+  tempCtx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
-  // Apply CSS blur filter
+  // Apply blur to the entire temp canvas
+  tempCtx.filter = `blur(${radius}px)`;
+  tempCtx.drawImage(tempCanvas, 0, 0);
+
+  // Draw only the original region back, clipped
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, width, height);
   ctx.clip();
-  ctx.filter = `blur(${radius}px)`;
-  ctx.drawImage(tempCanvas, x, y);
+  ctx.drawImage(tempCanvas, x - sx, y - sy, width, height, x, y, width, height);
   ctx.restore();
-  ctx.filter = "none";
 }
 
 // Color palette extraction
