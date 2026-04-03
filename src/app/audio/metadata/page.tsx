@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 // jsmediatags is dynamically imported to avoid react-native-fs SSR error
-import { AudioFileInfo, AudioPageHeader, SuccessCard } from "@/components/audio/shared";
+import { AudioFileInfo, AudioPageHeader, AudioResultView } from "@/components/audio/shared";
 import { MusicTagIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, ProgressBar } from "@/components/shared";
 import { useFileProcessing, useProcessingResult } from "@/hooks";
-import { downloadBlob } from "@/lib/download";
+
 import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
 
@@ -75,7 +75,7 @@ export default function AudioMetadataPage() {
 
   const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError } =
     useFileProcessing();
-  const { result, setResult, clearResult } = useProcessingResult();
+  const { result, setResult, clearResult, download } = useProcessingResult();
 
   useEffect(() => {
     return () => {
@@ -183,16 +183,6 @@ export default function AudioMetadataPage() {
     }
   }, [file, startProcessing, setProgress, setResult, setError, stopProcessing]);
 
-  const handleDownload = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!result) return;
-      downloadBlob(result.blob, result.filename);
-    },
-    [result],
-  );
-
   const handleClear = useCallback(() => {
     setFile(null);
     setMetadata(EMPTY_METADATA);
@@ -217,8 +207,9 @@ export default function AudioMetadataPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText={result.filename.includes("_stripped") ? "Stripped" : "Tagged"}
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
           title={result.filename.includes("_stripped") ? "Tags Stripped!" : "Metadata Updated!"}
           subtitle={
             result.filename.includes("_stripped")
@@ -228,7 +219,7 @@ export default function AudioMetadataPage() {
                 : undefined
           }
           downloadLabel="Download MP3"
-          onDownload={handleDownload}
+          onDownload={download}
           onStartOver={handleClear}
           startOverLabel="Edit Another File"
         />

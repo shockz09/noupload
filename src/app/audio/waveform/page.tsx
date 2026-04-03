@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioPageHeader, ErrorBox } from "@/components/audio/shared";
-import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { LoaderIcon } from "@/components/icons/ui";
 import { AudioIcon, WaveformIcon } from "@/components/icons/audio";
+import { ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useFileProcessing } from "@/hooks";
+import { useFileBuffer, useFileProcessing } from "@/hooks";
 import {
   formatDuration,
   formatFileSize,
@@ -65,38 +66,40 @@ export default function WaveformPage() {
   const [bgColor, setBgColor] = useState(backgroundColors[11].color);
   const [exportSize, setExportSize] = useState(exportSizes[0]);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [result, setResult] = useState<{ blob: Blob; filename: string } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Use custom hooks
   const { isProcessing, error, startProcessing, stopProcessing, setError } = useFileProcessing();
 
-  // Draw waveform to canvas
+  // Draw waveform to canvas at export dimensions
   const drawWaveform = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || waveformData.length === 0) return;
 
-    const ctx = canvas.getContext("2d")!;
-    const width = canvas.width;
-    const height = canvas.height;
+    // Render at exact export size — CSS scales it down to fit
+    canvas.width = exportSize.width;
+    canvas.height = exportSize.height;
 
-    // Clear and draw background
+    const ctx = canvas.getContext("2d")!;
+    const { width, height } = canvas;
+
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, width, height);
 
-    // Draw waveform bars
+    // Resample waveform data to match export width
     ctx.fillStyle = waveformColor;
     const centerY = height / 2;
     const maxHeight = height * 0.8;
-    const barWidth = width / waveformData.length;
 
-    for (let i = 0; i < waveformData.length; i++) {
-      const barHeight = waveformData[i] * maxHeight;
-      const x = i * barWidth;
-      ctx.fillRect(x, centerY - barHeight / 2, Math.max(1, barWidth - 1), barHeight);
+    for (let i = 0; i < width; i++) {
+      const dataIndex = Math.floor((i / width) * waveformData.length);
+      const barHeight = waveformData[dataIndex] * maxHeight;
+      ctx.fillRect(i, centerY - barHeight / 2, 1, barHeight);
     }
-  }, [waveformData, waveformColor, bgColor]);
+  }, [waveformData, waveformColor, bgColor, exportSize]);
 
-  // Redraw when colors change
+  // Redraw when colors or export size change
   useEffect(() => {
     drawWaveform();
   }, [drawWaveform]);
@@ -109,7 +112,7 @@ export default function WaveformPage() {
         setIsLoadingPreview(true);
 
         try {
-          const [info, data] = await Promise.all([getAudioInfo(selectedFile), getWaveformData(selectedFile, 200)]);
+          const [info, data] = await Promise.all([getAudioInfo(selectedFile), getWaveformData(selectedFile, 1200)]);
           setDuration(info.duration);
           setWaveformData(data);
         } catch {
@@ -128,9 +131,8 @@ export default function WaveformPage() {
 
     try {
       const blob = await generateWaveformImage(file, exportSize.width, exportSize.height, waveformColor, bgColor);
-
       const baseName = getFileBaseName(file.name);
-      downloadBlob(blob, `${baseName}_waveform.png`);
+      setResult({ blob, filename: `${baseName}_waveform.png` });
     } catch (err) {
       setError(getErrorMessage(err, "Failed to generate waveform"));
     } finally {
@@ -138,8 +140,40 @@ export default function WaveformPage() {
     }
   }, [file, exportSize, waveformColor, bgColor, startProcessing, setError, stopProcessing]);
 
+  const handleDownload = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (result) downloadBlob(result.blob, result.filename, "image/png");
+    },
+    [result],
+  );
+
+  const handleCopy = useCallback(async () => {
+    if (!result) return;
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": result.blob })]);
+    } catch {
+      // Fallback: ignore if clipboard API not available
+    }
+  }, [result]);
+
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: "image/png",
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Waveform",
+    });
+  }, [result, addToBuffer]);
+
   const handleStartOver = useCallback(() => {
     setFile(null);
+    setResult(null);
     setWaveformData([]);
   }, []);
 
@@ -161,7 +195,19 @@ export default function WaveformPage() {
         description="Generate beautiful waveform visualizations"
       />
 
-      {!file ? (
+      {result ? (
+        <ImageResultView
+          blob={result.blob}
+          title="Waveform Generated!"
+          subtitle={`${exportSize.label} · PNG`}
+          downloadLabel="Download PNG"
+          onDownload={handleDownload}
+          onCopy={handleCopy}
+          onHoldInBuffer={handleHoldInBuffer}
+          onStartOver={handleStartOver}
+          startOverLabel="Generate Another"
+        />
+      ) : !file ? (
         <FileDropzone
           accept=".mp3,.wav,.ogg,.m4a,.webm"
           multiple={false}
@@ -197,7 +243,7 @@ export default function WaveformPage() {
                 <span className="text-sm">Loading...</span>
               </div>
             ) : (
-              <canvas ref={canvasRef} width={600} height={80} className="w-full h-auto" />
+              <canvas ref={canvasRef} className="w-full h-auto" />
             )}
           </div>
 
@@ -272,17 +318,16 @@ export default function WaveformPage() {
 
           {error && <ErrorBox message={error} />}
 
-          {/* Export Button */}
           <button type="button" onClick={handleExport} disabled={isExportDisabled} className="btn-primary w-full">
             {isProcessing ? (
               <>
                 <LoaderIcon className="w-5 h-5" />
-                Exporting...
+                Generating...
               </>
             ) : (
               <>
-                <DownloadIcon className="w-5 h-5" />
-                Export PNG
+                <WaveformIcon className="w-5 h-5" />
+                Generate Waveform
               </>
             )}
           </button>

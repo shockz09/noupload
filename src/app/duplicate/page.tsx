@@ -1,12 +1,12 @@
 "use client";
 
 import { memo, useCallback, useRef, useState } from "react";
-import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { LoaderIcon } from "@/components/icons/ui";
 import { DuplicateIcon, PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages } from "@/components/pdf/pdf-page-preview";
-import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";
-import { useFileProcessing } from "@/hooks";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
+import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { extractPagesWithRotation } from "@/lib/pdf-utils";
@@ -59,11 +59,17 @@ interface PageItem {
   rotation: 0 | 90 | 180 | 270;
 }
 
+interface ProcessResult {
+  data: Uint8Array;
+  filename: string;
+}
+
 export default function DuplicatePage() {
   const [file, setFile] = useState<File | null>(null);
   const [pageItems, setPageItems] = useState<PageItem[]>([]);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [result, setResult] = useState<ProcessResult | null>(null);
 
   // Use custom hook for processing state
   const { isProcessing, error, startProcessing, stopProcessing, setError, clearError } = useFileProcessing();
@@ -96,6 +102,7 @@ export default function DuplicatePage() {
 
   const handleClear = useCallback(() => {
     setFile(null);
+    setResult(null);
     clearError();
     setPageItems([]);
   }, [clearError]);
@@ -180,7 +187,7 @@ export default function DuplicatePage() {
     setDragOverId(null);
   }, []);
 
-  const handleDownload = useCallback(async () => {
+  const handleProcess = useCallback(async () => {
     if (!file || pageItems.length === 0) return;
     if (!startProcessing()) return;
 
@@ -199,13 +206,43 @@ export default function DuplicatePage() {
       else if (hasDuplicates) suffix = "_duplicated";
       else if (hasRotations) suffix = "_rotated";
 
-      downloadBlob(data, `${baseName}${suffix}.pdf`);
+      setResult({ data, filename: `${baseName}${suffix}.pdf` });
     } catch (err) {
       setError(getErrorMessage(err, "Failed to process PDF"));
     } finally {
       stopProcessing();
     }
   }, [file, pageItems, startProcessing, setError, stopProcessing]);
+
+  const handleDownload = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (result) downloadBlob(result.data, result.filename);
+    },
+    [result],
+  );
+
+  const handleStartOver = useCallback(() => {
+    setFile(null);
+    setResult(null);
+    setPageItems([]);
+    clearError();
+  }, [clearError]);
+
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Duplicate Pages",
+    });
+  }, [result, addToBuffer]);
 
   const duplicateCount = pageItems.filter((p) => p.isDuplicate).length;
   const rotatedCount = pageItems.filter((p) => p.rotation !== 0).length;
@@ -240,7 +277,21 @@ export default function DuplicatePage() {
         description="Duplicate and reorder pages in your PDF"
       />
 
-      {!file ? (
+      {result ? (
+        <div className="max-w-2xl mx-auto">
+          <PdfResultView
+            title="Pages Duplicated!"
+            subtitle={`${duplicateCount} ${duplicateCount === 1 ? "page" : "pages"} duplicated · ${pageItems.length} total`}
+            data={result.data}
+            size={result.data.byteLength}
+            downloadLabel="Download PDF"
+            onDownload={handleDownload}
+            onHoldInBuffer={handleHoldInBuffer}
+            onStartOver={handleStartOver}
+            startOverLabel="Edit Another PDF"
+          />
+        </div>
+      ) : !file ? (
         <div className="space-y-6">
           <FileDropzone
             accept=".pdf"
@@ -437,12 +488,11 @@ export default function DuplicatePage() {
 
               {error && <ErrorBox message={error} />}
 
-              {/* Download button */}
               <button
                 type="button"
-                onClick={handleDownload}
+                onClick={handleProcess}
                 disabled={isProcessing || !hasChanges}
-                className="btn-success w-full"
+                className="btn-primary w-full"
               >
                 {isProcessing ? (
                   <>
@@ -451,8 +501,8 @@ export default function DuplicatePage() {
                   </>
                 ) : (
                   <>
-                    <DownloadIcon className="w-5 h-5" />
-                    Download PDF ({pageItems.length} pages)
+                    <DuplicateIcon className="w-5 h-5" />
+                    Apply Changes ({pageItems.length} pages)
                   </>
                 )}
               </button>

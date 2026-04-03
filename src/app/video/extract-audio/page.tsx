@@ -4,7 +4,8 @@ import { useCallback, useState } from "react";
 import { VideoToolIcon } from "@/components/icons/video";
 import { ExtractIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, InfoBox, SuccessCard, VideoFileInfo, VideoPageHeader } from "@/components/video/shared";
+import { AudioResultView } from "@/components/audio/shared";
+import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader } from "@/components/video/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
@@ -24,7 +25,7 @@ export default function ExtractAudioPage() {
   const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [format, setFormat] = useState<AudioOutputFormat>("mp3");
-  const [result, setResult] = useState<{ blob: Blob; filename: string } | null>(null);
+  const [result, setResult] = useState<{ blob: Blob; filename: string; url: string } | null>(null);
 
   const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
     useFileProcessing();
@@ -35,7 +36,7 @@ export default function ExtractAudioPage() {
       setResult(null);
       try {
         const r = await extractAudio(f, fmt, (p) => setProgress(p * 100));
-        setResult(r);
+        setResult({ ...r, url: URL.createObjectURL(r.blob) });
       } catch (err) {
         setError(getErrorMessage(err, "Failed to extract audio"));
       } finally {
@@ -56,20 +57,16 @@ export default function ExtractAudioPage() {
     [isInstant, processFile, format, clearError],
   );
 
-  const handleDownload = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (result) downloadBlob(result.blob, result.filename);
-    },
-    [result],
-  );
+  const handleDownload = useCallback(() => {
+    if (result) downloadBlob(result.blob, result.filename);
+  }, [result]);
 
   const handleStartOver = useCallback(() => {
+    if (result?.url) URL.revokeObjectURL(result.url);
     setFile(null);
     setResult(null);
     clearError();
-  }, [clearError]);
+  }, [clearError, result]);
 
   const { add: addToBuffer } = useFileBuffer();
   const handleHoldInBuffer = useCallback(() => {
@@ -96,8 +93,9 @@ export default function ExtractAudioPage() {
       />
 
       {result ? (
-        <SuccessCard
-          stampText="Extracted"
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
           title="Audio Extracted!"
           subtitle={`${format.toUpperCase()} · ${formatFileSize(result.blob.size)}`}
           downloadLabel={`Download ${format.toUpperCase()}`}

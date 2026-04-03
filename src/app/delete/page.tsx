@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { LoaderIcon } from "@/components/icons/ui";
 import { DeletePagesIcon, PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages } from "@/components/pdf/pdf-page-preview";
-import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";
-import { useFileProcessing } from "@/hooks";
+import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
+import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { extractPagesWithRotation } from "@/lib/pdf-utils";
@@ -66,11 +66,17 @@ interface PageItem {
   rotation: 0 | 90 | 180 | 270;
 }
 
+interface ProcessResult {
+  data: Uint8Array;
+  filename: string;
+}
+
 export default function DeletePage() {
   const [file, setFile] = useState<File | null>(null);
   const [pageItems, setPageItems] = useState<PageItem[]>([]);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [result, setResult] = useState<ProcessResult | null>(null);
 
   // Use custom hook for processing state
   const { isProcessing, error, startProcessing, stopProcessing, setError, clearError } = useFileProcessing();
@@ -102,6 +108,7 @@ export default function DeletePage() {
 
   const handleClear = useCallback(() => {
     setFile(null);
+    setResult(null);
     clearError();
     setPageItems([]);
   }, [clearError]);
@@ -184,7 +191,7 @@ export default function DeletePage() {
     setDragOverId(null);
   }, []);
 
-  const handleDownload = useCallback(async () => {
+  const handleProcess = useCallback(async () => {
     if (!file) return;
 
     const remainingItems = pageItems.filter((p) => !p.deleted);
@@ -201,15 +208,44 @@ export default function DeletePage() {
         rotation: p.rotation,
       }));
       const data = await extractPagesWithRotation(file, pageSpecs);
-
       const baseName = getFileBaseName(file.name);
-      downloadBlob(data, `${baseName}_edited.pdf`);
+      setResult({ data, filename: `${baseName}_edited.pdf` });
     } catch (err) {
       setError(getErrorMessage(err, "Failed to process PDF"));
     } finally {
       stopProcessing();
     }
   }, [file, pageItems, startProcessing, setError, stopProcessing]);
+
+  const handleDownload = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (result) downloadBlob(result.data, result.filename);
+    },
+    [result],
+  );
+
+  const handleStartOver = useCallback(() => {
+    setFile(null);
+    setResult(null);
+    setPageItems([]);
+    clearError();
+  }, [clearError]);
+
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    const blob = new Blob([new Uint8Array(result.data)], { type: "application/pdf" });
+    addToBuffer({
+      filename: result.filename,
+      blob,
+      mimeType: "application/pdf",
+      size: blob.size,
+      fileType: "pdf",
+      sourceToolLabel: "Delete Pages",
+    });
+  }, [result, addToBuffer]);
 
   const deletedCount = pageItems.filter((p) => p.deleted).length;
   const remainingCount = pageItems.length - deletedCount;
@@ -250,7 +286,21 @@ export default function DeletePage() {
         description="Remove unwanted pages from your PDF"
       />
 
-      {!file ? (
+      {result ? (
+        <div className="max-w-2xl mx-auto">
+          <PdfResultView
+            title="Pages Deleted!"
+            subtitle={`${deletedCount} ${deletedCount === 1 ? "page" : "pages"} removed · ${remainingCount} remaining`}
+            data={result.data}
+            size={result.data.byteLength}
+            downloadLabel="Download PDF"
+            onDownload={handleDownload}
+            onHoldInBuffer={handleHoldInBuffer}
+            onStartOver={handleStartOver}
+            startOverLabel="Edit Another PDF"
+          />
+        </div>
+      ) : !file ? (
         <div className="space-y-6">
           <FileDropzone
             accept=".pdf"
@@ -458,12 +508,11 @@ export default function DeletePage() {
 
               {error && <ErrorBox message={error} />}
 
-              {/* Download button */}
               <button
                 type="button"
-                onClick={handleDownload}
+                onClick={handleProcess}
                 disabled={isProcessing || remainingCount === 0 || !hasChanges}
-                className={`w-full ${deletedCount > 0 ? "btn-primary bg-red-600 hover:bg-red-700 border-red-600" : "btn-success"}`}
+                className={`w-full ${deletedCount > 0 ? "btn-primary bg-red-600 hover:bg-red-700 border-red-600" : "btn-primary"}`}
               >
                 {isProcessing ? (
                   <>
@@ -477,8 +526,8 @@ export default function DeletePage() {
                   </>
                 ) : (
                   <>
-                    <DownloadIcon className="w-5 h-5" />
-                    Download PDF ({remainingCount} pages)
+                    <DeletePagesIcon className="w-5 h-5" />
+                    Apply Changes ({remainingCount} pages)
                   </>
                 )}
               </button>

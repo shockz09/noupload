@@ -146,6 +146,7 @@ function DockItem({
             src={item.previewUrl}
             alt=""
             className="w-full h-full object-cover"
+            draggable={false}
           />
         ) : (
           <span className="dock-thumb-label">
