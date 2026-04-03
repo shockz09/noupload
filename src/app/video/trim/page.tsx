@@ -12,7 +12,7 @@ import { getErrorMessage } from "@/lib/error";
 import { formatFileSize } from "@/lib/utils";
 import { analyzeVideo, type VideoInfo } from "@/lib/video/compress";
 import { trimVideo, trimVideoRanges, type TimeRange } from "@/lib/video/trim";
-import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS } from "@/lib/constants";
+import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -538,6 +538,7 @@ export default function TrimVideoPage() {
           <FileDropzone
             accept={VIDEO_EXTENSIONS}
             multiple={false}
+            maxSize={VIDEO_MAX_FILE_SIZE}
             onFilesSelected={handleFiles}
             title="Drop your video file here"
             subtitle="MP4, MOV, WebM, MKV"
