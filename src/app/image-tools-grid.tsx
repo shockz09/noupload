@@ -29,7 +29,7 @@ export const imageTools = [
   },
   {
     title: "Convert",
-    description: "Convert between PNG, JPEG, and WebP formats",
+    description: "PNG, JPEG, WebP · SVG to raster",
     href: "/image/convert",
     icon: ConvertIcon,
     category: "convert",

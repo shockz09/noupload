@@ -220,7 +220,7 @@ export default function ImageConvertPage() {
           icon={<ConvertIcon className="w-7 h-7" />}
           iconClass="tool-convert"
           title="Convert Image"
-          description="Convert between PNG, JPEG, WebP, and SVG formats"
+          description="Convert between PNG, JPEG, WebP · SVG to raster"
         />
         <div className="animate-fade-up space-y-6">
           <div className="success-card">
@@ -274,7 +274,7 @@ export default function ImageConvertPage() {
           icon={<ConvertIcon className="w-7 h-7" />}
           iconClass="tool-convert"
           title="Convert Image"
-          description="Convert between PNG, JPEG, WebP, and SVG formats"
+          description="Convert between PNG, JPEG, WebP · SVG to raster"
         />
         <ImageResultView
           blob={result.blob}
@@ -342,7 +342,7 @@ export default function ImageConvertPage() {
         icon={<ConvertIcon className="w-7 h-7" />}
         iconClass="tool-convert"
         title="Convert Image"
-        description="Convert between PNG, JPEG, WebP, and SVG formats"
+        description="Convert between PNG, JPEG, WebP · SVG to raster"
       />
 
       {/* No files selected */}
