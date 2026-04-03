@@ -172,14 +172,51 @@ export function isHeicFile(file: File): boolean {
   return ext === "heic" || ext === "heif" || file.type === "image/heic" || file.type === "image/heif";
 }
 
+// SVG rasterization helpers — used by canvasConvert below
+
+function isSvgFile(file: File): boolean {
+  return file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
+}
+
+const SVG_RASTER_SIZE = 1024;
+
+/** Parse SVG for raster dimensions (width/height attrs → viewBox → 1024×1024 fallback). */
+async function getSvgDimensions(file: File): Promise<{ width: number; height: number }> {
+  const doc = new DOMParser().parseFromString(await file.text(), "image/svg+xml");
+  const svg = doc.querySelector("svg");
+  if (!svg) return { width: SVG_RASTER_SIZE, height: SVG_RASTER_SIZE };
+
+  const w = parseFloat(svg.getAttribute("width") || "");
+  const h = parseFloat(svg.getAttribute("height") || "");
+  if (w > 0 && h > 0) return { width: Math.round(w), height: Math.round(h) };
+
+  const vb = svg.getAttribute("viewBox");
+  if (vb) {
+    const [, , vbW, vbH] = vb.split(/[\s,]+/).map(Number);
+    if (vbW > 0 && vbH > 0) {
+      const scale = Math.max(1, SVG_RASTER_SIZE / Math.max(vbW, vbH));
+      return { width: Math.round(vbW * scale), height: Math.round(vbH * scale) };
+    }
+  }
+
+  return { width: SVG_RASTER_SIZE, height: SVG_RASTER_SIZE };
+}
+
 // Canvas-based format conversion from a browser-renderable source
 async function canvasConvert(file: File, format: ImageFormat, quality: number): Promise<Blob> {
   const img = await loadImage(file);
 
   try {
+    // SVGs may report 0×0 when they lack explicit width/height attributes.
+    // Parse the SVG markup for viewBox dimensions in that case.
+    let { width, height } = img;
+    if (isSvgFile(file) && (width === 0 || height === 0)) {
+      ({ width, height } = await getSvgDimensions(file));
+    }
+
     const canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
+    canvas.width = width;
+    canvas.height = height;
 
     const ctx = canvas.getContext("2d")!;
 
@@ -188,7 +225,7 @@ async function canvasConvert(file: File, format: ImageFormat, quality: number): 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    ctx.drawImage(img, 0, 0);
+    ctx.drawImage(img, 0, 0, width, height);
     return await canvasToBlob(canvas, format, quality);
   } finally {
     URL.revokeObjectURL(img.src);

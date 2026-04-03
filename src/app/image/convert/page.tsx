@@ -101,7 +101,7 @@ export default function ImageConvertPage() {
         const isHeic = ext === "heic" || ext === "heif";
         if (!isHeic) setPreview(selectedFile);
 
-        let autoFormat: ImageFormat = "jpeg";
+        let autoFormat: ImageFormat = "png";
         if (ext === "png") autoFormat = "jpeg";
         else if (ext === "jpg" || ext === "jpeg") autoFormat = "png";
         setTargetFormat(autoFormat);
@@ -220,7 +220,7 @@ export default function ImageConvertPage() {
           icon={<ConvertIcon className="w-7 h-7" />}
           iconClass="tool-convert"
           title="Convert Image"
-          description="Convert between PNG, JPEG, and WebP formats"
+          description="Convert between PNG, JPEG, WebP, and SVG formats"
         />
         <div className="animate-fade-up space-y-6">
           <div className="success-card">
@@ -274,7 +274,7 @@ export default function ImageConvertPage() {
           icon={<ConvertIcon className="w-7 h-7" />}
           iconClass="tool-convert"
           title="Convert Image"
-          description="Convert between PNG, JPEG, and WebP formats"
+          description="Convert between PNG, JPEG, WebP, and SVG formats"
         />
         <ImageResultView
           blob={result.blob}
@@ -342,14 +342,14 @@ export default function ImageConvertPage() {
         icon={<ConvertIcon className="w-7 h-7" />}
         iconClass="tool-convert"
         title="Convert Image"
-        description="Convert between PNG, JPEG, and WebP formats"
+        description="Convert between PNG, JPEG, WebP, and SVG formats"
       />
 
       {/* No files selected */}
       {!file && files.length === 0 ? (
         <div className="space-y-6">
           <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
+            accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.svg"
             multiple={true}
             maxFiles={50}
             onFilesSelected={handleFilesSelected}
@@ -358,15 +358,15 @@ export default function ImageConvertPage() {
           />
           <InfoBox title={isInstant ? "Instant conversion" : "Format guide"}>
             {isInstant
-              ? "Drop an image and it will be converted automatically. HEIC supported."
-              : "JPEG: Best for photos. PNG: Lossless with transparency. WebP: Modern format."}
+              ? "Drop an image and it will be converted automatically. HEIC & SVG supported."
+              : "JPEG: Best for photos. PNG: Lossless with transparency. WebP: Modern format. SVG → raster supported."}
           </InfoBox>
         </div>
       ) : isMulti ? (
         /* Multiple files */
         <div className="space-y-6">
           <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp,.heic,.heif"
+            accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.svg"
             multiple={true}
             maxFiles={50}
             onFilesSelected={handleFilesSelected}
