@@ -180,26 +180,45 @@ function isSvgFile(file: File): boolean {
 
 const SVG_RASTER_SIZE = 1024;
 
-/** Parse SVG for raster dimensions (width/height attrs → viewBox → 1024×1024 fallback). */
+/**
+ * Parse SVG for raster dimensions. Always ensures the longest side is at least
+ * SVG_RASTER_SIZE so small SVGs (e.g. 24×24 icons) don't produce blurry rasters.
+ */
 async function getSvgDimensions(file: File): Promise<{ width: number; height: number }> {
   const doc = new DOMParser().parseFromString(await file.text(), "image/svg+xml");
   const svg = doc.querySelector("svg");
   if (!svg) return { width: SVG_RASTER_SIZE, height: SVG_RASTER_SIZE };
 
-  const w = parseFloat(svg.getAttribute("width") || "");
-  const h = parseFloat(svg.getAttribute("height") || "");
-  if (w > 0 && h > 0) return { width: Math.round(w), height: Math.round(h) };
+  let w = 0;
+  let h = 0;
 
-  const vb = svg.getAttribute("viewBox");
-  if (vb) {
-    const [, , vbW, vbH] = vb.split(/[\s,]+/).map(Number);
-    if (vbW > 0 && vbH > 0) {
-      const scale = Math.max(1, SVG_RASTER_SIZE / Math.max(vbW, vbH));
-      return { width: Math.round(vbW * scale), height: Math.round(vbH * scale) };
+  // Try explicit width/height first
+  w = parseFloat(svg.getAttribute("width") || "");
+  h = parseFloat(svg.getAttribute("height") || "");
+
+  // Fall back to viewBox
+  if (!(w > 0 && h > 0)) {
+    const vb = svg.getAttribute("viewBox");
+    if (vb) {
+      const parts = vb.split(/[\s,]+/).map(Number);
+      if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+        w = parts[2];
+        h = parts[3];
+      }
     }
   }
 
-  return { width: SVG_RASTER_SIZE, height: SVG_RASTER_SIZE };
+  if (!(w > 0 && h > 0)) return { width: SVG_RASTER_SIZE, height: SVG_RASTER_SIZE };
+
+  // Scale up so the longest side is at least SVG_RASTER_SIZE
+  const longest = Math.max(w, h);
+  if (longest < SVG_RASTER_SIZE) {
+    const scale = SVG_RASTER_SIZE / longest;
+    w *= scale;
+    h *= scale;
+  }
+
+  return { width: Math.round(w), height: Math.round(h) };
 }
 
 // Canvas-based format conversion from a browser-renderable source
@@ -207,10 +226,9 @@ async function canvasConvert(file: File, format: ImageFormat, quality: number): 
   const img = await loadImage(file);
 
   try {
-    // SVGs may report 0×0 when they lack explicit width/height attributes.
-    // Parse the SVG markup for viewBox dimensions in that case.
+    // SVGs need explicit raster dimensions — browser-reported size may be tiny (e.g. 24×24 icons)
     let { width, height } = img;
-    if (isSvgFile(file) && (width === 0 || height === 0)) {
+    if (isSvgFile(file)) {
       ({ width, height } = await getSvgDimensions(file));
     }
 
