@@ -367,6 +367,11 @@ export function ImageEditorCanvas({
 
     fabricInstanceRef.current = canvas;
     setFabricCanvas(canvas);
+
+    // Force a render after React commits the wrapper dimensions to the DOM.
+    // Without this, the fabric canvas is invisible on first load because
+    // initFabricCanvas runs before React applies the new displayWidth/Height.
+    requestAnimationFrame(() => canvas.renderAll());
   }
 
   // ──────────────────────────────────────────────

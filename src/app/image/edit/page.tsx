@@ -64,7 +64,7 @@ export default function ImageEditPage() {
   const [copySuccess, setCopySuccess] = useState(false);
   const outputFormat = "png" as const;
 
-  // Paste support (only when no file loaded)
+  // Paste or drop — loads a new image (replaces current if editing)
   const handleFileSelected = useCallback((files: File[]) => {
     if (files.length === 0) return;
     setFile(files[0]);
@@ -75,7 +75,7 @@ export default function ImageEditPage() {
     initialZoomSetRef.current = false;
   }, []);
 
-  useImagePaste(handleFileSelected, !file);
+  useImagePaste(handleFileSelected);
 
   // Undo/redo callbacks
   const handleUndoRedoChange = useCallback(
