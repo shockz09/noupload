@@ -64,15 +64,35 @@ export default function ImageEditPage() {
   const [copySuccess, setCopySuccess] = useState(false);
   const outputFormat = "png" as const;
 
-  // Paste or drop — loads a new image (replaces current if editing)
+  // Snapshot of previous file+objects so paste-while-editing is undoable
+  const prevFileRef = useRef<{ file: File; objects: EditorObjectRecord[] } | null>(null);
+
   const handleFileSelected = useCallback((files: File[]) => {
     if (files.length === 0) return;
+    // Save current state so we can undo a paste replacement
+    if (file) {
+      prevFileRef.current = { file, objects };
+    } else {
+      prevFileRef.current = null;
+    }
     setFile(files[0]);
     setObjects([]);
     setZoom(1);
     setActiveTool("select");
     setExportError(null);
     initialZoomSetRef.current = false;
+  }, [file, objects]);
+
+  // Undo paste: restore previous file + objects
+  const handleUndoPaste = useCallback(() => {
+    const prev = prevFileRef.current;
+    if (!prev) return;
+    setFile(prev.file);
+    setObjects(prev.objects);
+    setZoom(1);
+    setActiveTool("select");
+    initialZoomSetRef.current = false;
+    prevFileRef.current = null;
   }, []);
 
   useImagePaste(handleFileSelected);
@@ -145,6 +165,7 @@ export default function ImageEditPage() {
     setExportError(null);
     initialZoomSetRef.current = false;
     fitZoomRef.current = null;
+    prevFileRef.current = null;
   }, []);
 
   const initialZoomSetRef = useRef(false);
@@ -213,7 +234,11 @@ export default function ImageEditPage() {
 
       if (ctrl && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
-        undoRef.current?.();
+        if (canUndo) {
+          undoRef.current?.();
+        } else if (prevFileRef.current) {
+          handleUndoPaste();
+        }
         return;
       }
       if (ctrl && ((e.key === "z" && e.shiftKey) || e.key === "y")) {
@@ -263,7 +288,7 @@ export default function ImageEditPage() {
         }
       }
     },
-    [handleDownload, handleZoomIn, handleZoomOut],
+    [handleDownload, handleZoomIn, handleZoomOut, canUndo, handleUndoPaste],
   );
 
   useEffect(() => {

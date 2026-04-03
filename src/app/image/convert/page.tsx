@@ -282,7 +282,7 @@ export default function ImageConvertPage() {
           subtitle={`${result.metadata?.originalFormat ?? ""} → ${result.metadata?.newFormat.toUpperCase() ?? ""}`}
           downloadLabel={`Download ${result.metadata?.newFormat.toUpperCase()}`}
           onDownload={handleSingleDownload}
-          onCopy={() => copyImageToClipboard(result.blob)}
+          onCopy={result.metadata?.newFormat === "png" ? () => copyImageToClipboard(result.blob) : undefined}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Convert Another"

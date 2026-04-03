@@ -240,7 +240,7 @@ export default function CollagePage() {
           subtitle={`${files.length} images combined`}
           downloadLabel="Download Collage"
           onDownload={handleDownload}
-          onCopy={() => copyImageToClipboard(result.blob)}
+          onCopy={result.blob.type === "image/png" ? () => copyImageToClipboard(result.blob) : undefined}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Create Another"

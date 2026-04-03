@@ -10,7 +10,7 @@ import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing, useImagePaste } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { convertHeicToJpeg } from "@/lib/heic-utils";
-import { copyImageToClipboard, downloadImage, formatFileSize } from "@/lib/image-utils";
+import { downloadImage, formatFileSize } from "@/lib/image-utils";
 
 interface ConvertResult {
   blob: Blob;
@@ -115,7 +115,6 @@ export default function HeicToJpegPage() {
           subtitle={`HEIC → JPEG · ${formatFileSize(result.originalSize)} → ${formatFileSize(result.blob.size)}`}
           downloadLabel="Download JPEG"
           onDownload={handleDownload}
-          onCopy={() => copyImageToClipboard(result.blob)}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleClear}
           startOverLabel="Convert Another"

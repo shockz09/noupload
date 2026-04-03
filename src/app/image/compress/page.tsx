@@ -275,7 +275,7 @@ export default function ImageCompressPage() {
           subtitle={`${formatFileSize(result.metadata?.originalSize ?? 0)} → ${formatFileSize(result.metadata?.compressedSize ?? 0)} · ${singleSavings}% smaller`}
           downloadLabel="Download Image"
           onDownload={handleSingleDownload}
-          onCopy={() => copyImageToClipboard(result.blob)}
+          onCopy={result.blob.type === "image/png" ? () => copyImageToClipboard(result.blob) : undefined}
           onHoldInBuffer={handleHoldInBuffer}
           onStartOver={handleStartOver}
           startOverLabel="Compress Another"
