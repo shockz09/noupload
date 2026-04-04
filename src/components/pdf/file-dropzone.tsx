@@ -122,10 +122,14 @@ export const FileDropzone = memo(function FileDropzone({
     input.type = "file";
     input.accept = accept;
     input.multiple = multiple;
+    input.style.display = "none";
     input.onchange = (e) => {
       const target = e.target as HTMLInputElement;
       handleFiles(target.files);
+      input.remove();
     };
+    // Safari requires the input to be in the DOM before .click() works
+    document.body.appendChild(input);
     input.click();
   }, [accept, multiple, handleFiles]);
 
