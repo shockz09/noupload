@@ -67,7 +67,7 @@
     "mediabunny": "^1.40.1",
     "next": "16.1.1",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^5.4.530",
+    "pdfjs-dist": "5.4.624",
     "qpdf-wasm": "^0.1.0",
     "qrcode": "^1.5.4",
     "react": "19.2.3",

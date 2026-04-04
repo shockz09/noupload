@@ -41,6 +41,7 @@ export function PageSidebar({
 
     async function loadThumbnails() {
       setLoading(true);
+      setThumbnails([]);
 
       try {
         const pdfjsLib = await loadPdfjs();
@@ -52,7 +53,6 @@ export function PageSidebar({
 
         onTotalPagesChange(pdf.numPages);
 
-        const thumbs: PageThumbnail[] = [];
         const scale = 0.2; // Small thumbnails
 
         for (let i = 1; i <= pdf.numPages; i++) {
@@ -68,21 +68,13 @@ export function PageSidebar({
           const context = canvas.getContext("2d")!;
           await page.render({ canvasContext: context, viewport, canvas }).promise;
 
-          const blob = await new Promise<Blob>((resolve) => {
-            canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.7);
+          const blob = await new Promise<Blob | null>((resolve) => {
+            canvas.toBlob((b) => resolve(b), "image/jpeg", 0.7);
           });
-
-          thumbs.push({
-            pageNumber: i,
-            dataUrl: URL.createObjectURL(blob),
-          });
-
-          // Cleanup canvas
           cleanupCanvas(canvas);
-        }
+          if (!blob || cancelled) continue;
 
-        if (!cancelled) {
-          setThumbnails(thumbs);
+          setThumbnails((prev) => [...prev, { pageNumber: i, dataUrl: URL.createObjectURL(blob) }]);
         }
       } catch (err) {
         console.error("Failed to load thumbnails:", err);
@@ -97,11 +89,9 @@ export function PageSidebar({
 
     return () => {
       cancelled = true;
-      // Revoke blob URLs
-      thumbnails.forEach((t) => {
-        if (t.dataUrl.startsWith("blob:")) {
-          URL.revokeObjectURL(t.dataUrl);
-        }
+      setThumbnails((prev) => {
+        prev.forEach((t) => URL.revokeObjectURL(t.dataUrl));
+        return [];
       });
     };
   }, [file]);

@@ -1581,16 +1581,16 @@ export function EditorCanvas({
   );
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-auto p-8 flex items-start justify-center">
-      <div className="relative bg-white shadow-2xl" style={containerStyle}>
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-30">
-            <div className="text-center">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-sm text-muted-foreground mt-2">Loading page...</p>
-            </div>
+    <div ref={containerRef} className="flex-1 overflow-auto p-8 flex items-start justify-center relative">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center z-30">
+          <div className="text-center">
+            <div className="w-10 h-10 border-3 border-foreground/20 border-t-foreground rounded-full animate-spin mx-auto" />
+            <p className="text-sm font-medium text-muted-foreground mt-3">Loading PDF...</p>
           </div>
-        )}
+        </div>
+      )}
+      <div className="relative bg-white shadow-2xl" style={containerStyle}>
 
         {isDeleted && (
           <div className="absolute inset-0 flex items-center justify-center bg-red-500/10 z-40">

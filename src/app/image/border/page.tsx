@@ -210,16 +210,16 @@ export default function ImageBorderPage() {
             {/* Color */}
             <div className="space-y-2">
               <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Color</span>
-              <div className="flex gap-1">
+              <div className="flex gap-1.5">
                 {presetColors.map((color) => (
                   <button
                     type="button"
                     key={color}
                     onClick={() => handleColorPreset(color)}
-                    className={`w-7 h-8 border-2 transition-all ${
+                    className={`w-7 h-7 rounded-sm border-2 transition-all ${
                       borderColor === color
-                        ? "border-foreground ring-2 ring-offset-1 ring-foreground"
-                        : "border-foreground/20 hover:border-foreground/50"
+                        ? "border-foreground scale-110"
+                        : "border-foreground/30 hover:border-foreground/60"
                     }`}
                     style={{ backgroundColor: color }}
                   />

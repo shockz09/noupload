@@ -17,7 +17,12 @@ export interface WatermarkOptions {
   fontSize?: number;
   color?: string;
   opacity?: number;
+  /** Position preset (legacy) or explicit coordinates as fractions 0–1 */
   position?: "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  /** Explicit x position as fraction of image width (0–1). Overrides position preset. */
+  x?: number;
+  /** Explicit y position as fraction of image height (0–1). Overrides position preset. */
+  y?: number;
   rotation?: number;
 }
 
@@ -612,32 +617,39 @@ export async function addWatermark(file: File, options: WatermarkOptions): Promi
     ctx.fillStyle = color;
     ctx.globalAlpha = opacity;
 
-    const textWidth = ctx.measureText(options.text).width;
     const textHeight = fontSize;
+    const textWidth = ctx.measureText(options.text).width;
 
     let x: number, y: number;
-    const padding = 20;
 
-    switch (options.position || "center") {
-      case "top-left":
-        x = padding;
-        y = padding + textHeight;
-        break;
-      case "top-right":
-        x = img.width - textWidth - padding;
-        y = padding + textHeight;
-        break;
-      case "bottom-left":
-        x = padding;
-        y = img.height - padding;
-        break;
-      case "bottom-right":
-        x = img.width - textWidth - padding;
-        y = img.height - padding;
-        break;
-      default:
-        x = (img.width - textWidth) / 2;
-        y = (img.height + textHeight) / 2;
+    if (options.x !== undefined && options.y !== undefined) {
+      // Explicit position as fraction of image dimensions
+      x = options.x * img.width;
+      y = options.y * img.height + textHeight;
+    } else {
+      const padding = 20;
+
+      switch (options.position || "center") {
+        case "top-left":
+          x = padding;
+          y = padding + textHeight;
+          break;
+        case "top-right":
+          x = img.width - textWidth - padding;
+          y = padding + textHeight;
+          break;
+        case "bottom-left":
+          x = padding;
+          y = img.height - padding;
+          break;
+        case "bottom-right":
+          x = img.width - textWidth - padding;
+          y = img.height - padding;
+          break;
+        default:
+          x = (img.width - textWidth) / 2;
+          y = (img.height + textHeight) / 2;
+      }
     }
 
     if (rotation) {

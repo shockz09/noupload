@@ -254,16 +254,16 @@ export default function WaveformPage() {
               {/* Waveform Color */}
               <div className="space-y-2">
                 <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Wave</span>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {waveformColors.map((preset) => (
                     <button
                       type="button"
                       key={preset.name}
                       onClick={() => handleWaveformColorSelect(preset.color)}
-                      className={`w-6 h-6 border-2 transition-all ${
+                      className={`w-6 h-6 rounded-sm border-2 transition-all ${
                         waveformColor === preset.color
-                          ? "border-foreground ring-2 ring-offset-1 ring-foreground"
-                          : "border-transparent hover:border-foreground/50"
+                          ? "border-foreground scale-110"
+                          : "border-foreground/30 hover:border-foreground/60"
                       }`}
                       style={{ backgroundColor: preset.color }}
                       title={preset.name}
@@ -275,16 +275,16 @@ export default function WaveformPage() {
               {/* Background Color */}
               <div className="space-y-2">
                 <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Background</span>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {backgroundColors.map((preset) => (
                     <button
                       type="button"
                       key={preset.name}
                       onClick={() => handleBgColorSelect(preset.color)}
-                      className={`w-6 h-6 border transition-all ${
+                      className={`w-6 h-6 rounded-sm border-2 transition-all ${
                         bgColor === preset.color
-                          ? "border-foreground ring-2 ring-offset-1 ring-foreground"
-                          : "border-foreground/20 hover:border-foreground/50"
+                          ? "border-foreground scale-110"
+                          : "border-foreground/30 hover:border-foreground/60"
                       }`}
                       style={{ backgroundColor: preset.color }}
                       title={preset.name}
