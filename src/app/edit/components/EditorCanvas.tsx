@@ -1756,15 +1756,6 @@ export function EditorCanvas({
           </div>
         )}
 
-        {/* Text extraction indicator */}
-        {isExtractingText && (
-          <div className="absolute bottom-2 left-2 z-50">
-            <div className="bg-card/95 border border-foreground/20 shadow-lg px-2 py-1 flex items-center gap-2 text-xs">
-              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <span className="text-muted-foreground">Analyzing text...</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

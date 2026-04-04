@@ -260,17 +260,24 @@ export default function PdfToImagesPage() {
                 {images.length}
               </div>
               <div>
-                <p className="font-bold">Images Generated</p>
+                <p className="font-bold">{images.length === 1 ? "Image Generated" : "Images Generated"}</p>
                 <p className="text-xs text-muted-foreground uppercase">
                   {format} · {QUALITY_SETTINGS[quality].label}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={handleDownloadAll} className="btn-success">
-                <DownloadIcon className="w-5 h-5" />
-                Download ZIP
-              </button>
+              {images.length === 1 ? (
+                <button type="button" onClick={() => handleDownloadSingle(images[0])} className="btn-success">
+                  <DownloadIcon className="w-5 h-5" />
+                  Download {format.toUpperCase()}
+                </button>
+              ) : (
+                <button type="button" onClick={handleDownloadAll} className="btn-success">
+                  <DownloadIcon className="w-5 h-5" />
+                  Download ZIP ({images.length})
+                </button>
+              )}
               <button type="button" onClick={handleStartOver} className="btn-secondary">
                 Back
               </button>
