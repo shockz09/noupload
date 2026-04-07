@@ -1,44 +1,55 @@
-# Contributing to noupload/pdf
+# Contributing to noupload
 
 Thanks for your interest in contributing!
 
 ## Development Setup
 
 1. Fork and clone the repo
-2. Install dependencies: `bun install`
-3. Start dev server: `bun dev`
+2. Install dependencies: `pnpm install`
+3. Start dev server: `pnpm dev`
 4. Make your changes
-5. Run build to check for errors: `bun run build`
+5. Run build to check for errors: `pnpm build`
 
 ## Project Structure
 
 ```
 src/
-├── app/                 # Next.js pages
-│   ├── merge/          # Each tool has its own folder
-│   ├── split/
+├── routes/              # TanStack Router pages (flat file routing)
+│   ├── __root.tsx       # Root layout (header, footer, 404, error)
+│   ├── index.tsx        # Home page
+│   ├── compress.tsx     # /compress
+│   ├── image.crop.tsx   # /image/crop
+│   ├── audio.trim.tsx   # /audio/trim
 │   └── ...
+├── app/                 # Shared app-level modules
+│   ├── globals.css      # Global styles
+│   ├── tools-hub.tsx    # Homepage tool grid
+│   ├── *-tools-grid.tsx # Tool definitions per category
+│   ├── edit/            # PDF editor components/hooks/lib
+│   └── image/edit/      # Image editor components/hooks/lib
 ├── components/
-│   ├── icons.tsx       # Custom SVG icons
-│   ├── pdf/            # PDF-related components
-│   └── ui/             # Shared UI components
-└── lib/
-    ├── pdf-utils.ts    # Core PDF operations (pdf-lib)
-    └── pdf-image-utils.ts  # Image conversion (pdfjs-dist)
+│   ├── icons/           # Custom SVG icons
+│   ├── pdf/             # PDF-related components
+│   ├── image/           # Image-related components
+│   ├── audio/           # Audio-related components
+│   ├── shared/          # Shared UI components
+│   └── ui/              # Base UI components (shadcn)
+├── hooks/               # Shared React hooks
+└── lib/                 # Core utilities and processing logic
 ```
 
 ## Adding a New Tool
 
-1. Create a new folder in `src/app/your-tool/`
-2. Add the page component in `page.tsx`
-3. Add the PDF operation in `src/lib/pdf-utils.ts`
-4. Add an icon in `src/components/icons.tsx`
-5. Add the tool to the homepage grid in `src/app/page.tsx`
-6. Add the tool color in `src/app/globals.css`
+1. Create a route file in `src/routes/` (e.g. `src/routes/image.new-tool.tsx`)
+2. Add `createFileRoute` with `head()` metadata and your component
+3. Add the processing logic in `src/lib/`
+4. Add the tool to the relevant `*-tools-grid.tsx` file
+5. Add the tool color class in `src/app/globals.css`
+6. Add the route to `public/sitemap.xml`
 
 ## Design Guidelines
 
-Follow the Neo-Brutalist design system in `DESIGN.md`:
+Follow the Neo-Brutalist design system:
 - Thick 2px black borders
 - Bold typography
 - Warm cream background (#FAF8F5)
@@ -50,12 +61,13 @@ Follow the Neo-Brutalist design system in `DESIGN.md`:
 - TypeScript strict mode
 - Functional components with hooks
 - Keep components focused and small
-- Client-side only — no server actions
+- Client-side only — no server logic
+- Use `pnpm` (not npm/yarn/bun)
 
 ## Pull Request Process
 
 1. Update README if adding features
-2. Make sure build passes
+2. Make sure `pnpm build` passes with no errors
 3. Keep PRs focused on a single change
 4. Write clear commit messages
 

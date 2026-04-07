@@ -32,20 +32,6 @@ interface ConvertResult {
   processingTimeSeconds: number;
 }
 
-function statusLabel(status: string, isLoading: boolean): string {
-  if (isLoading) return "Loading LibreOffice engine...";
-  switch (status) {
-    case "ready":
-      return "Engine ready";
-    case "converting":
-      return "Converting...";
-    case "error":
-      return "Engine failed to load";
-    default:
-      return "Initializing...";
-  }
-}
-
 function PptxToPdfPage() {
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ConvertResult | null>(null);
@@ -118,20 +104,6 @@ function PptxToPdfPage() {
         title="PPTX to PDF"
         description="Convert PowerPoint presentations to PDF with LibreOffice-quality rendering"
       />
-
-      {/* Engine status badge */}
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <span
-          className={`w-2.5 h-2.5 rounded-full ${
-            engineStatus === "ready"
-              ? "bg-[#2D5A3D]"
-              : engineStatus === "error"
-                ? "bg-red-500"
-                : "bg-amber-500 animate-pulse"
-          }`}
-        />
-        <span className="text-muted-foreground">{statusLabel(engineStatus, isLoading)}</span>
-      </div>
 
       {engineError && <ErrorBox message={engineError} />}
 
