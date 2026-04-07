@@ -45,6 +45,7 @@ export const qrTools = [
     icon: QRIcon,
     category: "create",
     colorClass: "tool-qr-generate",
+    keywords: ["qr code", "url", "wifi", "upi", "vcard", "link"],
   },
   {
     title: "Scan QR",
@@ -53,6 +54,7 @@ export const qrTools = [
     icon: ScanIcon,
     category: "read",
     colorClass: "tool-qr-scan",
+    keywords: ["camera", "decode", "read qr", "reader"],
   },
   {
     title: "Bulk Generate",
@@ -61,6 +63,7 @@ export const qrTools = [
     icon: QRBulkIcon,
     category: "batch",
     colorClass: "tool-qr-bulk",
+    keywords: ["batch", "multiple", "mass", "csv"],
   },
   {
     title: "Barcode",
@@ -69,6 +72,7 @@ export const qrTools = [
     icon: BarcodeIcon,
     category: "create",
     colorClass: "tool-barcode",
+    keywords: ["upc", "ean", "code128", "code39", "isbn", "product"],
   },
 ];
 

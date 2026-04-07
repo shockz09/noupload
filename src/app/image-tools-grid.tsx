@@ -26,6 +26,7 @@ export const imageTools = [
     icon: ImageCompressIcon,
     category: "optimize",
     colorClass: "tool-image-compress",
+    keywords: ["shrink", "smaller", "optimize", "reduce size", "file size"],
   },
   {
     title: "Convert",
@@ -34,6 +35,13 @@ export const imageTools = [
     icon: ConvertIcon,
     category: "convert",
     colorClass: "tool-convert",
+    keywords: [
+      "png to jpg", "png to jpeg", "png to webp",
+      "jpg to png", "jpg to webp", "jpeg to png", "jpeg to webp",
+      "webp to png", "webp to jpg", "webp to jpeg",
+      "svg to png", "svg to jpg", "svg to jpeg", "svg to webp",
+      "image format", "change format",
+    ],
   },
   {
     title: "Edit Image",
@@ -42,6 +50,7 @@ export const imageTools = [
     icon: EditIcon,
     category: "edit",
     colorClass: "tool-image-edit",
+    keywords: ["annotate", "draw", "sign", "paint", "markup", "text on image"],
   },
   {
     title: "Resize",
@@ -50,6 +59,7 @@ export const imageTools = [
     icon: ResizeIcon,
     category: "edit",
     colorClass: "tool-resize",
+    keywords: ["scale", "dimensions", "width", "height", "pixels", "make smaller", "make bigger", "enlarge"],
   },
   {
     title: "Crop",
@@ -58,6 +68,7 @@ export const imageTools = [
     icon: CropIcon,
     category: "edit",
     colorClass: "tool-crop",
+    keywords: ["trim", "cut", "aspect ratio", "square", "16:9", "4:3"],
   },
   {
     title: "Remove Background",
@@ -66,6 +77,7 @@ export const imageTools = [
     icon: RemoveBgIcon,
     category: "ai",
     colorClass: "tool-remove-bg",
+    keywords: ["transparent", "cutout", "background remover", "bg remove", "no background", "erase background"],
   },
   {
     title: "Screenshot Beautifier",
@@ -74,6 +86,7 @@ export const imageTools = [
     icon: ScreenshotIcon,
     category: "edit",
     colorClass: "tool-screenshot",
+    keywords: ["mockup", "frame", "gradient", "beautify", "presentation"],
   },
   {
     title: "Collage Maker",
@@ -82,6 +95,7 @@ export const imageTools = [
     icon: CollageIcon,
     category: "edit",
     colorClass: "tool-collage",
+    keywords: ["grid", "combine", "merge", "layout", "photo grid", "stitch"],
   },
   {
     title: "Blur & Pixelate",
@@ -90,6 +104,7 @@ export const imageTools = [
     icon: BlurIcon,
     category: "privacy",
     colorClass: "tool-blur",
+    keywords: ["censor", "redact", "hide", "mosaic", "obscure", "face blur"],
   },
   {
     title: "Image Metadata",
@@ -98,6 +113,7 @@ export const imageTools = [
     icon: MetadataIcon,
     category: "privacy",
     colorClass: "tool-strip-metadata",
+    keywords: ["exif", "gps", "location", "strip", "remove metadata", "photo info", "camera info"],
   },
   {
     title: "Rotate & Flip",
@@ -106,6 +122,7 @@ export const imageTools = [
     icon: RotateIcon,
     category: "edit",
     colorClass: "tool-rotate-image",
+    keywords: ["mirror", "flip horizontal", "flip vertical", "turn", "orientation"],
   },
   {
     title: "Adjust",
@@ -114,6 +131,7 @@ export const imageTools = [
     icon: BrightnessIcon,
     category: "edit",
     colorClass: "tool-adjust",
+    keywords: ["brightness", "contrast", "saturation", "exposure", "lighten", "darken"],
   },
   {
     title: "Filters",
@@ -122,6 +140,7 @@ export const imageTools = [
     icon: FiltersIcon,
     category: "edit",
     colorClass: "tool-filters",
+    keywords: ["grayscale", "sepia", "invert", "black and white", "b&w", "effect", "vintage", "noir"],
   },
   {
     title: "Watermark",
@@ -130,6 +149,7 @@ export const imageTools = [
     icon: WatermarkIcon,
     category: "edit",
     colorClass: "tool-image-watermark",
+    keywords: ["copyright", "overlay", "protect", "branding", "stamp text"],
   },
   {
     title: "Add Border",
@@ -138,6 +158,7 @@ export const imageTools = [
     icon: BorderIcon,
     category: "edit",
     colorClass: "tool-border",
+    keywords: ["frame", "outline", "padding", "edge"],
   },
   {
     title: "HEIC \u2192 JPEG",
@@ -146,6 +167,7 @@ export const imageTools = [
     icon: HeicIcon,
     category: "convert",
     colorClass: "tool-heic",
+    keywords: ["heic to jpg", "heif to jpg", "iphone photo", "apple photo", "heic convert"],
   },
   {
     title: "To Base64",
@@ -154,6 +176,7 @@ export const imageTools = [
     icon: Base64Icon,
     category: "convert",
     colorClass: "tool-base64",
+    keywords: ["data uri", "data url", "embed", "inline", "encode"],
   },
   {
     title: "Favicon Generator",
@@ -162,6 +185,7 @@ export const imageTools = [
     icon: FaviconIcon,
     category: "convert",
     colorClass: "tool-favicon",
+    keywords: ["ico", "icon", "website icon", "apple touch icon", "android icon", "pwa icon"],
   },
   {
     title: "Color Palette",
@@ -170,6 +194,7 @@ export const imageTools = [
     icon: PaletteIcon,
     category: "convert",
     colorClass: "tool-palette",
+    keywords: ["colors", "extract colors", "dominant color", "swatch", "color picker", "hex"],
   },
 ];
 

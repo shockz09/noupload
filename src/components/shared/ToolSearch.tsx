@@ -10,6 +10,7 @@ interface Tool {
   icon: ComponentType<{ className?: string }>;
   category: string;
   colorClass: string;
+  keywords?: string[];
 }
 
 interface ToolSearchProps {
@@ -46,12 +47,32 @@ export const ToolSearch = memo(function ToolSearch({
   const filteredTools = useMemo(() => {
     if (!query.trim()) return tools;
 
-    const searchTerms = query.toLowerCase().trim().split(/\s+/);
+    const q = query.toLowerCase().trim();
+    const searchTerms = q.split(/\s+/);
 
-    return tools.filter((tool) => {
-      const searchableText = `${tool.title} ${tool.description} ${tool.category}`.toLowerCase();
-      return searchTerms.every((term) => searchableText.includes(term));
-    });
+    const scored = tools
+      .map((tool) => {
+        const title = tool.title.toLowerCase();
+        const desc = tool.description.toLowerCase();
+        const category = tool.category.toLowerCase();
+        const kwLower = (tool.keywords ?? []).map((kw) => kw.toLowerCase());
+
+        const exactKw = kwLower.some((kw) => kw === q);
+        const partialKw = kwLower.some((kw) => kw.includes(q));
+        const titleMatch = searchTerms.some((t) => title.includes(t));
+        const descMatch = searchTerms.some((t) => desc.includes(t));
+        const termsMatch = searchTerms.every((t) =>
+          title.includes(t) || desc.includes(t) || category.includes(t) || kwLower.some((kw) => kw.includes(t)),
+        );
+
+        if (!termsMatch && !partialKw) return null;
+
+        const score = (exactKw ? 100 : 0) + (partialKw ? 50 : 0) + (titleMatch ? 20 : 0) + (descMatch ? 5 : 0);
+        return { tool, score };
+      })
+      .filter(Boolean) as { tool: Tool; score: number }[];
+
+    return scored.sort((a, b) => b.score - a.score).map((s) => s.tool);
   }, [tools, query]);
 
   const handleClear = useCallback(() => {

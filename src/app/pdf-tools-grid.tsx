@@ -34,6 +34,7 @@ export const pdfTools = [
     icon: CompressIcon,
     category: "optimize",
     colorClass: "tool-compress",
+    keywords: ["shrink", "smaller pdf", "reduce size", "optimize"],
   },
   {
     title: "Edit PDF",
@@ -42,6 +43,7 @@ export const pdfTools = [
     icon: EditIcon,
     category: "edit",
     colorClass: "tool-edit",
+    keywords: ["annotate", "markup", "draw", "highlight", "text", "sign"],
   },
   {
     title: "Merge PDF",
@@ -50,6 +52,7 @@ export const pdfTools = [
     icon: MergeIcon,
     category: "organize",
     colorClass: "tool-merge",
+    keywords: ["combine", "join", "concatenate", "append"],
   },
   {
     title: "Split PDF",
@@ -58,6 +61,7 @@ export const pdfTools = [
     icon: SplitIcon,
     category: "organize",
     colorClass: "tool-split",
+    keywords: ["separate", "divide", "extract pages", "break apart"],
   },
   {
     title: "Images → PDF",
@@ -66,6 +70,7 @@ export const pdfTools = [
     icon: FileIcon,
     category: "convert",
     colorClass: "tool-images-to-pdf",
+    keywords: ["jpg to pdf", "png to pdf", "photo to pdf", "image to pdf", "pictures to pdf"],
   },
   {
     title: "PDF → Images",
@@ -74,6 +79,7 @@ export const pdfTools = [
     icon: ImageIcon,
     category: "convert",
     colorClass: "tool-pdf-to-images",
+    keywords: ["pdf to jpg", "pdf to png", "pdf to image", "screenshot pages", "export pages"],
   },
   {
     title: "Sign PDF",
@@ -82,6 +88,7 @@ export const pdfTools = [
     icon: SignatureIcon,
     category: "edit",
     colorClass: "tool-sign",
+    keywords: ["signature", "e-sign", "esign", "autograph"],
   },
   {
     title: "Encrypt PDF",
@@ -90,6 +97,7 @@ export const pdfTools = [
     icon: LockIcon,
     category: "security",
     colorClass: "tool-encrypt",
+    keywords: ["password", "protect", "lock", "secure"],
   },
   {
     title: "Decrypt PDF",
@@ -98,6 +106,7 @@ export const pdfTools = [
     icon: UnlockIcon,
     category: "security",
     colorClass: "tool-decrypt",
+    keywords: ["unlock", "remove password", "unprotect"],
   },
   {
     title: "Organize PDF",
@@ -106,6 +115,7 @@ export const pdfTools = [
     icon: OrganizeIcon,
     category: "organize",
     colorClass: "tool-organize",
+    keywords: ["reorder", "rearrange", "sort pages", "move pages", "drag drop"],
   },
   {
     title: "Grayscale",
@@ -114,6 +124,7 @@ export const pdfTools = [
     icon: GrayscaleIcon,
     category: "convert",
     colorClass: "tool-grayscale",
+    keywords: ["black and white", "b&w", "monochrome", "desaturate"],
   },
   {
     title: "PDF to PDF/A",
@@ -122,6 +133,7 @@ export const pdfTools = [
     icon: ArchiveIcon,
     category: "convert",
     colorClass: "tool-pdfa",
+    keywords: ["archive", "long term", "preservation", "iso", "compliance"],
   },
   {
     title: "Markdown → PDF",
@@ -130,6 +142,7 @@ export const pdfTools = [
     icon: TextIcon,
     category: "convert",
     colorClass: "tool-markdown-to-pdf",
+    keywords: ["md to pdf", "markdown", "latex", "math equations"],
   },
   {
     title: "HTML → PDF",
@@ -138,6 +151,7 @@ export const pdfTools = [
     icon: HtmlIcon,
     category: "convert",
     colorClass: "tool-html-to-pdf",
+    keywords: ["webpage to pdf", "website to pdf", "html"],
   },
   {
     title: "Rotate",
@@ -146,6 +160,7 @@ export const pdfTools = [
     icon: RotateIcon,
     category: "organize",
     colorClass: "tool-rotate",
+    keywords: ["turn", "orientation", "landscape", "portrait"],
   },
   {
     title: "Watermark",
@@ -154,6 +169,7 @@ export const pdfTools = [
     icon: WatermarkIcon,
     category: "edit",
     colorClass: "tool-watermark",
+    keywords: ["stamp", "overlay", "copyright", "branding", "confidential", "draft"],
   },
   {
     title: "Page Numbers",
@@ -162,6 +178,7 @@ export const pdfTools = [
     icon: NumbersIcon,
     category: "edit",
     colorClass: "tool-page-numbers",
+    keywords: ["numbering", "footer", "header", "pagination"],
   },
   {
     title: "OCR",
@@ -170,6 +187,7 @@ export const pdfTools = [
     icon: OcrIcon,
     category: "convert",
     colorClass: "tool-ocr",
+    keywords: ["scan", "recognize text", "scanned pdf", "image to text", "searchable"],
   },
   {
     title: "Reverse Pages",
@@ -178,6 +196,7 @@ export const pdfTools = [
     icon: ReversePagesIcon,
     category: "organize",
     colorClass: "tool-reverse",
+    keywords: ["flip order", "backwards", "invert order"],
   },
   {
     title: "PDF → Text",
@@ -186,6 +205,7 @@ export const pdfTools = [
     icon: TextIcon,
     category: "convert",
     colorClass: "tool-convert",
+    keywords: ["extract text", "copy text", "pdf to txt", "plain text"],
   },
   {
     title: "Duplicate Pages",
@@ -194,6 +214,7 @@ export const pdfTools = [
     icon: DuplicateIcon,
     category: "organize",
     colorClass: "tool-duplicate",
+    keywords: ["copy pages", "clone", "repeat"],
   },
   {
     title: "Delete Pages",
@@ -202,6 +223,7 @@ export const pdfTools = [
     icon: DeletePagesIcon,
     category: "organize",
     colorClass: "tool-delete",
+    keywords: ["remove pages", "drop pages", "trim pdf"],
   },
   {
     title: "PDF Metadata",
@@ -210,6 +232,7 @@ export const pdfTools = [
     icon: MetadataIcon,
     category: "edit",
     colorClass: "tool-metadata",
+    keywords: ["properties", "author", "title", "subject", "strip metadata"],
   },
   {
     title: "Extract Images",
@@ -218,6 +241,7 @@ export const pdfTools = [
     icon: ExtractImageIcon,
     category: "convert",
     colorClass: "tool-extract-images",
+    keywords: ["get images", "save images", "pull photos"],
   },
   {
     title: "PDF → EPUB",
@@ -226,6 +250,7 @@ export const pdfTools = [
     icon: BookIcon,
     category: "convert",
     colorClass: "tool-convert",
+    keywords: ["ebook", "kindle", "reader", "epub"],
   },
   {
     title: "PPTX → PDF",
@@ -234,6 +259,7 @@ export const pdfTools = [
     icon: PptxIcon,
     category: "convert",
     colorClass: "tool-pptx-to-pdf",
+    keywords: ["powerpoint", "ppt", "slides", "presentation to pdf"],
   },
 ];
 

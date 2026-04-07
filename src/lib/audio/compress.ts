@@ -12,6 +12,9 @@ export interface CompressAudioResult {
 /**
  * Compress audio to AAC/M4A using:
  *   Web Audio API (decode any format) → AudioBufferSource (encode to AAC) → Mp4 muxer
+ *
+ * Some browsers reject certain AAC bitrate/channel combos (e.g. Safari + 64kbps stereo).
+ * We try the requested bitrate first, then fall back to the next supported one.
  */
 export async function compressAudio(
   file: File,
@@ -24,27 +27,37 @@ export async function compressAudio(
 
   onProgress?.(0.1);
   const audioBuffer = await loadAudioFile(file);
-
   onProgress?.(0.3);
-  const source = new AudioBufferSource({ codec: "aac", bitrate });
-  const output = new Output({
-    format: new Mp4OutputFormat({ fastStart: "in-memory" }),
-    target: new BufferTarget(),
-  });
-  output.addAudioTrack(source);
-  await output.start();
 
-  await source.add(audioBuffer);
-  await output.finalize();
+  // Deduplicated, ascending from requested bitrate
+  const candidates = [...new Set([bitrate, 96_000, 128_000, 192_000])].filter((b) => b >= bitrate);
 
-  onProgress?.(1);
+  let lastError: unknown;
+  for (const br of candidates) {
+    try {
+      const source = new AudioBufferSource({ codec: "aac", bitrate: br });
+      const output = new Output({
+        format: new Mp4OutputFormat({ fastStart: "in-memory" }),
+        target: new BufferTarget(),
+      });
+      output.addAudioTrack(source);
+      await output.start();
+      await source.add(audioBuffer);
+      await output.finalize();
 
-  const blob = new Blob([output.target.buffer!], { type: "audio/mp4" });
+      onProgress?.(1);
 
-  return {
-    blob,
-    filename: `${getFileBaseName(file.name)}_compressed.m4a`,
-    originalSize: file.size,
-    compressedSize: blob.size,
-  };
+      const blob = new Blob([output.target.buffer!], { type: "audio/mp4" });
+      return {
+        blob,
+        filename: `${getFileBaseName(file.name)}_compressed.m4a`,
+        originalSize: file.size,
+        compressedSize: blob.size,
+      };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError;
 }

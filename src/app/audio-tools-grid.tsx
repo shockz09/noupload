@@ -23,6 +23,7 @@ export const audioTools = [
     icon: CompressIcon,
     category: "optimize",
     colorClass: "tool-audio-compress",
+    keywords: ["shrink", "smaller", "reduce size", "aac", "bitrate"],
   },
   {
     title: "Convert",
@@ -31,6 +32,11 @@ export const audioTools = [
     icon: ConvertIcon,
     category: "convert",
     colorClass: "tool-audio-convert",
+    keywords: [
+      "mp3 to wav", "wav to mp3", "mp3 to ogg", "ogg to mp3",
+      "mp3 to aac", "flac to mp3", "m4a to mp3", "wav to ogg",
+      "audio format", "change format",
+    ],
   },
   {
     title: "Trim Audio",
@@ -39,6 +45,7 @@ export const audioTools = [
     icon: TrimIcon,
     category: "edit",
     colorClass: "tool-audio-trim",
+    keywords: ["cut", "clip", "shorten", "start end"],
   },
   {
     title: "Volume",
@@ -47,6 +54,7 @@ export const audioTools = [
     icon: VolumeIcon,
     category: "edit",
     colorClass: "tool-audio-volume",
+    keywords: ["louder", "quieter", "gain", "amplify", "boost"],
   },
   {
     title: "Speed",
@@ -55,6 +63,7 @@ export const audioTools = [
     icon: SpeedIcon,
     category: "edit",
     colorClass: "tool-audio-speed",
+    keywords: ["faster", "slower", "tempo", "playback rate", "2x", "0.5x"],
   },
   {
     title: "Record",
@@ -63,6 +72,7 @@ export const audioTools = [
     icon: MicIcon,
     category: "create",
     colorClass: "tool-audio-record",
+    keywords: ["microphone", "mic", "voice", "capture"],
   },
   {
     title: "Waveform",
@@ -71,6 +81,7 @@ export const audioTools = [
     icon: WaveformIcon,
     category: "convert",
     colorClass: "tool-audio-waveform",
+    keywords: ["visualization", "visualize", "wave", "audio image", "soundwave"],
   },
   {
     title: "Fade",
@@ -79,6 +90,7 @@ export const audioTools = [
     icon: FadeIcon,
     category: "effects",
     colorClass: "tool-audio-fade",
+    keywords: ["fade in", "fade out", "intro", "outro", "crossfade"],
   },
   {
     title: "Denoise",
@@ -87,6 +99,7 @@ export const audioTools = [
     icon: DenoiseIcon,
     category: "effects",
     colorClass: "tool-audio-denoise",
+    keywords: ["noise removal", "clean audio", "hiss", "hum", "background noise"],
   },
   {
     title: "Normalize",
@@ -95,6 +108,7 @@ export const audioTools = [
     icon: NormalizeIcon,
     category: "edit",
     colorClass: "tool-audio-normalize",
+    keywords: ["level", "consistent volume", "even out", "loudness"],
   },
   {
     title: "Remove Silence",
@@ -103,6 +117,7 @@ export const audioTools = [
     icon: SilenceIcon,
     category: "edit",
     colorClass: "tool-audio-silence",
+    keywords: ["trim silence", "dead air", "gaps", "quiet parts"],
   },
   {
     title: "Merge",
@@ -111,6 +126,7 @@ export const audioTools = [
     icon: AudioMergeIcon,
     category: "edit",
     colorClass: "tool-audio-merge",
+    keywords: ["join", "concatenate", "combine", "append"],
   },
   {
     title: "Reverse",
@@ -119,6 +135,7 @@ export const audioTools = [
     icon: ReverseIcon,
     category: "effects",
     colorClass: "tool-audio-reverse",
+    keywords: ["backwards", "reverse playback"],
   },
   {
     title: "Audio Metadata",
@@ -127,6 +144,7 @@ export const audioTools = [
     icon: MusicTagIcon,
     category: "edit",
     colorClass: "tool-audio-metadata",
+    keywords: ["id3", "tags", "artist", "album", "title", "cover art"],
   },
 ];
 

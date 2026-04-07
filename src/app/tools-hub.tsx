@@ -10,7 +10,7 @@ import { videoCategoryLabels, videoTools } from "./video-tools-grid";
 
 // ── Category definitions ─────────────────────────────────────
 
-type CategoryKey = "pdf" | "image" | "audio" | "video" | "qr";
+type CategoryKey = "all" | "pdf" | "image" | "audio" | "video" | "qr";
 
 interface CategoryDef {
   key: CategoryKey;
@@ -22,12 +22,30 @@ interface CategoryDef {
   placeholder: string;
 }
 
+const allTools = [...pdfTools, ...imageTools, ...audioTools, ...videoTools, ...qrTools];
+const allCategoryLabels: Record<string, string> = {
+  ...pdfCategoryLabels,
+  ...imageCategoryLabels,
+  ...audioCategoryLabels,
+  ...videoCategoryLabels,
+  ...qrCategoryLabels,
+};
+
 const categories: CategoryDef[] = [
+  {
+    key: "all",
+    label: "All",
+    count: allTools.length,
+    accentColor: "#C84C1C",
+    tools: allTools,
+    categoryLabels: allCategoryLabels,
+    placeholder: "Search all tools...",
+  },
   {
     key: "pdf",
     label: "PDF",
     count: pdfTools.length,
-    accentColor: "#C84C1C",
+    accentColor: "#2563EB",
     tools: pdfTools,
     categoryLabels: pdfCategoryLabels,
     placeholder: "Search PDF tools...",
@@ -73,7 +91,7 @@ const categories: CategoryDef[] = [
 // ── Component ────────────────────────────────────────────────
 
 const STORAGE_KEY = "noupload-active-tab";
-const VALID_KEYS = new Set<CategoryKey>(["pdf", "image", "audio", "video", "qr"]);
+const VALID_KEYS = new Set<CategoryKey>(["all", "pdf", "image", "audio", "video", "qr"]);
 
 function getSavedCategory(): CategoryKey {
   if (typeof window === "undefined") return "pdf";
@@ -118,7 +136,7 @@ export const ToolsHub = memo(function ToolsHub() {
       {/* Active category tools */}
       <section className="space-y-8">
         <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-display">{current.label} Tools</h2>
+          <h2 className="text-2xl font-display">{current.key === "all" ? "All Tools" : `${current.label} Tools`}</h2>
           <div className="flex-1 h-0.5 bg-foreground" />
         </div>
 

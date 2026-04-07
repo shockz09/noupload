@@ -16,6 +16,7 @@ export const videoTools = [
     icon: VideoCompressIcon,
     category: "optimize",
     colorClass: "tool-video-compress",
+    keywords: ["shrink", "smaller", "reduce size", "bitrate"],
   },
   {
     title: "Trim",
@@ -24,6 +25,7 @@ export const videoTools = [
     icon: VideoTrimIcon,
     category: "edit",
     colorClass: "tool-video-trim",
+    keywords: ["cut", "clip", "shorten", "start end"],
   },
   {
     title: "Convert",
@@ -32,6 +34,10 @@ export const videoTools = [
     icon: VideoConvertIcon,
     category: "convert",
     colorClass: "tool-video-convert",
+    keywords: [
+      "mp4 to webm", "webm to mp4", "mov to mp4", "avi to mp4",
+      "mkv to mp4", "video format", "change format",
+    ],
   },
   {
     title: "Remove Audio",
@@ -40,6 +46,7 @@ export const videoTools = [
     icon: RemoveAudioIcon,
     category: "edit",
     colorClass: "tool-video-remove-audio",
+    keywords: ["mute", "silent", "no sound", "strip sound"],
   },
   {
     title: "To GIF",
@@ -48,6 +55,7 @@ export const videoTools = [
     icon: VideoToGifIcon,
     category: "convert",
     colorClass: "tool-video-to-gif",
+    keywords: ["video to gif", "animated", "mp4 to gif", "loop"],
   },
   {
     title: "Extract Audio",
@@ -56,6 +64,7 @@ export const videoTools = [
     icon: ExtractIcon,
     category: "convert",
     colorClass: "tool-audio-extract",
+    keywords: ["get audio", "rip audio", "video to mp3", "video to audio"],
   },
   {
     title: "Metadata",
@@ -64,6 +73,7 @@ export const videoTools = [
     icon: VideoMetadataIcon,
     category: "info",
     colorClass: "tool-video-metadata",
+    keywords: ["info", "details", "codec", "resolution", "duration", "fps"],
   },
 ];
 
