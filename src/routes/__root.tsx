@@ -26,7 +26,7 @@ function RootComponent() {
 							<p className="text-sm text-muted-foreground font-medium">
 								Your files never leave your device. Built for privacy.
 							</p>
-							<p className="text-xs text-muted-foreground/50">
+							<p className="text-xs text-muted-foreground/70">
 								by{" "}
 								<a
 									href="https://github.com/shockz09"

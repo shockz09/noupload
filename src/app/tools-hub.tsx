@@ -125,7 +125,7 @@ export const ToolsHub = memo(function ToolsHub() {
               style={{ "--cat-color": cat.accentColor } as React.CSSProperties}
             >
               {cat.label}
-              <span className={`ml-1.5 text-xs font-semibold ${isActive ? "opacity-80" : "text-muted-foreground"}`}>
+              <span className={`ml-1.5 text-xs font-semibold ${isActive ? "opacity-90" : "text-muted-foreground"}`}>
                 {cat.count}
               </span>
             </button>
