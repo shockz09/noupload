@@ -1,0 +1,191 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/image/heic-to-jpeg")({
+	head: () => ({
+		meta: [
+			{ title: "HEIC to JPEG Converter Free - Convert iPhone Photos | noupload" },
+			{ name: "description", content: "Convert HEIC to JPEG for free. Transform iPhone photos to JPG format. Batch conversion supported. Works offline, completely private." },
+			{ name: "keywords", content: "heic to jpeg, heic to jpg, convert heic, iphone photo converter, heic converter, free heic to jpeg" },
+			{ property: "og:title", content: "HEIC to JPEG Converter Free - Convert iPhone Photos" },
+			{ property: "og:description", content: "Convert HEIC photos to JPEG for free. Works 100% offline." },
+		],
+	}),
+	component: HeicToJpegPage,
+});
+
+import { useCallback, useState } from "react";
+import { LoaderIcon } from "@/components/icons/ui";
+import { HeicIcon, ImageIcon } from "@/components/icons/image";
+import { ErrorBox, ImageFileInfo, ImagePageHeader, ImageResultView } from "@/components/image/shared";
+import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { InfoBox } from "@/components/shared";
+import { useInstantMode } from "@/components/shared/InstantModeToggle";
+import { useFileBuffer, useFileProcessing, useImagePaste } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
+import { convertHeicToJpeg } from "@/lib/heic-utils";
+import { downloadImage, formatFileSize } from "@/lib/image-utils";
+
+interface ConvertResult {
+  blob: Blob;
+  filename: string;
+  originalSize: number;
+}
+
+function HeicToJpegPage() {
+  const { isInstant, isLoaded } = useInstantMode();
+  const [file, setFile] = useState<File | null>(null);
+  const [result, setResult] = useState<ConvertResult | null>(null);
+
+  // Use custom hook for processing state
+  const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
+    useFileProcessing();
+
+  const processFile = useCallback(
+    async (fileToProcess: File) => {
+      if (!startProcessing()) return;
+      setResult(null);
+
+      try {
+        setProgress(20);
+        const converted = await convertHeicToJpeg(fileToProcess);
+        setProgress(90);
+
+        const baseName = fileToProcess.name.replace(/\.heic$/i, "").replace(/\.heif$/i, "");
+        setResult({
+          blob: converted,
+          filename: `${baseName}.jpg`,
+          originalSize: fileToProcess.size,
+        });
+        setProgress(100);
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to convert HEIC."));
+      } finally {
+        stopProcessing();
+      }
+    },
+    [startProcessing, setProgress, setError, stopProcessing],
+  );
+
+  const handleFileSelected = useCallback(
+    (files: File[]) => {
+      if (files.length > 0) {
+        const selectedFile = files[0];
+        setFile(selectedFile);
+        clearError();
+        setResult(null);
+        if (isInstant) {
+          processFile(selectedFile);
+        }
+      }
+    },
+    [isInstant, processFile, clearError],
+  );
+
+  useImagePaste(handleFileSelected, !result);
+
+  const handleDownload = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (result) downloadImage(result.blob, result.filename);
+    },
+    [result],
+  );
+
+  const handleClear = useCallback(() => {
+    setFile(null);
+    clearError();
+    setResult(null);
+  }, [clearError]);
+
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "HEIC to JPEG",
+    });
+  }, [result, addToBuffer]);
+
+  if (!isLoaded) return null;
+
+  return (
+    <div className="page-enter max-w-2xl mx-auto space-y-8">
+      <ImagePageHeader
+        icon={<HeicIcon className="w-7 h-7" />}
+        iconClass="tool-heic"
+        title="HEIC → JPEG"
+        description="Convert iPhone photos to standard JPEG format"
+      />
+
+      {result ? (
+        <ImageResultView
+          blob={result.blob}
+          title="HEIC Converted!"
+          subtitle={`HEIC → JPEG · ${formatFileSize(result.originalSize)} → ${formatFileSize(result.blob.size)}`}
+          downloadLabel="Download JPEG"
+          onDownload={handleDownload}
+          onHoldInBuffer={handleHoldInBuffer}
+          onStartOver={handleClear}
+          startOverLabel="Convert Another"
+        />
+      ) : isProcessing ? (
+        <div className="border-2 border-foreground p-12 bg-card">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <LoaderIcon className="w-8 h-8 animate-spin" />
+            <div className="text-center">
+              <p className="font-bold">Converting to JPEG...</p>
+              <p className="text-sm text-muted-foreground">{file?.name}</p>
+            </div>
+            <div className="w-full max-w-xs h-2 bg-muted border-2 border-foreground">
+              <div className="h-full bg-foreground transition-all duration-300" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="space-y-4">
+          <ErrorBox message={error} />
+          <button type="button" onClick={handleClear} className="btn-secondary w-full">
+            Try Again
+          </button>
+        </div>
+      ) : !file ? (
+        <div className="space-y-6">
+          <FileDropzone
+            accept=".heic,.heif"
+            multiple={false}
+            onFilesSelected={handleFileSelected}
+            title="Drop your HEIC file here"
+            subtitle="or click to browse from your device"
+          />
+          <InfoBox title={isInstant ? "Instant conversion" : "Manual mode"}>
+            {isInstant
+              ? "Drop a HEIC file and it will be converted automatically."
+              : "Drop a HEIC file, then click to convert."}
+          </InfoBox>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <ImageFileInfo
+            file={file}
+            fileSize={formatFileSize(file.size)}
+            onClear={handleClear}
+            icon={<ImageIcon className="w-5 h-5" />}
+          />
+          <button
+            type="button"
+            onClick={() => processFile(file)}
+            disabled={isProcessing}
+            className="btn-primary w-full"
+          >
+            <HeicIcon className="w-5 h-5" />
+            Convert to JPEG
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

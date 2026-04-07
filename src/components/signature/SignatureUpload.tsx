@@ -1,4 +1,3 @@
-"use client";
 
 import { memo, useCallback, useState } from "react";
 import { TrashIcon, UploadIcon } from "@/components/icons/ui";

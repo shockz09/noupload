@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  <rect width="180" height="180" fill="#1A1612"/>
+  <rect x="32" y="32" width="116" height="116" fill="#C84C1C" stroke="#FAF7F2" stroke-width="4"/>
+  <text x="90" y="105" text-anchor="middle" font-family="Georgia,serif" font-size="48" font-weight="bold" fill="#FAF7F2">NU</text>
+</svg>

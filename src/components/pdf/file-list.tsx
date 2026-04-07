@@ -1,4 +1,3 @@
-"use client";
 
 import { memo, useCallback, useRef, useState } from "react";
 import { GripIcon, XIcon } from "@/components/icons/ui";

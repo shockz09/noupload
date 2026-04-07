@@ -1,7 +1,5 @@
-"use client";
-
+import { useNavigate } from "@tanstack/react-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { useFileBuffer } from "@/hooks/useFileBuffer";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
@@ -161,7 +159,7 @@ function DockItem({
 export const BufferDock = memo(function BufferDock() {
   const { items, remove, setPendingItem } = useFileBuffer();
   const { isInstant } = useInstantMode();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
 
   const shouldShow = isInstant && items.length > 0;
@@ -179,8 +177,8 @@ export const BufferDock = memo(function BufferDock() {
 
   const handleNavigate = useCallback((itemId: string, href: string) => {
     setPendingItem(itemId);
-    router.push(href);
-  }, [router, setPendingItem]);
+    navigate({ to: href });
+  }, [navigate, setPendingItem]);
 
   if (!isVisible) return null;
 

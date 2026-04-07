@@ -1,0 +1,195 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/audio/speed")({
+	head: () => ({
+		meta: [
+			{ title: "Change Audio Speed Free - Speed Up or Slow Down | noupload" },
+			{ name: "description", content: "Change audio speed for free. Speed up or slow down audio without pitch change. Works offline, your files stay private." },
+			{ name: "keywords", content: "audio speed, change audio speed, speed up audio, slow down audio, audio tempo, free audio speed changer" },
+			{ property: "og:title", content: "Change Audio Speed Free - Speed Up or Slow Down" },
+			{ property: "og:description", content: "Change audio speed without pitch change for free. Works 100% offline." },
+		],
+	}),
+	component: SpeedAudioPage,
+});
+
+import { useCallback, useState } from "react";
+import { AudioPlayer } from "@/components/audio/AudioPlayer";
+import {
+  AudioFileInfo,
+  AudioPageHeader,
+  AudioResultView,
+  ErrorBox,
+  ProcessButton,
+  VideoExtractionProgress,
+} from "@/components/audio/shared";
+import { SpeedIcon } from "@/components/icons/audio";
+import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
+import { changeSpeed, formatDuration, getAudioInfo } from "@/lib/audio-utils";
+import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/error";
+import { getFileBaseName } from "@/lib/utils";
+
+const speedPresets = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+function SpeedAudioPage() {
+  const [file, setFile] = useState<File | null>(null);
+  const [duration, setDuration] = useState(0);
+  const [speed, setSpeed] = useState(1);
+  const [usedSpeed, setUsedSpeed] = useState(1);
+
+  // Use custom hooks
+  const { url: audioUrl, setSource: setAudioSource, revoke: revokeAudio } = useObjectURL();
+  const { isProcessing, error, startProcessing, stopProcessing, setError } = useFileProcessing();
+  const { result, setResult, clearResult, download } = useAudioResult();
+  const { processFileSelection, extractionState, extractionProgress, isExtracting, videoFilename } = useVideoToAudio();
+
+  const handleAudioReady = useCallback(
+    async (files: File[]) => {
+      if (files.length > 0) {
+        const selectedFile = files[0];
+        setFile(selectedFile);
+        clearResult();
+
+        try {
+          const info = await getAudioInfo(selectedFile);
+          setDuration(info.duration);
+          setAudioSource(selectedFile);
+        } catch {
+          setError("Failed to load audio file.");
+        }
+      }
+    },
+    [clearResult, setAudioSource, setError],
+  );
+
+  const handleFileSelected = useCallback(
+    (files: File[]) => {
+      processFileSelection(files, handleAudioReady);
+    },
+    [processFileSelection, handleAudioReady],
+  );
+
+  const handleProcess = useCallback(async () => {
+    if (!file) return;
+    if (!startProcessing()) return;
+
+    try {
+      const processed = await changeSpeed(file, speed);
+      const baseName = getFileBaseName(file.name);
+      setResult(processed, `${baseName}_${speed}x.wav`);
+      setUsedSpeed(speed);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to change speed"));
+    } finally {
+      stopProcessing();
+    }
+  }, [file, speed, startProcessing, setResult, setError, stopProcessing]);
+
+  const handleStartOver = useCallback(() => {
+    revokeAudio();
+    clearResult();
+    setFile(null);
+    setSpeed(1);
+  }, [revokeAudio, clearResult]);
+
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "audio",
+      sourceToolLabel: "Change Speed",
+    });
+  }, [result, addToBuffer]);
+
+  const handleSpeedSelect = useCallback((s: number) => setSpeed(s), []);
+
+  const newDuration = duration / speed;
+  const isDisabled = speed === 1;
+
+  return (
+    <div className="page-enter max-w-2xl mx-auto space-y-8">
+      <AudioPageHeader
+        icon={<SpeedIcon className="w-7 h-7" />}
+        iconClass="tool-audio-speed"
+        title="Change Speed"
+        description="Speed up or slow down audio"
+      />
+
+      {result ? (
+        <AudioResultView
+          url={result.url}
+          blobSize={result.blob.size}
+          title="Speed Changed!"
+          subtitle={`${usedSpeed}x speed • ${formatDuration(duration / usedSpeed)}`}
+          downloadLabel="Download Audio"
+          onDownload={download}
+          onHoldInBuffer={handleHoldInBuffer}
+          onStartOver={handleStartOver}
+          startOverLabel="Process Another"
+        />
+      ) : isExtracting ? (
+        <VideoExtractionProgress state={extractionState} progress={extractionProgress} filename={videoFilename} />
+      ) : !file ? (
+        <FileDropzone
+          accept={AUDIO_VIDEO_EXTENSIONS}
+          multiple={false}
+          onFilesSelected={handleFileSelected}
+          title="Drop your audio or video file here"
+          subtitle="MP3, WAV, OGG, M4A, MP4, MOV, etc."
+        />
+      ) : (
+        <div className="space-y-6">
+          <AudioFileInfo file={file} duration={duration} onClear={handleStartOver} />
+
+          {audioUrl && <AudioPlayer src={audioUrl} />}
+
+          <div className="space-y-3">
+            <span className="input-label">Speed</span>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              {speedPresets.map((s) => (
+                <button
+                  type="button"
+                  key={s}
+                  onClick={() => handleSpeedSelect(s)}
+                  className={`px-2 sm:px-3 py-2 text-sm font-bold border-2 border-foreground transition-colors ${
+                    speed === s ? "bg-foreground text-background" : "hover:bg-muted"
+                  }`}
+                >
+                  {s}x
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-muted/50 border-2 border-foreground p-4">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Original duration:</span>
+              <span className="font-bold">{formatDuration(duration)}</span>
+            </div>
+            <div className="flex justify-between text-sm mt-1">
+              <span className="text-muted-foreground">New duration:</span>
+              <span className="font-bold">{formatDuration(newDuration)}</span>
+            </div>
+          </div>
+
+          {error && <ErrorBox message={error} />}
+
+          <ProcessButton
+            onClick={handleProcess}
+            disabled={isDisabled}
+            isProcessing={isProcessing}
+            processingLabel="Processing..."
+            icon={<SpeedIcon className="w-5 h-5" />}
+            label={`Change Speed to ${speed}x`}
+          />
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,4 +1,3 @@
-"use client";
 
 /**
  * Advanced Document Scanner Utilities

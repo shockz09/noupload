@@ -1,11 +1,10 @@
-"use client";
 
 import type { FormField } from "../hooks/useFormFields";
 import type { EditorObjectRecord, EditorTextRecord } from "./editor-objects";
 import { loadFabricModule, recordToFabricObject } from "./editor-objects";
 import { loadLibPdf } from "./libpdf";
 import { canDrawTextNatively, pickNativePdfFont } from "./text-export-policy";
-import type { PageState } from "../page";
+import type { PageState } from "@/routes/edit";
 
 export interface ExportOptions {
   file: File;

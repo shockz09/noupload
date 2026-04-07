@@ -1,4 +1,3 @@
-"use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BufferIcon, UploadIcon } from "@/components/icons/ui";

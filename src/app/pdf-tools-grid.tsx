@@ -1,4 +1,3 @@
-"use client";
 
 import { ExtractImageIcon, GrayscaleIcon, ImageIcon } from "@/components/icons/image";
 import {

@@ -1,4 +1,3 @@
-"use client";
 
 let libpdfPromise: Promise<typeof import("@libpdf/core")> | null = null;
 

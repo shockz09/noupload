@@ -1,4 +1,3 @@
-"use client";
 
 import { memo, useCallback, useRef } from "react";
 import { QR_COLOR_PRESETS } from "@/lib/qr-utils";

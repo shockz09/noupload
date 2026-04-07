@@ -1,4 +1,3 @@
-"use client";
 
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { DownloadIcon, PlayIcon, PauseIcon } from "@/components/icons/ui";

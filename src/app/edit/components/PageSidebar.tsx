@@ -1,9 +1,8 @@
-"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanupCanvas } from "@/lib/canvas";
 import { loadPdfjs } from "@/lib/pdfjs-config";
-import type { PageState } from "../page";
+import type { PageState } from "@/routes/edit";
 
 interface PageThumbnail {
   pageNumber: number;

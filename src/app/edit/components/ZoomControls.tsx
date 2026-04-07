@@ -1,4 +1,3 @@
-"use client";
 
 import { memo, useCallback, useMemo } from "react";
 

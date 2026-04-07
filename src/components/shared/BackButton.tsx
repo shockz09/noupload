@@ -1,6 +1,4 @@
-"use client";
-
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { memo, useCallback } from "react";
 import { ArrowLeftIcon } from "@/components/icons/ui";
 
@@ -18,7 +16,7 @@ export const BackButton = memo(function BackButton({ fallbackHref, label, tabKey
   }, [tabKey]);
 
   return (
-    <Link href={fallbackHref} onClick={handleClick} className="back-link">
+    <Link to={fallbackHref} onClick={handleClick} className="back-link">
       <ArrowLeftIcon className="w-4 h-4" />
       {label}
     </Link>

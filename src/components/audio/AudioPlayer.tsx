@@ -1,4 +1,3 @@
-"use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { formatDuration, getWaveformDataFromUrl } from "@/lib/audio-utils";

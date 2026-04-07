@@ -1,7 +1,6 @@
-"use client";
 
 import { memo, useCallback, useEffect, useState } from "react";
-import type { Tool } from "../page";
+import type { Tool } from "@/routes/edit";
 
 const CUSTOM_STAMPS_KEY = "pdf-editor-custom-stamps";
 

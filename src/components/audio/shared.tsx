@@ -1,4 +1,3 @@
-"use client";
 
 import { memo, useEffect, useRef, type ReactNode } from "react";
 import { AudioPlayer as AudioPlayerDirect } from "@/components/audio/AudioPlayer";

@@ -1,4 +1,3 @@
-"use client";
 
 import type { StampData } from "../components/EditorToolbar";
 

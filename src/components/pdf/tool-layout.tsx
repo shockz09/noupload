@@ -1,6 +1,4 @@
-"use client";
-
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { memo, type ReactNode } from "react";
 
 interface ToolLayoutProps {
@@ -22,7 +20,7 @@ export const ToolLayout = memo(function ToolLayout({
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       {/* Breadcrumb */}
       <Link
-        href="/"
+        to="/"
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8 group"
       >
         <svg

@@ -1,4 +1,3 @@
-"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBackgroundRemoval } from "@/lib/background-removal/useBackgroundRemoval";
@@ -15,7 +14,7 @@ import {
 } from "../lib/editor-objects";
 import { buildEditableTextOptions, buildEditableWhiteoutOptions } from "../lib/editable-text-style";
 import { type TextRegion, useTextExtraction } from "../hooks/useTextExtraction";
-import type { PageState, Tool } from "../page";
+import type { PageState, Tool } from "@/routes/edit";
 import type { StampData } from "./EditorToolbar";
 import { FormFieldOverlay } from "./FormFieldOverlay";
 

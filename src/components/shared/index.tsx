@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { memo, useEffect, useRef, type ReactNode } from "react";
 import { AlertIcon, ArrowLeftIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";

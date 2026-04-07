@@ -1,9 +1,8 @@
-"use client";
 
 import { del, get, set } from "idb-keyval";
 import { useCallback, useEffect, useState } from "react";
 import { legacyFabricObjectToRecord, type EditorObjectRecord } from "../lib/editor-objects";
-import type { PageState } from "../page";
+import type { PageState } from "@/routes/edit";
 
 const DRAFT_KEY = "pdf-editor-draft";
 const SAVE_DEBOUNCE = 500; // Save 500ms after last change

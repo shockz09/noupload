@@ -1,4 +1,3 @@
-"use client";
 
 import { useCallback, useState } from "react";
 import { SignatureDrawPad, SignatureUpload } from "@/components/signature";

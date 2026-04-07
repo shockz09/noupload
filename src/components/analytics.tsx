@@ -1,10 +1,11 @@
-"use client";
+import { Suspense, lazy } from "react";
 
-import dynamic from "next/dynamic";
-
-// Defer analytics loading until after hydration
-const VercelAnalytics = dynamic(() => import("@vercel/analytics/next").then((mod) => mod.Analytics), { ssr: false });
+const VercelAnalytics = lazy(() => import("@vercel/analytics/react").then((mod) => ({ default: mod.Analytics })));
 
 export function Analytics() {
-  return <VercelAnalytics />;
+	return (
+		<Suspense>
+			<VercelAnalytics />
+		</Suspense>
+	);
 }

@@ -1,0 +1,291 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/image/adjust")({
+	head: () => ({
+		meta: [
+			{ title: "Adjust Image Free - Brightness, Contrast & Saturation | noupload" },
+			{ name: "description", content: "Adjust image settings for free. Change brightness, contrast, saturation, and exposure. Fine-tune your photos. Works offline, completely private." },
+			{ name: "keywords", content: "adjust image, image brightness, image contrast, photo adjustment, image saturation, free image editor" },
+			{ property: "og:title", content: "Adjust Image Free - Brightness, Contrast & Saturation" },
+			{ property: "og:description", content: "Adjust image brightness, contrast, and more for free. Works 100% offline." },
+		],
+	}),
+	component: ImageAdjustPage,
+});
+
+import { useCallback, useMemo, useState } from "react";
+import { LoaderIcon } from "@/components/icons/ui";
+import { BrightnessIcon } from "@/components/icons/image";
+import { ErrorBox, ImagePageHeader, ImageResultView } from "@/components/image/shared";
+import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
+import { getErrorMessage } from "@/lib/error";
+import { adjustImage, copyImageToClipboard, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+
+const sliderClass =
+  "w-full h-2 bg-muted border-2 border-foreground appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:cursor-pointer";
+
+function ImageAdjustPage() {
+  const [file, setFile] = useState<File | null>(null);
+  const [brightness, setBrightness] = useState(0);
+  const [contrast, setContrast] = useState(0);
+  const [saturation, setSaturation] = useState(0);
+
+  // Use custom hooks
+  const { url: preview, setSource: setPreview, revoke: revokePreview } = useObjectURL();
+  const { isProcessing, error, startProcessing, stopProcessing, setError } = useFileProcessing();
+  const { result, setResult, clearResult, download } = useProcessingResult();
+
+  const handleFileSelected = useCallback(
+    (files: File[]) => {
+      if (files.length > 0) {
+        setFile(files[0]);
+        clearResult();
+        setBrightness(0);
+        setContrast(0);
+        setSaturation(0);
+        setPreview(files[0]);
+      }
+    },
+    [clearResult, setPreview],
+  );
+
+  // Use clipboard paste hook
+  useImagePaste(handleFileSelected, !result);
+
+  const handleClear = useCallback(() => {
+    revokePreview();
+    setFile(null);
+    clearResult();
+    setBrightness(0);
+    setContrast(0);
+    setSaturation(0);
+  }, [revokePreview, clearResult]);
+
+  const filterStyle = useMemo(
+    () => ({
+      filter: `brightness(${100 + brightness}%) contrast(${100 + contrast}%) saturate(${100 + saturation}%)`,
+    }),
+    [brightness, contrast, saturation],
+  );
+
+  const hasChanges = useMemo(
+    () => brightness !== 0 || contrast !== 0 || saturation !== 0,
+    [brightness, contrast, saturation],
+  );
+
+  const handleApply = useCallback(async () => {
+    if (!file) return;
+    if (!startProcessing()) return;
+
+    try {
+      const adjusted = await adjustImage(file, {
+        brightness,
+        contrast,
+        saturation,
+      });
+      setResult(adjusted, getOutputFilename(file.name, undefined, "_adjusted"));
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to adjust image"));
+    } finally {
+      stopProcessing();
+    }
+  }, [file, brightness, contrast, saturation, startProcessing, setResult, setError, stopProcessing]);
+
+  const handleDownload = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      download();
+    },
+    [download],
+  );
+
+  const handleStartOver = useCallback(() => {
+    revokePreview();
+    setFile(null);
+    clearResult();
+    setBrightness(0);
+    setContrast(0);
+    setSaturation(0);
+  }, [revokePreview, clearResult]);
+
+  const { add: addToBuffer } = useFileBuffer();
+  const handleHoldInBuffer = useCallback(() => {
+    if (!result) return;
+    addToBuffer({
+      filename: result.filename,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
+      fileType: "image",
+      sourceToolLabel: "Adjust Image",
+    });
+  }, [result, addToBuffer]);
+
+  const handleBrightnessChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setBrightness(Number(e.target.value));
+  }, []);
+
+  const handleContrastChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setContrast(Number(e.target.value));
+  }, []);
+
+  const handleSaturationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSaturation(Number(e.target.value));
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setBrightness(0);
+    setContrast(0);
+    setSaturation(0);
+  }, []);
+
+  const formatValue = useCallback((val: number) => (val > 0 ? `+${val}` : String(val)), []);
+
+  return (
+    <div className="page-enter max-w-4xl mx-auto space-y-8">
+      <ImagePageHeader
+        icon={<BrightnessIcon className="w-7 h-7" />}
+        iconClass="tool-adjust"
+        title="Adjust Image"
+        description="Fine-tune brightness, contrast, and saturation"
+      />
+
+      {result ? (
+        <ImageResultView
+          blob={result.blob}
+          title="Image Adjusted!"
+          downloadLabel="Download Image"
+          onDownload={handleDownload}
+          onCopy={() => copyImageToClipboard(result.blob)}
+          onHoldInBuffer={handleHoldInBuffer}
+          onStartOver={handleStartOver}
+          startOverLabel="Adjust Another"
+        />
+      ) : !file ? (
+        <div className="max-w-2xl mx-auto">
+          <FileDropzone
+            accept=".jpg,.jpeg,.png,.webp"
+            multiple={false}
+            onFilesSelected={handleFileSelected}
+            title="Drop your image here"
+            subtitle="or click to browse · Ctrl+V to paste"
+          />
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-6 overflow-hidden">
+          {/* Left: Live Preview */}
+          <div className="space-y-3 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Preview</span>
+              <button
+                type="button"
+                onClick={handleClear}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Change file
+              </button>
+            </div>
+            <div className="border-2 border-foreground p-2 bg-muted/30 flex justify-center items-center min-h-[200px] overflow-hidden">
+              <img
+                src={preview!}
+                alt="Preview"
+                style={filterStyle}
+                className="max-h-[180px] max-w-full object-contain transition-all duration-100"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground truncate">
+              {file.name} • {formatFileSize(file.size)}
+            </p>
+          </div>
+
+          {/* Right: Controls */}
+          <div className="space-y-4 min-w-0">
+            {/* Brightness */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Brightness</span>
+                <span className="text-xs font-bold tabular-nums">{formatValue(brightness)}</span>
+              </div>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                value={brightness}
+                onChange={handleBrightnessChange}
+                className={sliderClass}
+              />
+            </div>
+
+            {/* Contrast */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Contrast</span>
+                <span className="text-xs font-bold tabular-nums">{formatValue(contrast)}</span>
+              </div>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                value={contrast}
+                onChange={handleContrastChange}
+                className={sliderClass}
+              />
+            </div>
+
+            {/* Saturation */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Saturation</span>
+                <span className="text-xs font-bold tabular-nums">{formatValue(saturation)}</span>
+              </div>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                value={saturation}
+                onChange={handleSaturationChange}
+                className={sliderClass}
+              />
+            </div>
+
+            {/* Reset */}
+            {hasChanges && (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Reset all adjustments
+              </button>
+            )}
+
+            {error && <ErrorBox message={error} />}
+
+            {/* Action Button */}
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={isProcessing || !hasChanges}
+              className="btn-primary w-full"
+            >
+              {isProcessing ? (
+                <>
+                  <LoaderIcon className="w-5 h-5" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <BrightnessIcon className="w-5 h-5" />
+                  Apply Adjustments
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
