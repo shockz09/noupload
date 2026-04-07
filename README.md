@@ -60,7 +60,8 @@ Generate, Scan, Bulk Generate, Barcode Generator
 
 ## Tech Stack
 
-- [Next.js 16](https://nextjs.org/) — React framework
+- [Vite](https://vite.dev/) — Build tool
+- [TanStack Router](https://tanstack.com/router) — Type-safe routing
 - [React 19](https://react.dev/) — UI library
 - [Tailwind CSS 4](https://tailwindcss.com/) — Styling
 - [shadcn/ui](https://ui.shadcn.com/) — UI components
@@ -94,13 +95,13 @@ pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:5173](http://localhost:5173)
 
 ## Building for Production
 
 ```bash
 pnpm build
-pnpm start
+pnpm preview
 ```
 
 ---
