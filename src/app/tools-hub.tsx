@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { ToolSearch } from "@/components/shared/ToolSearch";
 import { audioCategoryLabels, audioTools } from "./audio-tools-grid";
 import { imageCategoryLabels, imageTools } from "./image-tools-grid";
@@ -93,14 +93,15 @@ const categories: CategoryDef[] = [
 const STORAGE_KEY = "noupload-active-tab";
 const VALID_KEYS = new Set<CategoryKey>(["all", "pdf", "image", "audio", "video", "qr"]);
 
-function getSavedCategory(): CategoryKey {
-  if (typeof window === "undefined") return "pdf";
-  const saved = sessionStorage.getItem(STORAGE_KEY);
-  return saved && VALID_KEYS.has(saved as CategoryKey) ? (saved as CategoryKey) : "all";
-}
-
 export const ToolsHub = memo(function ToolsHub() {
-  const [active, setActive] = useState<CategoryKey>(getSavedCategory);
+  const [active, setActive] = useState<CategoryKey>("all");
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (saved && VALID_KEYS.has(saved as CategoryKey)) {
+      setActive(saved as CategoryKey);
+    }
+  }, []);
 
   const handleSelect = useCallback((key: CategoryKey) => {
     setActive(key);

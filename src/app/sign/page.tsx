@@ -17,6 +17,7 @@ import { getFileBaseName } from "@/lib/utils";
 interface SignResult {
   data: Uint8Array;
   filename: string;
+  signedPage: number;
 }
 
 // Box position/size stored as percentages of page dimensions
@@ -212,7 +213,7 @@ export default function SignPage() {
       });
 
       const baseName = getFileBaseName(file.name);
-      setResult({ data, filename: `${baseName}_signed.pdf` });
+      setResult({ data, filename: `${baseName}_signed.pdf`, signedPage: box.pageNumber });
     } catch (err) {
       setError(getErrorMessage(err, "Failed to sign PDF"));
     } finally {
@@ -274,7 +275,7 @@ export default function SignPage() {
         <div className="max-w-2xl mx-auto">
           <PdfResultView
             title="PDF Signed!"
-            subtitle={`Your signature has been added to page ${box?.pageNumber}`}
+            subtitle={`Your signature has been added to page ${result.signedPage}`}
             data={result.data}
             size={result.data.length}
             downloadLabel="Download Signed PDF"

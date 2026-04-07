@@ -363,7 +363,15 @@ export default function StripMetadataPage() {
         <ImageResultView
           blob={result.blob}
           title="Metadata Removed!"
-          subtitle={`${formatFileSize(result.metadata?.originalSize ?? 0)} → ${formatFileSize(result.blob.size)} · GPS, camera, dates stripped`}
+          subtitle={`${formatFileSize(result.metadata?.originalSize ?? 0)} → ${formatFileSize(result.blob.size)}${(() => {
+            const stripped: string[] = [];
+            if (metadata?.gps) stripped.push("GPS");
+            if (metadata?.camera) stripped.push("camera");
+            if (metadata?.capture) stripped.push("dates");
+            if (metadata?.image) stripped.push("image info");
+            if (metadata?.other) stripped.push("other");
+            return stripped.length > 0 ? ` · ${stripped.join(", ")} stripped` : " · metadata cleaned";
+          })()}`}
           downloadLabel="Download Clean Image"
           onDownload={handleDownload}
           onCopy={() => copyImageToClipboard(result.blob)}
