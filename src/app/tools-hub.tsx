@@ -96,7 +96,7 @@ const VALID_KEYS = new Set<CategoryKey>(["all", "pdf", "image", "audio", "video"
 function getSavedCategory(): CategoryKey {
   if (typeof window === "undefined") return "pdf";
   const saved = sessionStorage.getItem(STORAGE_KEY);
-  return saved && VALID_KEYS.has(saved as CategoryKey) ? (saved as CategoryKey) : "pdf";
+  return saved && VALID_KEYS.has(saved as CategoryKey) ? (saved as CategoryKey) : "all";
 }
 
 export const ToolsHub = memo(function ToolsHub() {
