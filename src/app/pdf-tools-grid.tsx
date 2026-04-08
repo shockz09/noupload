@@ -14,6 +14,8 @@ import {
   OcrIcon,
   OrganizeIcon,
   PptxIcon,
+  WordIcon,
+  ExcelIcon,
   ReversePagesIcon,
   RotateIcon,
 
@@ -259,6 +261,24 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-pptx-to-pdf",
     keywords: ["powerpoint", "ppt", "slides", "presentation to pdf"],
+  },
+  {
+    title: "DOCX → PDF",
+    description: "Convert Word documents to PDF",
+    href: "/docx-to-pdf",
+    icon: WordIcon,
+    category: "convert",
+    colorClass: "tool-docx-to-pdf",
+    keywords: ["word to pdf", "docx", "doc", "document to pdf", "odt"],
+  },
+  {
+    title: "XLSX → PDF",
+    description: "Convert Excel spreadsheets to PDF",
+    href: "/xlsx-to-pdf",
+    icon: ExcelIcon,
+    category: "convert",
+    colorClass: "tool-xlsx-to-pdf",
+    keywords: ["excel to pdf", "xlsx", "xls", "spreadsheet to pdf", "ods"],
   },
 ];
 

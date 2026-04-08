@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as XlsxToPdfRouteImport } from './routes/xlsx-to-pdf'
 import { Route as WatermarkRouteImport } from './routes/watermark'
 import { Route as TestCompressRouteImport } from './routes/test-compress'
 import { Route as SplitRouteImport } from './routes/split'
@@ -35,6 +36,7 @@ import { Route as ExtractImagesRouteImport } from './routes/extract-images'
 import { Route as EncryptRouteImport } from './routes/encrypt'
 import { Route as EditRouteImport } from './routes/edit'
 import { Route as DuplicateRouteImport } from './routes/duplicate'
+import { Route as DocxToPdfRouteImport } from './routes/docx-to-pdf'
 import { Route as DeleteRouteImport } from './routes/delete'
 import { Route as DecryptRouteImport } from './routes/decrypt'
 import { Route as CompressRouteImport } from './routes/compress'
@@ -91,6 +93,11 @@ import { Route as AudioDenoiseRouteImport } from './routes/audio.denoise'
 import { Route as AudioConvertRouteImport } from './routes/audio.convert'
 import { Route as AudioCompressRouteImport } from './routes/audio.compress'
 
+const XlsxToPdfRoute = XlsxToPdfRouteImport.update({
+  id: '/xlsx-to-pdf',
+  path: '/xlsx-to-pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WatermarkRoute = WatermarkRouteImport.update({
   id: '/watermark',
   path: '/watermark',
@@ -219,6 +226,11 @@ const EditRoute = EditRouteImport.update({
 const DuplicateRoute = DuplicateRouteImport.update({
   id: '/duplicate',
   path: '/duplicate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocxToPdfRoute = DocxToPdfRouteImport.update({
+  id: '/docx-to-pdf',
+  path: '/docx-to-pdf',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeleteRoute = DeleteRouteImport.update({
@@ -502,6 +514,7 @@ export interface FileRoutesByFullPath {
   '/compress': typeof CompressRoute
   '/decrypt': typeof DecryptRoute
   '/delete': typeof DeleteRoute
+  '/docx-to-pdf': typeof DocxToPdfRoute
   '/duplicate': typeof DuplicateRoute
   '/edit': typeof EditRoute
   '/encrypt': typeof EncryptRoute
@@ -528,6 +541,7 @@ export interface FileRoutesByFullPath {
   '/split': typeof SplitRoute
   '/test-compress': typeof TestCompressRoute
   '/watermark': typeof WatermarkRoute
+  '/xlsx-to-pdf': typeof XlsxToPdfRoute
   '/audio/compress': typeof AudioCompressRoute
   '/audio/convert': typeof AudioConvertRoute
   '/audio/denoise': typeof AudioDenoiseRoute
@@ -585,6 +599,7 @@ export interface FileRoutesByTo {
   '/compress': typeof CompressRoute
   '/decrypt': typeof DecryptRoute
   '/delete': typeof DeleteRoute
+  '/docx-to-pdf': typeof DocxToPdfRoute
   '/duplicate': typeof DuplicateRoute
   '/edit': typeof EditRoute
   '/encrypt': typeof EncryptRoute
@@ -611,6 +626,7 @@ export interface FileRoutesByTo {
   '/split': typeof SplitRoute
   '/test-compress': typeof TestCompressRoute
   '/watermark': typeof WatermarkRoute
+  '/xlsx-to-pdf': typeof XlsxToPdfRoute
   '/audio/compress': typeof AudioCompressRoute
   '/audio/convert': typeof AudioConvertRoute
   '/audio/denoise': typeof AudioDenoiseRoute
@@ -669,6 +685,7 @@ export interface FileRoutesById {
   '/compress': typeof CompressRoute
   '/decrypt': typeof DecryptRoute
   '/delete': typeof DeleteRoute
+  '/docx-to-pdf': typeof DocxToPdfRoute
   '/duplicate': typeof DuplicateRoute
   '/edit': typeof EditRoute
   '/encrypt': typeof EncryptRoute
@@ -695,6 +712,7 @@ export interface FileRoutesById {
   '/split': typeof SplitRoute
   '/test-compress': typeof TestCompressRoute
   '/watermark': typeof WatermarkRoute
+  '/xlsx-to-pdf': typeof XlsxToPdfRoute
   '/audio/compress': typeof AudioCompressRoute
   '/audio/convert': typeof AudioConvertRoute
   '/audio/denoise': typeof AudioDenoiseRoute
@@ -754,6 +772,7 @@ export interface FileRouteTypes {
     | '/compress'
     | '/decrypt'
     | '/delete'
+    | '/docx-to-pdf'
     | '/duplicate'
     | '/edit'
     | '/encrypt'
@@ -780,6 +799,7 @@ export interface FileRouteTypes {
     | '/split'
     | '/test-compress'
     | '/watermark'
+    | '/xlsx-to-pdf'
     | '/audio/compress'
     | '/audio/convert'
     | '/audio/denoise'
@@ -837,6 +857,7 @@ export interface FileRouteTypes {
     | '/compress'
     | '/decrypt'
     | '/delete'
+    | '/docx-to-pdf'
     | '/duplicate'
     | '/edit'
     | '/encrypt'
@@ -863,6 +884,7 @@ export interface FileRouteTypes {
     | '/split'
     | '/test-compress'
     | '/watermark'
+    | '/xlsx-to-pdf'
     | '/audio/compress'
     | '/audio/convert'
     | '/audio/denoise'
@@ -920,6 +942,7 @@ export interface FileRouteTypes {
     | '/compress'
     | '/decrypt'
     | '/delete'
+    | '/docx-to-pdf'
     | '/duplicate'
     | '/edit'
     | '/encrypt'
@@ -946,6 +969,7 @@ export interface FileRouteTypes {
     | '/split'
     | '/test-compress'
     | '/watermark'
+    | '/xlsx-to-pdf'
     | '/audio/compress'
     | '/audio/convert'
     | '/audio/denoise'
@@ -1004,6 +1028,7 @@ export interface RootRouteChildren {
   CompressRoute: typeof CompressRoute
   DecryptRoute: typeof DecryptRoute
   DeleteRoute: typeof DeleteRoute
+  DocxToPdfRoute: typeof DocxToPdfRoute
   DuplicateRoute: typeof DuplicateRoute
   EditRoute: typeof EditRoute
   EncryptRoute: typeof EncryptRoute
@@ -1030,6 +1055,7 @@ export interface RootRouteChildren {
   SplitRoute: typeof SplitRoute
   TestCompressRoute: typeof TestCompressRoute
   WatermarkRoute: typeof WatermarkRoute
+  XlsxToPdfRoute: typeof XlsxToPdfRoute
   AudioCompressRoute: typeof AudioCompressRoute
   AudioConvertRoute: typeof AudioConvertRoute
   AudioDenoiseRoute: typeof AudioDenoiseRoute
@@ -1085,6 +1111,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/xlsx-to-pdf': {
+      id: '/xlsx-to-pdf'
+      path: '/xlsx-to-pdf'
+      fullPath: '/xlsx-to-pdf'
+      preLoaderRoute: typeof XlsxToPdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/watermark': {
       id: '/watermark'
       path: '/watermark'
@@ -1265,6 +1298,13 @@ declare module '@tanstack/react-router' {
       path: '/duplicate'
       fullPath: '/duplicate'
       preLoaderRoute: typeof DuplicateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docx-to-pdf': {
+      id: '/docx-to-pdf'
+      path: '/docx-to-pdf'
+      fullPath: '/docx-to-pdf'
+      preLoaderRoute: typeof DocxToPdfRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/delete': {
@@ -1660,6 +1700,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompressRoute: CompressRoute,
   DecryptRoute: DecryptRoute,
   DeleteRoute: DeleteRoute,
+  DocxToPdfRoute: DocxToPdfRoute,
   DuplicateRoute: DuplicateRoute,
   EditRoute: EditRoute,
   EncryptRoute: EncryptRoute,
@@ -1686,6 +1727,7 @@ const rootRouteChildren: RootRouteChildren = {
   SplitRoute: SplitRoute,
   TestCompressRoute: TestCompressRoute,
   WatermarkRoute: WatermarkRoute,
+  XlsxToPdfRoute: XlsxToPdfRoute,
   AudioCompressRoute: AudioCompressRoute,
   AudioConvertRoute: AudioConvertRoute,
   AudioDenoiseRoute: AudioDenoiseRoute,

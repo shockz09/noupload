@@ -27,6 +27,8 @@
   <url><loc>https://noupload.xyz/html-to-pdf</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://noupload.xyz/markdown-to-pdf</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://noupload.xyz/pptx-to-pdf</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://noupload.xyz/docx-to-pdf</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://noupload.xyz/xlsx-to-pdf</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://noupload.xyz/pdf-to-epub</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://noupload.xyz/image</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://noupload.xyz/image/compress</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>

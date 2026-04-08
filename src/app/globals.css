@@ -486,6 +486,8 @@
 .tool-qr-bulk { --tool-color: #4A1E7C; }
 .tool-markdown-to-pdf { --tool-color: #059669; }
 .tool-pptx-to-pdf { --tool-color: #86198F; }
+.tool-docx-to-pdf { --tool-color: #1E3A8A; }
+.tool-xlsx-to-pdf { --tool-color: #166534; }
 
 /* Category pills */
 .category-pill {

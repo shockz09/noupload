@@ -5,6 +5,12 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
 	plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react()],
+	server: {
+		headers: {
+			"Cross-Origin-Opener-Policy": "same-origin",
+			"Cross-Origin-Embedder-Policy": "credentialless",
+		},
+	},
 	resolve: {
 		alias: {
 			"@": resolve(__dirname, "src"),
