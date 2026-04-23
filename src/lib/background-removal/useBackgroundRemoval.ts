@@ -6,6 +6,39 @@ export type DeviceCapability =
   | { device: "webgpu"; dtype: "fp32" }
   | { device: "wasm"; dtype: "fp32" };
 
+// Safari ships onnxruntime-web's non-JSEP wasm (no `webgpuInit`), so the
+// WebGPU backend crashes with "webgpuInit is not a function" once
+// `navigator.gpu` is exposed. Pre-init rembg-webgpu with `navigator.gpu`
+// hidden so it caches a WASM-backed model for the rest of the session.
+function isSafari(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  const isAppleVendor = (navigator.vendor || "").includes("Apple");
+  const notOtherBrowser =
+    !ua.match(/CriOS|FxiOS|EdgiOS|OPiOS|mercury|brave/i) &&
+    !ua.includes("Chrome") &&
+    !ua.includes("Android");
+  return isAppleVendor && notOtherBrowser;
+}
+
+let safariWarmup: Promise<void> | null = null;
+async function warmupForSafari(): Promise<void> {
+  if (!isSafari() || typeof navigator === "undefined" || !("gpu" in navigator)) return;
+  if (safariWarmup) return safariWarmup;
+  safariWarmup = (async () => {
+    const { init } = await import("rembg-webgpu");
+    const descriptor = Object.getOwnPropertyDescriptor(Navigator.prototype, "gpu")
+      ?? Object.getOwnPropertyDescriptor(navigator, "gpu");
+    try {
+      Object.defineProperty(navigator, "gpu", { value: undefined, configurable: true });
+      await init();
+    } finally {
+      if (descriptor) Object.defineProperty(navigator, "gpu", descriptor);
+    }
+  })();
+  return safariWarmup;
+}
+
 export interface ProgressState {
   phase: "idle" | "downloading" | "building" | "ready" | "processing" | "error";
   progress: number;
@@ -53,8 +86,10 @@ export function useBackgroundRemoval(): UseBackgroundRemovalResult {
           });
         });
 
-        const cap = await getCapabilities();
-        if (!cancelled) setCapability(cap as DeviceCapability);
+        const cap = isSafari()
+          ? ({ device: "wasm", dtype: "fp32" } as const)
+          : ((await getCapabilities()) as DeviceCapability);
+        if (!cancelled) setCapability(cap);
       } catch {
         // Capabilities detection is non-critical
       }
@@ -73,6 +108,7 @@ export function useBackgroundRemoval(): UseBackgroundRemovalResult {
       setProgress({ phase: "processing", progress: -1 });
 
       try {
+        await warmupForSafari();
         const { removeBackground: rembgRemove } = await import("rembg-webgpu");
 
         // Create an object URL for the input image
