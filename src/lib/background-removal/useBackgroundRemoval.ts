@@ -6,10 +6,12 @@ export type DeviceCapability =
   | { device: "webgpu"; dtype: "fp32" }
   | { device: "wasm"; dtype: "fp32" };
 
-// Safari ships onnxruntime-web's non-JSEP wasm (no `webgpuInit`), so the
-// WebGPU backend crashes with "webgpuInit is not a function" once
-// `navigator.gpu` is exposed. Pre-init rembg-webgpu with `navigator.gpu`
-// hidden so it caches a WASM-backed model for the rest of the session.
+// Safari-only: transformers.js hard-codes the non-JSEP wasm variant
+// (`ort-wasm-simd-threaded.{mjs,wasm}`) on Safari, which lacks `webgpuInit`.
+// The moment `navigator.gpu` is exposed, ORT's WebGPU EP calls that missing
+// function and crashes. Override the wasm URLs to point at the asyncify
+// variant (what every non-Safari browser already uses via the same jsdelivr
+// CDN transformers.js relies on).
 function isSafari(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
@@ -21,22 +23,23 @@ function isSafari(): boolean {
   return isAppleVendor && notOtherBrowser;
 }
 
-let safariWarmup: Promise<void> | null = null;
-async function warmupForSafari(): Promise<void> {
+let safariSetup: Promise<void> | null = null;
+async function configureSafariWebgpuWasm(): Promise<void> {
   if (!isSafari() || typeof navigator === "undefined" || !("gpu" in navigator)) return;
-  if (safariWarmup) return safariWarmup;
-  safariWarmup = (async () => {
-    const { init } = await import("rembg-webgpu");
-    const descriptor = Object.getOwnPropertyDescriptor(Navigator.prototype, "gpu")
-      ?? Object.getOwnPropertyDescriptor(navigator, "gpu");
-    try {
-      Object.defineProperty(navigator, "gpu", { value: undefined, configurable: true });
-      await init();
-    } finally {
-      if (descriptor) Object.defineProperty(navigator, "gpu", descriptor);
-    }
+  if (safariSetup) return safariSetup;
+  safariSetup = (async () => {
+    const { env } = await import("@huggingface/transformers");
+    const ort = env.backends?.onnx as
+      | { versions?: { web?: string }; wasm?: { wasmPaths?: unknown } }
+      | undefined;
+    const ver = ort?.versions?.web;
+    if (!ver || !ort?.wasm) return;
+    ort.wasm.wasmPaths = {
+      wasm: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ver}/dist/ort-wasm-simd-threaded.asyncify.wasm`,
+      mjs: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ver}/dist/ort-wasm-simd-threaded.asyncify.mjs`,
+    };
   })();
-  return safariWarmup;
+  return safariSetup;
 }
 
 export interface ProgressState {
@@ -86,10 +89,9 @@ export function useBackgroundRemoval(): UseBackgroundRemovalResult {
           });
         });
 
-        const cap = isSafari()
-          ? ({ device: "wasm", dtype: "fp32" } as const)
-          : ((await getCapabilities()) as DeviceCapability);
-        if (!cancelled) setCapability(cap);
+        await configureSafariWebgpuWasm();
+        const cap = await getCapabilities();
+        if (!cancelled) setCapability(cap as DeviceCapability);
       } catch {
         // Capabilities detection is non-critical
       }
@@ -108,7 +110,7 @@ export function useBackgroundRemoval(): UseBackgroundRemovalResult {
       setProgress({ phase: "processing", progress: -1 });
 
       try {
-        await warmupForSafari();
+        await configureSafariWebgpuWasm();
         const { removeBackground: rembgRemove } = await import("rembg-webgpu");
 
         // Create an object URL for the input image
