@@ -32,6 +32,7 @@
     "@bentopdf/gs-wasm": "^0.1.0",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "@huggingface/transformers": "^4.0.1",
     "@libpdf/core": "0.2.12",
     "@mediabunny/aac-encoder": "^1.40.1",
     "@mediabunny/mp3-encoder": "^1.40.1",
