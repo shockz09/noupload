@@ -6,12 +6,6 @@ export type DeviceCapability =
   | { device: "webgpu"; dtype: "fp32" }
   | { device: "wasm"; dtype: "fp32" };
 
-// Safari-only: transformers.js hard-codes the non-JSEP wasm variant
-// (`ort-wasm-simd-threaded.{mjs,wasm}`) on Safari, which lacks `webgpuInit`.
-// The moment `navigator.gpu` is exposed, ORT's WebGPU EP calls that missing
-// function and crashes. Override the wasm URLs to point at the asyncify
-// variant (what every non-Safari browser already uses via the same jsdelivr
-// CDN transformers.js relies on).
 function isSafari(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
@@ -23,23 +17,40 @@ function isSafari(): boolean {
   return isAppleVendor && notOtherBrowser;
 }
 
-let safariSetup: Promise<void> | null = null;
-async function configureSafariWebgpuWasm(): Promise<void> {
-  if (!isSafari() || typeof navigator === "undefined" || !("gpu" in navigator)) return;
-  if (safariSetup) return safariSetup;
-  safariSetup = (async () => {
+let ortSetup: Promise<void> | null = null;
+async function configureOrtBackend(): Promise<void> {
+  if (typeof navigator === "undefined") return;
+  if (ortSetup) return ortSetup;
+  ortSetup = (async () => {
     const { env } = await import("@huggingface/transformers");
     const ort = env.backends?.onnx as
-      | { versions?: { web?: string }; wasm?: { wasmPaths?: unknown } }
+      | {
+          versions?: { web?: string };
+          wasm?: { wasmPaths?: unknown; proxy?: boolean };
+        }
       | undefined;
-    const ver = ort?.versions?.web;
-    if (!ver || !ort?.wasm) return;
-    ort.wasm.wasmPaths = {
-      wasm: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ver}/dist/ort-wasm-simd-threaded.asyncify.wasm`,
-      mjs: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ver}/dist/ort-wasm-simd-threaded.asyncify.mjs`,
-    };
+    if (!ort?.wasm) return;
+
+    // Run ORT's WASM execution in a worker so the main thread stays
+    // responsive during inference. transformers.js forces proxy=false at
+    // module init; flip it back on. WebGPU users are unaffected (the proxy
+    // flag only governs the WASM backend).
+    ort.wasm.proxy = true;
+
+    // Safari-only: transformers.js hard-codes the non-JSEP wasm
+    // (`ort-wasm-simd-threaded.{mjs,wasm}`) on Safari, which lacks
+    // `webgpuInit`. The moment `navigator.gpu` is exposed, ORT's WebGPU EP
+    // calls that missing function and crashes. Point wasmPaths at the
+    // asyncify variant every non-Safari browser already uses.
+    const ver = ort.versions?.web;
+    if (isSafari() && ver && "gpu" in navigator) {
+      ort.wasm.wasmPaths = {
+        wasm: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ver}/dist/ort-wasm-simd-threaded.asyncify.wasm`,
+        mjs: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ver}/dist/ort-wasm-simd-threaded.asyncify.mjs`,
+      };
+    }
   })();
-  return safariSetup;
+  return ortSetup;
 }
 
 export interface ProgressState {
@@ -89,7 +100,7 @@ export function useBackgroundRemoval(): UseBackgroundRemovalResult {
           });
         });
 
-        await configureSafariWebgpuWasm();
+        await configureOrtBackend();
         const cap = await getCapabilities();
         if (!cancelled) setCapability(cap as DeviceCapability);
       } catch {
@@ -110,7 +121,7 @@ export function useBackgroundRemoval(): UseBackgroundRemovalResult {
       setProgress({ phase: "processing", progress: -1 });
 
       try {
-        await configureSafariWebgpuWasm();
+        await configureOrtBackend();
         const { removeBackground: rembgRemove } = await import("rembg-webgpu");
 
         // Create an object URL for the input image
