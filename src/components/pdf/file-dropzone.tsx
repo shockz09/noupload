@@ -6,12 +6,6 @@ import type { BufferItem } from "@/lib/file-buffer";
 import { MIME_TO_EXTENSIONS } from "@/lib/file-buffer";
 import { cn } from "@/lib/utils";
 
-function formatMaxSize(bytes: number): string {
-  const gb = bytes / (1024 * 1024 * 1024);
-  if (gb >= 1) return `${Number.isInteger(gb) ? gb : gb.toFixed(1)}GB`;
-  return `${Math.round(bytes / 1024 / 1024)}MB`;
-}
-
 interface FileDropzoneProps {
   accept?: string;
   multiple?: boolean;
@@ -72,7 +66,7 @@ export const FileDropzone = memo(function FileDropzone({
 
       const oversized = fileArray.find((f) => f.size > maxSize);
       if (oversized) {
-        setError(`File "${oversized.name}" exceeds ${formatMaxSize(maxSize)} limit`);
+        setError(`File "${oversized.name}" exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit`);
         return;
       }
 
@@ -233,7 +227,7 @@ export const FileDropzone = memo(function FileDropzone({
 
         {/* File info */}
         <p className="text-xs text-muted-foreground font-medium pt-2">
-          {acceptLabel} files • Max {formatMaxSize(maxSize)}
+          {acceptLabel} files • Max {Math.round(maxSize / 1024 / 1024)}MB
           {multiple && ` • Up to ${maxFiles} files`}
         </p>
 

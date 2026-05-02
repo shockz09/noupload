@@ -6,8 +6,8 @@ export const VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.avi,.webm,.flv,.wmv,.m4v,.3gp";
 export const MEDIABUNNY_VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.webm,.m4v";
 export const AUDIO_EXTENSIONS = ".mp3,.wav,.ogg,.m4a,.aac,.flac";
 export const AUDIO_VIDEO_EXTENSIONS = `${AUDIO_EXTENSIONS},${VIDEO_EXTENSIONS}`;
-// 20 GB — client-side processing, no upload, so limit is just browser memory
-export const VIDEO_MAX_FILE_SIZE = 20 * 1024 * 1024 * 1024;
+// 2 GB — client-side processing, no upload, so limit is just browser memory
+export const VIDEO_MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024;
 
 // Pre-computed arrays for faster lookups
 const VIDEO_EXT_SET = new Set(VIDEO_EXTENSIONS.split(","));
