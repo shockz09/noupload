@@ -6,9 +6,68 @@ import { VideoToolIcon } from "@/components/icons/video";
 import { FileInfo, PageHeader } from "@/components/shared";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { formatFileSize } from "@/lib/utils";
+import { useThumbnailSprite } from "@/hooks/useThumbnailSprite";
 
 // Re-export common components
 export { ErrorBox, ProcessButton, SuccessCard, InfoBox, ProgressBar } from "@/components/shared";
+
+// ============ Thumbnail Scrub Tooltip ============
+
+function ThumbnailTooltip({
+  spriteUrl,
+  spriteWidth,
+  spriteHeight,
+  thumbIndex,
+  thumbCount,
+  thumbTime,
+  hoverX,
+  barRect,
+  containerWidth,
+}: {
+  spriteUrl: string;
+  spriteWidth: number;
+  spriteHeight: number;
+  thumbIndex: number;
+  thumbCount: number;
+  thumbTime: number;
+  hoverX: number;
+  barRect: DOMRect;
+  containerWidth: number;
+}) {
+  // Position tooltip centered above the cursor, clamped within container
+  const padding = 12;
+  let left = hoverX - barRect.left - spriteWidth / 2;
+  left = Math.max(-padding, Math.min(left, containerWidth - spriteWidth - padding));
+
+  return (
+    <div
+      className="absolute z-30 pointer-events-none"
+      style={{
+        left: `${left}px`,
+        bottom: "100%",
+        marginBottom: "6px",
+      }}
+    >
+      {/* Thumbnail image from sprite sheet */}
+      <div
+        className="rounded overflow-hidden border border-white/30 shadow-lg"
+        style={{
+          width: spriteWidth,
+          height: spriteHeight,
+          backgroundImage: `url(${spriteUrl})`,
+          backgroundSize: `${spriteWidth}px ${spriteHeight * thumbCount}px`,
+          backgroundPosition: `0 -${thumbIndex * spriteHeight}px`,
+        }}
+      />
+      {/* Timestamp label */}
+      <div className="text-center mt-1">
+        <span className="text-[10px] font-mono bg-black/80 text-white px-1.5 py-0.5 rounded">
+          {fmtTime(thumbTime)}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 // ============ Video Preview Player ============
 
@@ -29,16 +88,39 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
   const [seeking, setSeeking] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [idle, setIdle] = useState(false);
+  const [thumbHoverX, setThumbHoverX] = useState<number | null>(null);
 
   const vidRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const idleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const { sprite } = useThumbnailSprite(url);
 
   useEffect(() => {
     const u = URL.createObjectURL(blob);
     setUrl(u);
     return () => URL.revokeObjectURL(u);
   }, [blob]);
+
+  // Thumbnail scrubbing: compute hovered time and sprite index
+  const thumbTime =
+    thumbHoverX !== null && progressRef.current && duration > 0
+      ? Math.max(
+          0,
+          Math.min(
+            ((thumbHoverX - progressRef.current.getBoundingClientRect().left) /
+              progressRef.current.getBoundingClientRect().width) *
+              duration,
+            duration,
+          ),
+        )
+      : null;
+
+  const thumbIndex =
+    sprite && thumbTime !== null
+      ? Math.min(Math.floor((thumbTime / duration) * sprite.count), sprite.count - 1)
+      : null;
 
   // Hide controls after inactivity while playing
   const resetIdle = useCallback(() => {
@@ -139,6 +221,7 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
 
   return (
     <div
+      ref={containerRef}
       className="relative border-2 border-foreground bg-black group"
       onMouseEnter={() => {
         setHovered(true);
@@ -181,11 +264,28 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
+        {/* Thumbnail scrub tooltip */}
+        {sprite && thumbHoverX !== null && progressRef.current && (
+          <ThumbnailTooltip
+            spriteUrl={sprite.url}
+            spriteWidth={sprite.width}
+            spriteHeight={sprite.height}
+            thumbIndex={thumbIndex ?? 0}
+            thumbCount={sprite.count}
+            thumbTime={thumbTime ?? 0}
+            hoverX={thumbHoverX}
+            barRect={progressRef.current.getBoundingClientRect()}
+            containerWidth={containerRef.current?.getBoundingClientRect().width ?? 0}
+          />
+        )}
+
         {/* Progress bar */}
         <div
           ref={progressRef}
           className="relative h-1.5 bg-white/20 cursor-pointer mb-2.5 group/progress hover:h-2.5 transition-all"
           onMouseDown={onProgressDown}
+          onMouseMove={(e) => setThumbHoverX(e.clientX)}
+          onMouseLeave={() => setThumbHoverX(null)}
         >
           {/* Buffered / played */}
           <div

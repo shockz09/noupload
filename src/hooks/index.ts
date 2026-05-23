@@ -29,3 +29,4 @@ export {
 } from "./useProcessingResult";
 export { type ExtractionState, useVideoToAudio } from "./useVideoToAudio";
 export { useFileBuffer } from "./useFileBuffer";
+export { useThumbnailSprite } from "./useThumbnailSprite";
