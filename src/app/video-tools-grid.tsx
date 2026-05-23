@@ -5,6 +5,7 @@ import {
   VideoMetadataIcon,
   VideoToGifIcon,
   RemoveAudioIcon,
+  VideoMergeIcon,
 } from "@/components/icons/video";
 import { ExtractIcon } from "@/components/icons/audio";
 
@@ -74,6 +75,15 @@ export const videoTools = [
     category: "info",
     colorClass: "tool-video-metadata",
     keywords: ["info", "details", "codec", "resolution", "duration", "fps"],
+  },
+  {
+    title: "Merge",
+    description: "Combine multiple videos into one",
+    href: "/video/merge",
+    icon: VideoMergeIcon,
+    category: "edit",
+    colorClass: "tool-video-merge",
+    keywords: ["combine", "join", "concatenate", "stitch", "append", "splice"],
   },
 ];
 
