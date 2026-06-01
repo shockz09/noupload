@@ -1,13 +1,14 @@
+import { ExtractIcon } from "@/components/icons/audio";
 import {
+  AddAudioIcon,
+  RemoveAudioIcon,
   VideoCompressIcon,
   VideoConvertIcon,
-  VideoTrimIcon,
+  VideoMergeIcon,
   VideoMetadataIcon,
   VideoToGifIcon,
-  RemoveAudioIcon,
-  VideoMergeIcon,
+  VideoTrimIcon,
 } from "@/components/icons/video";
-import { ExtractIcon } from "@/components/icons/audio";
 
 export const videoTools = [
   {
@@ -35,10 +36,7 @@ export const videoTools = [
     icon: VideoConvertIcon,
     category: "convert",
     colorClass: "tool-video-convert",
-    keywords: [
-      "mp4 to webm", "webm to mp4", "mov to mp4", "avi to mp4",
-      "mkv to mp4", "video format", "change format",
-    ],
+    keywords: ["mp4 to webm", "webm to mp4", "mov to mp4", "avi to mp4", "mkv to mp4", "video format", "change format"],
   },
   {
     title: "Remove Audio",
@@ -48,6 +46,15 @@ export const videoTools = [
     category: "edit",
     colorClass: "tool-video-remove-audio",
     keywords: ["mute", "silent", "no sound", "strip sound"],
+  },
+  {
+    title: "Add Audio",
+    description: "Replace a video's audio with your own track",
+    href: "/video/add-audio",
+    icon: AddAudioIcon,
+    category: "edit",
+    colorClass: "tool-video-remove-audio",
+    keywords: ["add audio", "replace audio", "add music", "soundtrack", "add sound", "audio over video"],
   },
   {
     title: "To GIF",
