@@ -1,9 +1,10 @@
 // Shared constants used across the app
 
 // File extension constants for dropzones
-export const VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.avi,.webm,.flv,.wmv,.m4v,.3gp";
+export const VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.avi,.webm,.flv,.wmv,.m4v,.3gp,.lrv";
 // Formats mediabunny can actually demux (used by video tools)
-export const MEDIABUNNY_VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.webm,.m4v";
+// .lrv is GoPro's low-res preview — an MP4 container (avc1/isom brand), demuxes natively
+export const MEDIABUNNY_VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.webm,.m4v,.lrv";
 export const AUDIO_EXTENSIONS = ".mp3,.wav,.ogg,.m4a,.aac,.flac";
 export const AUDIO_VIDEO_EXTENSIONS = `${AUDIO_EXTENSIONS},${VIDEO_EXTENSIONS}`;
 // 2 GB — client-side processing, no upload, so limit is just browser memory

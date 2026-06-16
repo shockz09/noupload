@@ -362,7 +362,7 @@ function ImageConvertPage() {
       {!file && files.length === 0 ? (
         <div className="space-y-6">
           <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.svg"
+            accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.svg,.thm"
             multiple={true}
             maxFiles={50}
             onFilesSelected={handleFilesSelected}
@@ -379,7 +379,7 @@ function ImageConvertPage() {
         /* Multiple files */
         <div className="space-y-6">
           <FileDropzone
-            accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.svg"
+            accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.svg,.thm"
             multiple={true}
             maxFiles={50}
             onFilesSelected={handleFilesSelected}

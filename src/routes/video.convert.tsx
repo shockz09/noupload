@@ -4,10 +4,10 @@ export const Route = createFileRoute("/video/convert")({
 	head: () => ({
 		meta: [
 			{ title: "Convert Video Free - MP4 WebM MOV Converter | noupload" },
-			{ name: "description", content: "Convert video between formats for free. MP4, WebM, MOV, AVI. Works offline, completely private." },
-			{ name: "keywords", content: "video converter, convert video, mp4 converter, webm converter, video format converter" },
+			{ name: "description", content: "Convert video between formats for free. MP4, WebM, MOV, MKV. Also converts GoPro LRV files. Works offline, completely private." },
+			{ name: "keywords", content: "video converter, convert video, mp4 converter, webm converter, video format converter, gopro lrv to mp4, lrv converter" },
 			{ property: "og:title", content: "Convert Video Free - MP4 WebM MOV Converter" },
-			{ property: "og:description", content: "Convert video between formats for free. Works 100% offline." },
+			{ property: "og:description", content: "Convert video between formats for free. GoPro LRV supported. Works 100% offline." },
 		],
 	}),
 	component: ConvertVideoPage,
@@ -33,7 +33,8 @@ const FORMATS: { key: OutputFormat; label: string; desc: string }[] = [
   { key: "mkv", label: "MKV", desc: "Flexible, all codecs" },
 ];
 
-const EXT_TO_FORMAT: Record<string, string> = { mp4: "mp4", m4v: "mp4", mov: "mov", webm: "webm", mkv: "mkv" };
+// .lrv (GoPro low-res preview) and .m4v are MP4 containers under the hood
+const EXT_TO_FORMAT: Record<string, string> = { mp4: "mp4", m4v: "mp4", lrv: "mp4", mov: "mov", webm: "webm", mkv: "mkv" };
 
 // ── Bulk types ──────────────────────────────────────────────
 interface BulkFileItem {
@@ -331,7 +332,7 @@ function ConvertVideoPage() {
             maxSize={VIDEO_MAX_FILE_SIZE}
             onFilesSelected={handleFileSelected}
             title="Drop your video files here"
-            subtitle="MP4, MOV, WebM, MKV · Single or multiple files"
+            subtitle="MP4, MOV, WebM, MKV, GoPro LRV · Single or multiple files"
           />
           <InfoBox>{isInstant ? "Drop a video and it will be converted automatically." : "Converts video to a different container format. Transmuxes when possible for speed."}</InfoBox>
         </div>
@@ -370,7 +371,7 @@ function ConvertVideoPage() {
             maxSize={VIDEO_MAX_FILE_SIZE}
             onFilesSelected={handleFileSelected}
             title="Add more videos"
-            subtitle="MP4, MOV, WebM, MKV"
+            subtitle="MP4, MOV, WebM, MKV, GoPro LRV"
             compact
           />
 
