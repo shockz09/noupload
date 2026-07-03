@@ -66,6 +66,15 @@ export const videoTools = [
     keywords: ["video to gif", "animated", "mp4 to gif", "loop"],
   },
   {
+    title: "Compress GIF",
+    description: "Shrink animated GIF file size",
+    href: "/video/compress-gif",
+    icon: VideoCompressIcon,
+    category: "optimize",
+    colorClass: "tool-video-compress",
+    keywords: ["gif compressor", "reduce gif size", "shrink gif", "optimize gif", "smaller gif"],
+  },
+  {
     title: "Extract Audio",
     description: "Extract audio track from video",
     href: "/video/extract-audio",
