@@ -1,22 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/video/compress")({
-	head: () => ({
-		meta: [
-			{ title: "Compress Video Free - Reduce Video File Size | noupload" },
-			{ name: "description", content: "Compress video files for free. Reduce MP4, WebM file sizes. Works offline, completely private." },
-			{ name: "keywords", content: "compress video, reduce video size, video compressor, shrink video, free video compression" },
-			{ property: "og:title", content: "Compress Video Free - Reduce Video File Size" },
-			{ property: "og:description", content: "Compress video files for free. Works 100% offline." },
-		],
-	}),
-	component: VideoCompressPage,
+  head: () => ({
+    meta: [
+      { title: "Compress Video Free - Reduce Video & GIF File Size | noupload" },
+      {
+        name: "description",
+        content:
+          "Compress video and GIF files for free. Reduce MP4, WebM, and animated GIF file sizes. Works offline, completely private.",
+      },
+      {
+        name: "keywords",
+        content:
+          "compress video, compress gif, reduce video size, reduce gif size, video compressor, gif compressor, shrink video, shrink gif, free video compression",
+      },
+      { property: "og:title", content: "Compress Video Free - Reduce Video & GIF File Size" },
+      { property: "og:description", content: "Compress video and GIF files for free. Works 100% offline." },
+    ],
+  }),
+  component: VideoCompressPage,
 });
 
 import { useCallback, useMemo, useState } from "react";
 import { DownloadIcon } from "@/components/icons/ui";
 import { VideoCompressIcon, VideoToolIcon } from "@/components/icons/video";
+import { ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
+import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import {
   ErrorBox,
   InfoBox,
@@ -25,63 +35,53 @@ import {
   VideoPageHeader,
   VideoResultView,
 } from "@/components/video/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
+import { MEDIABUNNY_VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 import { downloadBlob, downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { formatFileSize } from "@/lib/utils";
-import {
-  analyzeVideo,
-  compressVideo,
-  type CompressOptions,
-  type CompressResult,
-  type VideoInfo,
-} from "@/lib/video/compress";
-import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
+import { analyzeVideo, type CompressOptions, compressVideo, type VideoInfo } from "@/lib/video/compress";
+import { compressGif, type GifCompressOptions } from "@/lib/video/compress-gif";
+
+const ACCEPTED_EXTENSIONS = `${MEDIABUNNY_VIDEO_EXTENSIONS},.gif`;
+
+function isGifFile(file: File): boolean {
+  return file.name.toLowerCase().endsWith(".gif");
+}
 
 // ── Presets ─────────────────────────────────────────────────
+// Same three tiers for both engines — labels/descriptions are shared,
+// the underlying encode parameters differ per file type.
 type PresetKey = "light" | "balanced" | "maximum";
 
-interface Preset {
-  label: string;
-  description: string;
+const PRESET_META: Record<PresetKey, { label: string; description: string }> = {
+  light: { label: "Light", description: "Best quality, moderate reduction" },
+  balanced: { label: "Balanced", description: "Good quality, significant reduction" },
+  maximum: { label: "Maximum", description: "Smallest size, some quality loss" },
+};
+
+interface VideoPreset {
   bitrateMultiplier: number;
   resolution: CompressOptions["resolution"];
   codec: CompressOptions["codec"];
   audioBitrate: number;
 }
 
-const PRESETS: Record<PresetKey, Preset> = {
-  light: {
-    label: "Light",
-    description: "Best quality, moderate reduction",
-    bitrateMultiplier: 0.7,
-    resolution: "original",
-    codec: "avc",
-    audioBitrate: 128_000,
-  },
-  balanced: {
-    label: "Balanced",
-    description: "Good quality, significant reduction",
-    bitrateMultiplier: 0.4,
-    resolution: "original",
-    codec: "avc",
-    audioBitrate: 128_000,
-  },
-  maximum: {
-    label: "Maximum",
-    description: "Smallest size, some quality loss",
-    bitrateMultiplier: 0.2,
-    resolution: "720p",
-    codec: "hevc",
-    audioBitrate: 96_000,
-  },
+const VIDEO_PRESETS: Record<PresetKey, VideoPreset> = {
+  light: { bitrateMultiplier: 0.7, resolution: "original", codec: "avc", audioBitrate: 128_000 },
+  balanced: { bitrateMultiplier: 0.4, resolution: "original", codec: "avc", audioBitrate: 128_000 },
+  maximum: { bitrateMultiplier: 0.2, resolution: "720p", codec: "hevc", audioBitrate: 96_000 },
 };
 
-function getPresetOptions(preset: PresetKey, info: VideoInfo): CompressOptions {
-  const p = PRESETS[preset];
-  const resolution =
-    p.resolution !== "original" && info.height <= 720 ? "original" : p.resolution;
+const GIF_PRESETS: Record<PresetKey, GifCompressOptions> = {
+  light: { colors: 128, scale: 1, frameSkip: 1 },
+  balanced: { colors: 64, scale: 0.75, frameSkip: 2 },
+  maximum: { colors: 32, scale: 0.5, frameSkip: 3 },
+};
+
+function getVideoCompressOptions(preset: PresetKey, info: VideoInfo): CompressOptions {
+  const p = VIDEO_PRESETS[preset];
+  const resolution = p.resolution !== "original" && info.height <= 720 ? "original" : p.resolution;
   return {
     videoBitrate: Math.max(100_000, Math.round(info.videoBitrate * p.bitrateMultiplier)),
     audioBitrate: p.audioBitrate,
@@ -89,6 +89,22 @@ function getPresetOptions(preset: PresetKey, info: VideoInfo): CompressOptions {
     resolution,
     frameRate: null,
   };
+}
+
+// ── Shared result shape ──────────────────────────────────────
+interface CompressedFile {
+  blob: Blob;
+  filename: string;
+  originalSize: number;
+  compressedSize: number;
+}
+
+async function compressOne(file: File, preset: PresetKey, onProgress?: (p: number) => void): Promise<CompressedFile> {
+  if (isGifFile(file)) {
+    return compressGif(file, GIF_PRESETS[preset], onProgress);
+  }
+  const info = await analyzeVideo(file);
+  return compressVideo(file, getVideoCompressOptions(preset, info), onProgress);
 }
 
 // ── Bulk types ──────────────────────────────────────────────
@@ -106,28 +122,20 @@ interface BulkCompressItem {
 }
 
 // ── Preset Selector ─────────────────────────────────────────
-function PresetSelector({
-  preset,
-  onSelect,
-}: {
-  preset: PresetKey;
-  onSelect: (key: PresetKey) => void;
-}) {
+function PresetSelector({ preset, onSelect }: { preset: PresetKey; onSelect: (key: PresetKey) => void }) {
   return (
     <fieldset className="space-y-3">
       <legend className="text-sm font-medium text-foreground">Compression Level</legend>
       <div className="grid grid-cols-3 gap-3" role="group">
-        {(["light", "balanced", "maximum"] as PresetKey[]).map((key) => {
-          const p = PRESETS[key];
+        {(Object.keys(PRESET_META) as PresetKey[]).map((key) => {
+          const p = PRESET_META[key];
           return (
             <button
               key={key}
               type="button"
               onClick={() => onSelect(key)}
               className={`p-3 rounded-lg border-2 transition-all text-left ${
-                preset === key
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-muted-foreground/50"
+                preset === key ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/50"
               }`}
             >
               <div className="font-medium capitalize text-sm">{p.label}</div>
@@ -150,7 +158,7 @@ function VideoCompressPage() {
   const [file, setFile] = useState<File | null>(null);
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<CompressResult | null>(null);
+  const [result, setResult] = useState<CompressedFile | null>(null);
   const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
     useFileProcessing();
 
@@ -161,17 +169,18 @@ function VideoCompressPage() {
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   const isBulk = bulkFiles.length > 0 || bulkResults.length > 0;
+  const isGif = file !== null && isGifFile(file);
 
   // ── Single mode handlers ──
   const processFile = useCallback(
-    async (f: File, opts: CompressOptions) => {
+    async (f: File, presetKey: PresetKey) => {
       if (!startProcessing()) return;
       setResult(null);
       try {
-        const compressed = await compressVideo(f, opts, (p) => setProgress(p * 100));
+        const compressed = await compressOne(f, presetKey, (p) => setProgress(p * 100));
         setResult(compressed);
       } catch (err) {
-        setError(getErrorMessage(err, "Failed to compress video"));
+        setError(getErrorMessage(err, isGifFile(f) ? "Failed to compress GIF" : "Failed to compress video"));
       } finally {
         stopProcessing();
       }
@@ -190,13 +199,17 @@ function VideoCompressPage() {
         setResult(null);
         clearError();
 
+        if (isGifFile(selectedFile)) {
+          setVideoInfo(null);
+          if (isInstant) processFile(selectedFile, "balanced");
+          return;
+        }
+
         setAnalyzing(true);
         try {
           const info = await analyzeVideo(selectedFile);
           setVideoInfo(info);
-          if (isInstant) {
-            processFile(selectedFile, getPresetOptions("balanced", info));
-          }
+          if (isInstant) processFile(selectedFile, "balanced");
         } catch {
           setError("Could not analyze video. The format may not be supported.");
         }
@@ -212,17 +225,17 @@ function VideoCompressPage() {
   );
 
   const handleCompress = useCallback(() => {
-    if (!file || !videoInfo) return;
-    processFile(file, getPresetOptions(preset, videoInfo));
-  }, [file, videoInfo, preset, processFile]);
+    if (!file) return;
+    processFile(file, preset);
+  }, [file, preset, processFile]);
 
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (result) downloadBlob(result.blob, result.filename, "video/mp4");
+      if (result) downloadBlob(result.blob, result.filename, isGif ? "image/gif" : "video/mp4");
     },
-    [result],
+    [result, isGif],
   );
 
   const { add: addToBuffer } = useFileBuffer();
@@ -231,12 +244,12 @@ function VideoCompressPage() {
     addToBuffer({
       filename: result.filename,
       blob: result.blob,
-      mimeType: "video/mp4",
+      mimeType: isGif ? "image/gif" : "video/mp4",
       size: result.blob.size,
       fileType: "other",
-      sourceToolLabel: "Compress Video",
+      sourceToolLabel: isGif ? "Compress GIF" : "Compress Video",
     });
-  }, [result, addToBuffer]);
+  }, [result, addToBuffer, isGif]);
 
   // ── Bulk mode handlers ──
   const handleRemoveBulkFile = useCallback((id: string) => {
@@ -255,9 +268,7 @@ function VideoCompressPage() {
     for (let i = 0; i < bulkFiles.length; i++) {
       const { file: f } = bulkFiles[i];
       try {
-        const info = await analyzeVideo(f);
-        const opts = getPresetOptions(preset, info);
-        const compressed = await compressVideo(f, opts);
+        const compressed = await compressOne(f, preset);
         results.push({
           filename: compressed.filename,
           originalSize: compressed.originalSize,
@@ -286,11 +297,14 @@ function VideoCompressPage() {
   );
 
   const handleBulkDownloadAll = useCallback(() => {
-    downloadMultiple(successfulResults.map((r) => ({ data: r.blob, filename: r.filename })), "compressed_videos.zip");
+    downloadMultiple(
+      successfulResults.map((r) => ({ data: r.blob, filename: r.filename })),
+      "compressed_files.zip",
+    );
   }, [successfulResults]);
 
   const handleBulkDownloadOne = useCallback((item: BulkCompressItem) => {
-    downloadBlob(item.blob, item.filename, "video/mp4");
+    downloadBlob(item.blob, item.filename, item.filename.toLowerCase().endsWith(".gif") ? "image/gif" : "video/mp4");
   }, []);
 
   // ── Shared handlers ──
@@ -313,10 +327,7 @@ function VideoCompressPage() {
     return Math.round((1 - totalCompressed / totalOriginal) * 100);
   }, [successfulResults]);
 
-  const totalBulkOriginalSize = useMemo(
-    () => bulkFiles.reduce((sum, f) => sum + f.file.size, 0),
-    [bulkFiles],
-  );
+  const totalBulkOriginalSize = useMemo(() => bulkFiles.reduce((sum, f) => sum + f.file.size, 0), [bulkFiles]);
 
   if (!isLoaded) return null;
 
@@ -326,7 +337,7 @@ function VideoCompressPage() {
         icon={<VideoCompressIcon className="w-7 h-7" />}
         iconClass="tool-video-compress"
         title="Compress Video"
-        description="Reduce file size while preserving quality"
+        description="Reduce video or GIF file size while preserving quality"
       />
 
       {/* ── Single mode result ── */}
@@ -336,13 +347,25 @@ function VideoCompressPage() {
             <div className="p-6 border-2 border-foreground bg-card text-center space-y-4">
               <h2 className="text-2xl font-display">Already Optimized</h2>
               <p className="text-muted-foreground">
-                This video is already well-compressed. Re-encoding produced a larger file ({formatFileSize(result.compressedSize)} vs {formatFileSize(result.originalSize)}).
+                This file is already well-compressed. Re-encoding produced a larger file (
+                {formatFileSize(result.compressedSize)} vs {formatFileSize(result.originalSize)}).
               </p>
               <button type="button" onClick={handleStartOver} className="btn-secondary">
-                Try Another Video
+                Try Another File
               </button>
             </div>
           </div>
+        ) : isGif ? (
+          <ImageResultView
+            blob={result.blob}
+            title="GIF Compressed!"
+            subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.compressedSize)} · ${savings}% smaller`}
+            downloadLabel="Download GIF"
+            onDownload={handleDownload}
+            onHoldInBuffer={handleHoldInBuffer}
+            onStartOver={handleStartOver}
+            startOverLabel="Compress Another"
+          />
         ) : (
           <VideoResultView
             blob={result.blob}
@@ -356,7 +379,7 @@ function VideoCompressPage() {
           />
         )
 
-      /* ── Bulk mode results ── */
+        /* ── Bulk mode results ── */
       ) : isBulk && bulkResults.length > 0 && !isBulkProcessing ? (
         <div className="animate-fade-up space-y-6">
           <div className="success-card">
@@ -368,7 +391,7 @@ function VideoCompressPage() {
             </div>
             <div className="space-y-4 mb-6">
               <h2 className="text-3xl font-display">
-                {successfulResults.length} Video{successfulResults.length !== 1 ? "s" : ""} Compressed!
+                {successfulResults.length} File{successfulResults.length !== 1 ? "s" : ""} Compressed!
               </h2>
               {totalBulkSavings > 0 && (
                 <p className="text-sm text-muted-foreground">{totalBulkSavings}% smaller overall</p>
@@ -386,7 +409,10 @@ function VideoCompressPage() {
             {bulkResults.map((item, i) => {
               if (item.error) {
                 return (
-                  <div key={i} className="flex items-center justify-between p-3 border-2 border-destructive/50 bg-destructive/5">
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-3 border-2 border-destructive/50 bg-destructive/5"
+                  >
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm truncate">{item.filename}</p>
                       <p className="text-xs text-destructive">{item.error}</p>
@@ -421,30 +447,30 @@ function VideoCompressPage() {
           </div>
 
           <button type="button" onClick={handleStartOver} className="btn-secondary w-full">
-            Compress More Videos
+            Compress More Files
           </button>
         </div>
 
-      /* ── No files: dropzone ── */
+        /* ── No files: dropzone ── */
       ) : !file && !isBulk ? (
         <div className="space-y-6">
           <FileDropzone
-            accept={VIDEO_EXTENSIONS}
+            accept={ACCEPTED_EXTENSIONS}
             multiple={true}
             maxFiles={20}
             maxSize={VIDEO_MAX_FILE_SIZE}
             onFilesSelected={handleFileSelected}
-            title="Drop your video files here"
-            subtitle="MP4, MOV, WebM, MKV · Single or multiple files"
+            title="Drop your video or GIF files here"
+            subtitle="MP4, MOV, WebM, MKV, GIF · Single or multiple files"
           />
-          <InfoBox title={isInstant ? "Instant compression" : "About video compression"}>
+          <InfoBox title={isInstant ? "Instant compression" : "About compression"}>
             {isInstant
-              ? "Drop a video and it will be compressed automatically."
-              : "Hardware-accelerated compression runs entirely in your browser. No uploads, complete privacy."}
+              ? "Drop a video or GIF and it will be compressed automatically."
+              : "Hardware-accelerated video compression and palette-optimized GIF compression, both running entirely in your browser. No uploads, complete privacy."}
           </InfoBox>
         </div>
 
-      /* ── Single mode: file selected ── */
+        /* ── Single mode: file selected ── */
       ) : !isBulk && file ? (
         <div className="space-y-6">
           {analyzing && (
@@ -454,11 +480,11 @@ function VideoCompressPage() {
             </div>
           )}
 
-          {videoInfo && (
+          {(videoInfo || isGif) && (
             <VideoFileInfo
               file={file}
-              duration={videoInfo.duration}
-              resolution={`${videoInfo.width}×${videoInfo.height}`}
+              duration={videoInfo?.duration}
+              resolution={videoInfo ? `${videoInfo.width}×${videoInfo.height}` : undefined}
               onClear={handleStartOver}
               icon={<VideoToolIcon className="w-5 h-5" />}
             />
@@ -466,24 +492,35 @@ function VideoCompressPage() {
 
           {videoInfo && videoInfo.videoBitrate < 500_000 && !isProcessing && (
             <div className="flex items-start gap-3 p-3 border-2 border-foreground/30 bg-muted/30 text-sm">
-              <svg aria-hidden="true" className="w-5 h-5 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                aria-hidden="true"
+                className="w-5 h-5 shrink-0 mt-0.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <path d="M12 16v-4" />
                 <path d="M12 8h.01" />
               </svg>
               <p className="text-muted-foreground">
-                This video has a very low bitrate ({(videoInfo.videoBitrate / 1000).toFixed(0)} kbps). It&apos;s already well-compressed — further compression may not reduce file size.
+                This video has a very low bitrate ({(videoInfo.videoBitrate / 1000).toFixed(0)} kbps). It&apos;s already
+                well-compressed — further compression may not reduce file size.
               </p>
             </div>
           )}
 
-          {videoInfo && !isProcessing && (
-            <PresetSelector preset={preset} onSelect={setPreset} />
-          )}
+          {(videoInfo || isGif) && !isProcessing && <PresetSelector preset={preset} onSelect={setPreset} />}
 
           {error && <ErrorBox message={error} />}
 
-          <button type="button" onClick={handleCompress} disabled={isProcessing || analyzing} className="btn-primary w-full">
+          <button
+            type="button"
+            onClick={handleCompress}
+            disabled={isProcessing || analyzing}
+            className="btn-primary w-full"
+          >
             {isProcessing ? (
               <>
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -492,29 +529,29 @@ function VideoCompressPage() {
             ) : (
               <>
                 <VideoCompressIcon className="w-5 h-5" />
-                Compress Video
+                {isGif ? "Compress GIF" : "Compress Video"}
               </>
             )}
           </button>
         </div>
 
-      /* ── Bulk mode: files selected ── */
+        /* ── Bulk mode: files selected ── */
       ) : (
         <div className="space-y-6">
           <FileDropzone
-            accept={VIDEO_EXTENSIONS}
+            accept={ACCEPTED_EXTENSIONS}
             multiple={true}
             maxFiles={20}
             maxSize={VIDEO_MAX_FILE_SIZE}
             onFilesSelected={handleFileSelected}
-            title="Add more videos"
-            subtitle="MP4, MOV, WebM, MKV"
+            title="Add more files"
+            subtitle="MP4, MOV, WebM, MKV, GIF"
             compact
           />
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="input-label">{bulkFiles.length} videos selected</span>
+              <span className="input-label">{bulkFiles.length} files selected</span>
               <button
                 type="button"
                 onClick={handleStartOver}
@@ -597,7 +634,7 @@ function VideoCompressPage() {
             ) : (
               <>
                 <VideoCompressIcon className="w-5 h-5" />
-                Compress {bulkFiles.length} Video{bulkFiles.length !== 1 ? "s" : ""}
+                Compress {bulkFiles.length} File{bulkFiles.length !== 1 ? "s" : ""}
               </>
             )}
           </button>

@@ -13,12 +13,12 @@ import {
 export const videoTools = [
   {
     title: "Compress",
-    description: "Reduce video file size with quality control",
+    description: "Reduce video or GIF file size with quality control",
     href: "/video/compress",
     icon: VideoCompressIcon,
     category: "optimize",
     colorClass: "tool-video-compress",
-    keywords: ["shrink", "smaller", "reduce size", "bitrate"],
+    keywords: ["shrink", "smaller", "reduce size", "bitrate", "compress gif", "shrink gif", "gif compressor"],
   },
   {
     title: "Trim",
@@ -64,15 +64,6 @@ export const videoTools = [
     category: "convert",
     colorClass: "tool-video-to-gif",
     keywords: ["video to gif", "animated", "mp4 to gif", "loop"],
-  },
-  {
-    title: "Compress GIF",
-    description: "Shrink animated GIF file size",
-    href: "/video/compress-gif",
-    icon: VideoCompressIcon,
-    category: "optimize",
-    colorClass: "tool-video-compress",
-    keywords: ["gif compressor", "reduce gif size", "shrink gif", "optimize gif", "smaller gif"],
   },
   {
     title: "Extract Audio",

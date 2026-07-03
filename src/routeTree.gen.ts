@@ -55,7 +55,6 @@ import { Route as VideoMergeRouteImport } from './routes/video.merge'
 import { Route as VideoExtractAudioRouteImport } from './routes/video.extract-audio'
 import { Route as VideoCropRouteImport } from './routes/video.crop'
 import { Route as VideoConvertRouteImport } from './routes/video.convert'
-import { Route as VideoCompressGifRouteImport } from './routes/video.compress-gif'
 import { Route as VideoCompressRouteImport } from './routes/video.compress'
 import { Route as VideoAddAudioRouteImport } from './routes/video.add-audio'
 import { Route as TestBgCompareRouteImport } from './routes/test.bg-compare'
@@ -325,11 +324,6 @@ const VideoCropRoute = VideoCropRouteImport.update({
 const VideoConvertRoute = VideoConvertRouteImport.update({
   id: '/video/convert',
   path: '/video/convert',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VideoCompressGifRoute = VideoCompressGifRouteImport.update({
-  id: '/video/compress-gif',
-  path: '/video/compress-gif',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VideoCompressRoute = VideoCompressRouteImport.update({
@@ -606,7 +600,6 @@ export interface FileRoutesByFullPath {
   '/test/bg-compare': typeof TestBgCompareRoute
   '/video/add-audio': typeof VideoAddAudioRoute
   '/video/compress': typeof VideoCompressRoute
-  '/video/compress-gif': typeof VideoCompressGifRoute
   '/video/convert': typeof VideoConvertRoute
   '/video/crop': typeof VideoCropRoute
   '/video/extract-audio': typeof VideoExtractAudioRoute
@@ -695,7 +688,6 @@ export interface FileRoutesByTo {
   '/test/bg-compare': typeof TestBgCompareRoute
   '/video/add-audio': typeof VideoAddAudioRoute
   '/video/compress': typeof VideoCompressRoute
-  '/video/compress-gif': typeof VideoCompressGifRoute
   '/video/convert': typeof VideoConvertRoute
   '/video/crop': typeof VideoCropRoute
   '/video/extract-audio': typeof VideoExtractAudioRoute
@@ -785,7 +777,6 @@ export interface FileRoutesById {
   '/test/bg-compare': typeof TestBgCompareRoute
   '/video/add-audio': typeof VideoAddAudioRoute
   '/video/compress': typeof VideoCompressRoute
-  '/video/compress-gif': typeof VideoCompressGifRoute
   '/video/convert': typeof VideoConvertRoute
   '/video/crop': typeof VideoCropRoute
   '/video/extract-audio': typeof VideoExtractAudioRoute
@@ -876,7 +867,6 @@ export interface FileRouteTypes {
     | '/test/bg-compare'
     | '/video/add-audio'
     | '/video/compress'
-    | '/video/compress-gif'
     | '/video/convert'
     | '/video/crop'
     | '/video/extract-audio'
@@ -965,7 +955,6 @@ export interface FileRouteTypes {
     | '/test/bg-compare'
     | '/video/add-audio'
     | '/video/compress'
-    | '/video/compress-gif'
     | '/video/convert'
     | '/video/crop'
     | '/video/extract-audio'
@@ -1054,7 +1043,6 @@ export interface FileRouteTypes {
     | '/test/bg-compare'
     | '/video/add-audio'
     | '/video/compress'
-    | '/video/compress-gif'
     | '/video/convert'
     | '/video/crop'
     | '/video/extract-audio'
@@ -1144,7 +1132,6 @@ export interface RootRouteChildren {
   TestBgCompareRoute: typeof TestBgCompareRoute
   VideoAddAudioRoute: typeof VideoAddAudioRoute
   VideoCompressRoute: typeof VideoCompressRoute
-  VideoCompressGifRoute: typeof VideoCompressGifRoute
   VideoConvertRoute: typeof VideoConvertRoute
   VideoCropRoute: typeof VideoCropRoute
   VideoExtractAudioRoute: typeof VideoExtractAudioRoute
@@ -1483,13 +1470,6 @@ declare module '@tanstack/react-router' {
       path: '/video/convert'
       fullPath: '/video/convert'
       preLoaderRoute: typeof VideoConvertRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/video/compress-gif': {
-      id: '/video/compress-gif'
-      path: '/video/compress-gif'
-      fullPath: '/video/compress-gif'
-      preLoaderRoute: typeof VideoCompressGifRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/video/compress': {
@@ -1848,7 +1828,6 @@ const rootRouteChildren: RootRouteChildren = {
   TestBgCompareRoute: TestBgCompareRoute,
   VideoAddAudioRoute: VideoAddAudioRoute,
   VideoCompressRoute: VideoCompressRoute,
-  VideoCompressGifRoute: VideoCompressGifRoute,
   VideoConvertRoute: VideoConvertRoute,
   VideoCropRoute: VideoCropRoute,
   VideoExtractAudioRoute: VideoExtractAudioRoute,
