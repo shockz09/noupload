@@ -463,11 +463,12 @@ function VideoCompressPage() {
             title="Drop your video or GIF files here"
             subtitle="MP4, MOV, WebM, MKV, GIF · Single or multiple files"
           />
-          <InfoBox title={isInstant ? "Instant compression" : "About compression"}>
-            {isInstant
-              ? "Drop a video or GIF and it will be compressed automatically."
-              : "Hardware-accelerated video compression and palette-optimized GIF compression, both running entirely in your browser. No uploads, complete privacy."}
-          </InfoBox>
+          {!isInstant && (
+            <InfoBox title="About compression">
+              Hardware-accelerated video compression and palette-optimized GIF compression, both running entirely in
+              your browser. No uploads, complete privacy.
+            </InfoBox>
+          )}
         </div>
 
         /* ── Single mode: file selected ── */
