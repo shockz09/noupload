@@ -74,9 +74,9 @@ const VIDEO_PRESETS: Record<PresetKey, VideoPreset> = {
 };
 
 const GIF_PRESETS: Record<PresetKey, GifCompressOptions> = {
-  light: { colors: 128, scale: 1, frameSkip: 1 },
-  balanced: { colors: 64, scale: 0.75, frameSkip: 2 },
-  maximum: { colors: 32, scale: 0.5, frameSkip: 3 },
+  light: { colors: 256, lossy: 20, optimize: 2, scale: 1 },
+  balanced: { colors: 128, lossy: 40, optimize: 3, scale: 1, dither: true },
+  maximum: { colors: 64, lossy: 80, optimize: 3, scale: 0.75, dither: true },
 };
 
 function getVideoCompressOptions(preset: PresetKey, info: VideoInfo): CompressOptions {

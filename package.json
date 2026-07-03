@@ -55,7 +55,7 @@
     "fflate": "^0.8.2",
     "file-saver": "^2.0.5",
     "gifenc": "^1.0.3",
-    "gifuct-js": "^2.1.2",
+    "gifsicle-wasm-browser": "^1.5.19",
     "heic-decode": "^2.1.0",
     "html-to-image": "^1.11.13",
     "html2pdf.js": "^0.14.0",
