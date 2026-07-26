@@ -47,6 +47,7 @@ const BG_OPTIONS = [
 function CollagePage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [layout, setLayout] = useState<LayoutType>("grid");
+  const [manualColumns, setManualColumns] = useState<number | null>(null);
   const [gap, setGap] = useState(8);
   const [bgColor, setBgColor] = useState("#FFFFFF");
   const [borderRadius, setBorderRadius] = useState(0);
@@ -65,12 +66,13 @@ function CollagePage() {
       return 3;
     }
     if (layout !== "grid") return undefined;
+    if (manualColumns) return manualColumns;
     if (count <= 2) return 2;
     if (count <= 4) return 2;
     if (count <= 6) return 3;
     if (count <= 9) return 3;
     return 4;
-  }, [files.length, layout]);
+  }, [files.length, layout, manualColumns]);
 
   const outputSize = useMemo(() => {
     const count = files.length;
@@ -216,26 +218,13 @@ function CollagePage() {
 
   const totalSize = useMemo(() => files.reduce((acc, f) => acc + f.file.size, 0), [files]);
 
-  // CSS grid classes for live preview
-  const getPreviewGrid = () => {
+  // Column count for the live preview
+  const previewColumns = useMemo(() => {
     const count = files.length;
-    if (layout === "horizontal") {
-      if (count <= 2) return "grid-cols-2";
-      if (count <= 3) return "grid-cols-3";
-      if (count <= 4) return "grid-cols-4";
-      if (count <= 5) return "grid-cols-5";
-      return "grid-cols-6";
-    }
-    if (layout === "vertical") return "grid-cols-1";
-    if (layout === "mosaic") {
-      return count <= 3 ? "grid-cols-2" : "grid-cols-3";
-    }
-    if (count <= 2) return "grid-cols-2";
-    if (count <= 4) return "grid-cols-2";
-    if (count <= 6) return "grid-cols-3";
-    if (count <= 9) return "grid-cols-3";
-    return "grid-cols-4";
-  };
+    if (layout === "horizontal") return Math.min(Math.max(count, 1), 6);
+    if (layout === "vertical") return 1;
+    return columns || 2;
+  }, [files.length, layout, columns]);
 
   return (
     <div className="page-enter max-w-4xl mx-auto space-y-8">
@@ -306,8 +295,8 @@ function CollagePage() {
                   }}
                 >
                   <div
-                    className={`grid ${getPreviewGrid()}`}
-                    style={{ gap: `${gap}px` }}
+                    className="grid"
+                    style={{ gap: `${gap}px`, gridTemplateColumns: `repeat(${previewColumns}, minmax(0, 1fr))` }}
                   >
                     {files.map((item) => (
                       <div
@@ -380,6 +369,32 @@ function CollagePage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Columns (grid only) */}
+                {layout === "grid" && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Columns</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {columns} × {Math.ceil(files.length / (columns || 2))}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-2">
+                      {([null, 2, 3, 4, 5] as (number | null)[]).map((c) => (
+                        <button
+                          key={c ?? "auto"}
+                          type="button"
+                          onClick={() => setManualColumns(c)}
+                          className={`py-2 text-center border-2 border-foreground text-xs font-bold transition-colors ${
+                            manualColumns === c ? "bg-foreground text-background" : "hover:bg-muted"
+                          }`}
+                        >
+                          {c ?? "Auto"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Gap */}
                 <div className="space-y-2">
