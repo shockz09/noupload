@@ -233,26 +233,47 @@ export function downloadBlob(data: Uint8Array, filename: string) {
 }
 
 /**
- * Loads a PDF with pdf-lib, falling back to a qpdf structural rewrite when
- * pdf-lib's strict parser rejects the file (malformed numbers, broken xref
- * tables, …). Such files still render fine in the pdf.js-based preview, so
- * without this fallback the tool would show a page it then refuses to edit.
+ * Loads a PDF with pdf-lib, falling back to a qpdf structural rewrite when the
+ * strict pdf-lib parser can't cope with the file.
+ *
+ * Damaged files fail two ways, and both matter here because the pdf.js-based
+ * preview is lenient enough to render them, so the user sees pages we then have
+ * to be able to edit:
+ *   1. load() throws outright (malformed number, broken xref, …)
+ *   2. load() succeeds but silently drops pages it couldn't parse
+ *
+ * `minPageCount` catches the second, quieter case — without it a broken file
+ * would download back as an unmodified PDF with no signature on it.
  */
-async function loadPdfLenient(bytes: ArrayBuffer): Promise<PDFDocument> {
+async function loadPdfLenient(bytes: ArrayBuffer, minPageCount = 0): Promise<PDFDocument> {
   const { PDFDocument } = await getPdfLib();
 
+  let doc: PDFDocument | null = null;
+  let loadError: unknown;
   try {
-    return await PDFDocument.load(bytes);
-  } catch (loadError) {
-    const { rewritePdfBytes } = await import("./qpdf/rewrite");
-    let repaired: Uint8Array;
-    try {
-      repaired = await rewritePdfBytes(new Uint8Array(bytes));
-    } catch {
-      throw loadError; // Surface the original parse error, it's more descriptive
-    }
-    return PDFDocument.load(repaired);
+    doc = await PDFDocument.load(bytes);
+    if (doc.getPageCount() >= minPageCount) return doc;
+  } catch (err) {
+    loadError = err;
   }
+
+  // Either it threw, or it came back missing pages — try repairing the structure
+  try {
+    const { rewritePdfBytes } = await import("./qpdf/rewrite");
+    const repaired = await PDFDocument.load(await rewritePdfBytes(new Uint8Array(bytes)));
+    if (repaired.getPageCount() >= minPageCount) return repaired;
+  } catch (repairError) {
+    console.warn("[pdf-utils] qpdf repair failed:", repairError);
+  }
+
+  // Surface the original parse error where there was one — it says more about
+  // the file than anything we could phrase ourselves
+  if (loadError) throw loadError;
+
+  throw new Error(
+    `This PDF is damaged: only ${doc?.getPageCount() ?? 0} of ${minPageCount} pages could be read for editing. ` +
+      "Try repairing it first, or re-export it from the original app.",
+  );
 }
 
 export interface SignaturePlacement {
@@ -279,7 +300,8 @@ export async function addSignature(
   placements: SignaturePlacement[],
 ): Promise<Uint8Array> {
   const { degrees } = await getPdfLib();
-  const pdf = await loadPdfLenient(await file.arrayBuffer());
+  const highestPage = placements.reduce((max, p) => Math.max(max, p.pageNumber), 0);
+  const pdf = await loadPdfLenient(await file.arrayBuffer(), highestPage);
   const pages = pdf.getPages();
 
   // Convert data URL to image
@@ -300,7 +322,7 @@ export async function addSignature(
 
   for (const { pageNumber, leftPct, topPct, widthPct } of placements) {
     const page = pages[pageNumber - 1];
-    if (!page) continue; // Page count can change if the file was repaired on load
+    if (!page) continue; // Guarded by loadPdfLenient's minPageCount above
 
     const { width: mediaWidth, height: mediaHeight } = page.getSize();
     // Normalize to 0/90/180/270 — the only values PDF /Rotate allows

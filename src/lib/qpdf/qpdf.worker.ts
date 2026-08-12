@@ -15,6 +15,11 @@ interface QpdfModule {
 
 declare const self: DedicatedWorkerGlobalScope;
 
+// "%PDF" — a rewrite is only usable if the output actually is a PDF
+function startsWithPdfHeader(data: Uint8Array): boolean {
+  return data.length > 4 && data[0] === 0x25 && data[1] === 0x50 && data[2] === 0x44 && data[3] === 0x46;
+}
+
 let qpdfModule: QpdfModule | null = null;
 let initPromise: Promise<void> | null = null;
 
@@ -244,8 +249,13 @@ async function executeOperation(message: QpdfWorkerMessage): Promise<QpdfWorkerR
       };
     }
 
+    // A rewrite is judged by its output, not its exit code: repairing damaged
+    // input warns (3) or even errors (2) while still writing a complete
+    // reconstructed file, which is exactly the result we want.
+    const isRewrite = operation === "rewrite";
+
     // Check for errors
-    if (exitCode !== 0 && operation !== "check") {
+    if (exitCode !== 0 && !isRewrite && operation !== "check") {
       // Exit code 2 typically means wrong password
       if (exitCode === 2) {
         return {
@@ -272,8 +282,18 @@ async function executeOperation(message: QpdfWorkerMessage): Promise<QpdfWorkerR
         return {
           id,
           success: false,
-          error: "Failed to read output file",
+          error: isRewrite ? `qpdf could not repair the file (exit ${exitCode})` : "Failed to read output file",
           errorCode: "UNKNOWN",
+        };
+      }
+
+      // Only a real PDF counts as a successful rewrite
+      if (isRewrite && !startsWithPdfHeader(outputData)) {
+        return {
+          id,
+          success: false,
+          error: `qpdf produced no usable PDF (exit ${exitCode})`,
+          errorCode: "CORRUPTED_FILE",
         };
       }
     }
