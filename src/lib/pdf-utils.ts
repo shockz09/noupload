@@ -255,27 +255,29 @@ async function loadPdfLenient(bytes: ArrayBuffer): Promise<PDFDocument> {
   }
 }
 
+export interface SignaturePlacement {
+  pageNumber: number; // 1-indexed
+  leftPct: number; // % from the left edge of the visible page (0-100)
+  topPct: number; // % from the top edge of the visible page (0-100)
+  widthPct: number; // signature width as a % of the visible page width (0-100)
+}
+
 /**
- * Draws a signature image onto one or more pages.
+ * Draws a signature image at each of the given placements. Placements are
+ * independent, so the same page can carry several and each page can position
+ * its own differently.
  *
- * Geometry is expressed the same way the on-screen preview expresses it: the box
- * is positioned from the top-left of the *visible* page and its width is a
- * percentage of the visible page width, with the height following from the
- * image's aspect ratio. That keeps the exported PDF pixel-consistent with the
- * preview regardless of page size (A4 vs Letter vs anything else) or rotation.
+ * Geometry is expressed the same way the on-screen preview expresses it: from
+ * the top-left of the *visible* page, with the width a percentage of the visible
+ * page width and the height following from the image's aspect ratio. That keeps
+ * the exported PDF consistent with the preview regardless of page size (A4 vs
+ * Letter vs anything else) or page rotation.
  */
 export async function addSignature(
   file: File,
   signatureDataUrl: string,
-  options: {
-    leftPct?: number; // % from the left edge of the visible page (0-100)
-    topPct?: number; // % from the top edge of the visible page (0-100)
-    widthPct?: number; // signature width as a % of the visible page width (0-100)
-    pageNumbers?: number[]; // pages to sign (1-indexed); all pages if undefined
-  } = {},
+  placements: SignaturePlacement[],
 ): Promise<Uint8Array> {
-  const { leftPct = 65, topPct = 85, widthPct = 25, pageNumbers } = options;
-
   const { degrees } = await getPdfLib();
   const pdf = await loadPdfLenient(await file.arrayBuffer());
   const pages = pdf.getPages();
@@ -296,13 +298,10 @@ export async function addSignature(
 
   const aspectRatio = signatureImage.width / signatureImage.height;
 
-  // Determine which pages to sign
-  const pagesToSign = pageNumbers
-    ? pageNumbers.map((n) => n - 1).filter((i) => i >= 0 && i < pages.length)
-    : pages.map((_, i) => i);
+  for (const { pageNumber, leftPct, topPct, widthPct } of placements) {
+    const page = pages[pageNumber - 1];
+    if (!page) continue; // Page count can change if the file was repaired on load
 
-  for (const pageIndex of pagesToSign) {
-    const page = pages[pageIndex];
     const { width: mediaWidth, height: mediaHeight } = page.getSize();
     // Normalize to 0/90/180/270 — the only values PDF /Rotate allows
     const rotation = ((Math.round(page.getRotation().angle / 90) * 90) % 360 + 360) % 360;
