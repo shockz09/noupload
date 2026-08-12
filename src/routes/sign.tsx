@@ -48,7 +48,9 @@ type DragMode = "move" | "resize" | null;
 
 const DEFAULT_WIDTH_PCT = 25;
 const MIN_WIDTH_PCT = 5;
-const MAX_WIDTH_PCT = 50;
+// Full page width. Growth is still bounded by the page's right and bottom edges
+// during resize, so this is a ceiling rather than the real limit.
+const MAX_WIDTH_PCT = 100;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
