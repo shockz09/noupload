@@ -30,7 +30,7 @@ import { getFileBaseName } from "@/lib/utils";
 interface SignResult {
   data: Uint8Array;
   filename: string;
-  signedPage: number;
+  signedPages: number[];
 }
 
 // Box position/size stored as percentages of page dimensions
@@ -61,12 +61,20 @@ function SignPage() {
 
   // Draggable box
   const [box, setBox] = useState<SignatureBox | null>(null);
+  const [applyToAllPages, setApplyToAllPages] = useState(false);
   const [dragMode, setDragMode] = useState<DragMode>(null);
   const dragRef = useRef<{ startX: number; startY: number; origBox: SignatureBox } | null>(null);
 
   // Preview
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const { pages, loading, progress } = usePdfPages(file, 0.8);
+
+  // Signature height as a % of page height — depends on the page's own aspect ratio
+  const getHeightPct = useCallback(
+    (widthPct: number, pageWidth: number, pageHeight: number) =>
+      (widthPct / sigAspectRatio) * (pageWidth / pageHeight),
+    [sigAspectRatio],
+  );
 
   // Load signature dimensions when it changes
   useEffect(() => {
@@ -120,7 +128,7 @@ function SignPage() {
 
       const { xPct, yPct } = getPctFromEvent(pageEl, e.clientX, e.clientY);
       const w = DEFAULT_WIDTH_PCT;
-      const heightPct = (w / sigAspectRatio) * (pageEl.offsetWidth / pageEl.offsetHeight);
+      const heightPct = getHeightPct(w, pageEl.offsetWidth, pageEl.offsetHeight);
 
       setBox({
         pageNumber,
@@ -129,12 +137,13 @@ function SignPage() {
         widthPct: w,
       });
     },
-    [signatureDataUrl, sigAspectRatio, getPctFromEvent],
+    [signatureDataUrl, getHeightPct, getPctFromEvent],
   );
 
-  // Start dragging the box (move or resize)
+  // Start dragging the box (move or resize). In all-pages mode the box is shown
+  // on every page, so dragging any copy re-anchors it to that page.
   const handleBoxDragStart = useCallback(
-    (mode: "move" | "resize", e: React.MouseEvent | React.TouchEvent) => {
+    (mode: "move" | "resize", pageNumber: number, e: React.MouseEvent | React.TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
       if (!box) return;
@@ -142,8 +151,10 @@ function SignPage() {
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
 
+      const origBox = { ...box, pageNumber };
+      setBox(origBox);
       setDragMode(mode);
-      dragRef.current = { startX: clientX, startY: clientY, origBox: { ...box } };
+      dragRef.current = { startX: clientX, startY: clientY, origBox };
     },
     [box],
   );
@@ -163,17 +174,22 @@ function SignPage() {
       const orig = dragRef.current.origBox;
 
       if (dragMode === "move") {
-        const heightPct = (orig.widthPct / sigAspectRatio) * (rect.width / rect.height);
+        const heightPct = getHeightPct(orig.widthPct, rect.width, rect.height);
         setBox({
           ...orig,
           left: Math.max(0, Math.min(100 - orig.widthPct, orig.left + dxPct)),
           top: Math.max(0, Math.min(100 - heightPct, orig.top + dyPct)),
         });
       } else if (dragMode === "resize") {
-        const newWidth = Math.max(MIN_WIDTH_PCT, Math.min(MAX_WIDTH_PCT, orig.widthPct + dxPct));
-        // Constrain so box doesn't overflow right edge
-        const constrainedWidth = Math.min(newWidth, 100 - orig.left);
-        setBox({ ...orig, widthPct: constrainedWidth });
+        // Cap the width so the box stays inside both the right and bottom edges
+        const maxWidthByHeight = ((100 - orig.top) * sigAspectRatio * rect.height) / rect.width;
+        const newWidth = Math.min(
+          MAX_WIDTH_PCT,
+          100 - orig.left,
+          maxWidthByHeight,
+          orig.widthPct + dxPct,
+        );
+        setBox({ ...orig, widthPct: Math.max(MIN_WIDTH_PCT, newWidth) });
       }
     };
 
@@ -199,7 +215,7 @@ function SignPage() {
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onEnd);
     };
-  }, [dragMode, box, sigAspectRatio]);
+  }, [dragMode, box, sigAspectRatio, getHeightPct]);
 
   const handleSign = useCallback(async () => {
     if (!file || !signatureDataUrl || !box) return;
@@ -209,30 +225,28 @@ function SignPage() {
     setResult(null);
 
     try {
-      // Convert box percentages to center-based coordinates for addSignature
-      const pageEl = pageRefs.current.get(box.pageNumber);
-      const elRatio = pageEl ? pageEl.offsetWidth / pageEl.offsetHeight : 1;
-      const heightPct = (box.widthPct / sigAspectRatio) * elRatio;
-
-      const centerX = box.left + box.widthPct / 2;
-      const centerY = 100 - (box.top + heightPct / 2);
-      const widthPts = box.widthPct * 10; // 50% → 500pts mapping
+      // The box is already stored as percentages of the page box, which is
+      // exactly what addSignature expects — no unit conversion, so the exported
+      // signature matches the preview on every page size.
+      const pageNumbers = applyToAllPages
+        ? pages.map((p) => p.pageNumber)
+        : [box.pageNumber];
 
       const data = await addSignature(file, signatureDataUrl, {
-        x: centerX,
-        y: centerY,
-        width: widthPts,
-        pageNumbers: [box.pageNumber],
+        leftPct: box.left,
+        topPct: box.top,
+        widthPct: box.widthPct,
+        pageNumbers,
       });
 
       const baseName = getFileBaseName(file.name);
-      setResult({ data, filename: `${baseName}_signed.pdf`, signedPage: box.pageNumber });
+      setResult({ data, filename: `${baseName}_signed.pdf`, signedPages: pageNumbers });
     } catch (err) {
       setError(getErrorMessage(err, "Failed to sign PDF"));
     } finally {
       setIsProcessing(false);
     }
-  }, [file, signatureDataUrl, box, sigAspectRatio]);
+  }, [file, signatureDataUrl, box, applyToAllPages, pages]);
 
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {
@@ -288,7 +302,11 @@ function SignPage() {
         <div className="max-w-2xl mx-auto">
           <PdfResultView
             title="PDF Signed!"
-            subtitle={`Your signature has been added to page ${result.signedPage}`}
+            subtitle={
+              result.signedPages.length > 1
+                ? `Your signature has been added to all ${result.signedPages.length} pages`
+                : `Your signature has been added to page ${result.signedPages[0]}`
+            }
             data={result.data}
             size={result.data.length}
             downloadLabel="Download Signed PDF"
@@ -315,7 +333,9 @@ function SignPage() {
               <h3 className="font-bold text-lg">
                 {signatureDataUrl
                   ? box
-                    ? `Signature on page ${box.pageNumber}`
+                    ? applyToAllPages
+                      ? `Signature on all ${pages.length} pages`
+                      : `Signature on page ${box.pageNumber}`
                     : "Click on a page to place signature"
                   : "Add signature first →"}
               </h3>
@@ -334,6 +354,7 @@ function SignPage() {
               <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-2 scrollbar-thin">
                 {pages.map((page) => {
                   const isBoxPage = box?.pageNumber === page.pageNumber;
+                  const showBox = !!box && (isBoxPage || applyToAllPages);
 
                   return (
                     <div key={page.pageNumber} className="relative">
@@ -353,7 +374,7 @@ function SignPage() {
                         className={`relative border-2 bg-white select-none overflow-hidden transition-all ${
                           signatureDataUrl ? "cursor-crosshair" : "cursor-not-allowed opacity-75"
                         } ${
-                          isBoxPage
+                          showBox
                             ? "border-primary ring-2 ring-primary/30"
                             : "border-foreground hover:border-primary/50"
                         }`}
@@ -369,9 +390,12 @@ function SignPage() {
                         />
 
                         {/* Draggable signature box */}
-                        {signatureDataUrl && isBoxPage && box && (
+                        {signatureDataUrl && showBox && box && (
                           <div
-                            className={`absolute border-2 border-dashed border-primary/80 bg-primary/5 ${
+                            // Outline, not border: it must not take layout space,
+                            // otherwise the signature renders a few px smaller
+                            // than the box that defines the exported size
+                            className={`absolute outline-2 outline-dashed outline-primary/80 bg-primary/5 ${
                               dragMode === "move" ? "cursor-grabbing" : "cursor-grab"
                             }`}
                             style={{
@@ -379,8 +403,8 @@ function SignPage() {
                               top: `${box.top}%`,
                               width: `${box.widthPct}%`,
                             }}
-                            onMouseDown={(e) => handleBoxDragStart("move", e)}
-                            onTouchStart={(e) => handleBoxDragStart("move", e)}
+                            onMouseDown={(e) => handleBoxDragStart("move", page.pageNumber, e)}
+                            onTouchStart={(e) => handleBoxDragStart("move", page.pageNumber, e)}
                           >
                             <img
                               src={signatureDataUrl}
@@ -392,8 +416,8 @@ function SignPage() {
                             {/* Resize handle — bottom right corner */}
                             <div
                               className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-primary border-2 border-white cursor-nwse-resize z-10"
-                              onMouseDown={(e) => handleBoxDragStart("resize", e)}
-                              onTouchStart={(e) => handleBoxDragStart("resize", e)}
+                              onMouseDown={(e) => handleBoxDragStart("resize", page.pageNumber, e)}
+                              onTouchStart={(e) => handleBoxDragStart("resize", page.pageNumber, e)}
                             />
                           </div>
                         )}
@@ -447,10 +471,32 @@ function SignPage() {
               )}
             </div>
 
+            {/* Apply to every page at the same spot */}
+            {pages.length > 1 && (
+              <label className="flex items-start gap-3 p-4 bg-card border-2 border-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={applyToAllPages}
+                  onChange={(e) => setApplyToAllPages(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 border-2 border-foreground shrink-0"
+                />
+                <span>
+                  <span className="block font-bold text-sm">
+                    Sign all {pages.length} pages
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    Places the signature at the same position and size on every page
+                  </span>
+                </span>
+              </label>
+            )}
+
             {/* Info */}
             <InfoBox>
               {box
-                ? `Drag to reposition, pull corner to resize. Click another page to move it.`
+                ? applyToAllPages
+                  ? "Drag or resize the signature on any page — every page updates together."
+                  : "Drag to reposition, pull corner to resize. Click another page to move it."
                 : "Click on any page to place your signature. This is a visual signature, not a cryptographic one."}
             </InfoBox>
 
@@ -472,7 +518,11 @@ function SignPage() {
               ) : (
                 <>
                   <SignatureIcon className="w-5 h-5" />
-                  {box ? `Sign Page ${box.pageNumber}` : "Place Signature First"}
+                  {box
+                    ? applyToAllPages
+                      ? `Sign All ${pages.length} Pages`
+                      : `Sign Page ${box.pageNumber}`
+                    : "Place Signature First"}
                 </>
               )}
             </button>

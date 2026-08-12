@@ -1,4 +1,4 @@
-import type { PDFImage } from "pdf-lib";
+import type { PDFDocument, PDFImage } from "pdf-lib";
 
 // Lazy load pdf-lib (~23MB) - cached after first import
 let pdfLibCache: typeof import("pdf-lib") | null = null;
@@ -232,22 +232,52 @@ export function downloadBlob(data: Uint8Array, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Loads a PDF with pdf-lib, falling back to a qpdf structural rewrite when
+ * pdf-lib's strict parser rejects the file (malformed numbers, broken xref
+ * tables, …). Such files still render fine in the pdf.js-based preview, so
+ * without this fallback the tool would show a page it then refuses to edit.
+ */
+async function loadPdfLenient(bytes: ArrayBuffer): Promise<PDFDocument> {
+  const { PDFDocument } = await getPdfLib();
+
+  try {
+    return await PDFDocument.load(bytes);
+  } catch (loadError) {
+    const { rewritePdfBytes } = await import("./qpdf/rewrite");
+    let repaired: Uint8Array;
+    try {
+      repaired = await rewritePdfBytes(new Uint8Array(bytes));
+    } catch {
+      throw loadError; // Surface the original parse error, it's more descriptive
+    }
+    return PDFDocument.load(repaired);
+  }
+}
+
+/**
+ * Draws a signature image onto one or more pages.
+ *
+ * Geometry is expressed the same way the on-screen preview expresses it: the box
+ * is positioned from the top-left of the *visible* page and its width is a
+ * percentage of the visible page width, with the height following from the
+ * image's aspect ratio. That keeps the exported PDF pixel-consistent with the
+ * preview regardless of page size (A4 vs Letter vs anything else) or rotation.
+ */
 export async function addSignature(
   file: File,
   signatureDataUrl: string,
   options: {
-    x?: number; // 0-100 percentage from left
-    y?: number; // 0-100 percentage from bottom
-    width?: number; // width in points
-    height?: number; // height in points
-    pageNumbers?: number[]; // pages to sign (1-indexed), if undefined signs all
+    leftPct?: number; // % from the left edge of the visible page (0-100)
+    topPct?: number; // % from the top edge of the visible page (0-100)
+    widthPct?: number; // signature width as a % of the visible page width (0-100)
+    pageNumbers?: number[]; // pages to sign (1-indexed); all pages if undefined
   } = {},
 ): Promise<Uint8Array> {
-  const { x = 70, y = 10, width = 150, pageNumbers } = options;
+  const { leftPct = 65, topPct = 85, widthPct = 25, pageNumbers } = options;
 
-  const { PDFDocument } = await getPdfLib();
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await PDFDocument.load(arrayBuffer);
+  const { degrees } = await getPdfLib();
+  const pdf = await loadPdfLenient(await file.arrayBuffer());
   const pages = pdf.getPages();
 
   // Convert data URL to image
@@ -264,10 +294,7 @@ export async function addSignature(
     signatureImage = await pdf.embedJpg(signatureBytes);
   }
 
-  // Calculate aspect ratio
   const aspectRatio = signatureImage.width / signatureImage.height;
-  const finalWidth = width;
-  const finalHeight = width / aspectRatio;
 
   // Determine which pages to sign
   const pagesToSign = pageNumbers
@@ -276,17 +303,49 @@ export async function addSignature(
 
   for (const pageIndex of pagesToSign) {
     const page = pages[pageIndex];
-    const { width: pageWidth, height: pageHeight } = page.getSize();
+    const { width: mediaWidth, height: mediaHeight } = page.getSize();
+    // Normalize to 0/90/180/270 — the only values PDF /Rotate allows
+    const rotation = ((Math.round(page.getRotation().angle / 90) * 90) % 360 + 360) % 360;
+    const swapped = rotation === 90 || rotation === 270;
 
-    // Convert percentage to actual coordinates
-    const actualX = (x / 100) * pageWidth - finalWidth / 2;
-    const actualY = (y / 100) * pageHeight - finalHeight / 2;
+    // Page box as the user sees it (rotation applied)
+    const visibleWidth = swapped ? mediaHeight : mediaWidth;
+    const visibleHeight = swapped ? mediaWidth : mediaHeight;
+
+    const sigWidth = (widthPct / 100) * visibleWidth;
+    const sigHeight = sigWidth / aspectRatio;
+    const left = (leftPct / 100) * visibleWidth;
+    const top = (topPct / 100) * visibleHeight;
+
+    // Map the visible-space rect back into unrotated page space. `rotate` keeps
+    // the signature upright relative to the page's displayed orientation, and
+    // pdf-lib rotates the image counter-clockwise around its (x, y) anchor.
+    let x: number;
+    let y: number;
+    switch (rotation) {
+      case 90:
+        x = top + sigHeight;
+        y = left;
+        break;
+      case 180:
+        x = mediaWidth - left;
+        y = top + sigHeight;
+        break;
+      case 270:
+        x = mediaWidth - (top + sigHeight);
+        y = mediaHeight - left;
+        break;
+      default:
+        x = left;
+        y = visibleHeight - top - sigHeight;
+    }
 
     page.drawImage(signatureImage, {
-      x: actualX,
-      y: actualY,
-      width: finalWidth,
-      height: finalHeight,
+      x,
+      y,
+      width: sigWidth,
+      height: sigHeight,
+      rotate: degrees(rotation),
     });
   }
 

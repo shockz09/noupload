@@ -1,4 +1,5 @@
 export { ERROR_MESSAGES, MAX_FILE_SIZE } from "./constants";
+export { rewritePdfBytes } from "./rewrite";
 export type {
   QpdfDecryptOptions,
   QpdfEncryptOptions,

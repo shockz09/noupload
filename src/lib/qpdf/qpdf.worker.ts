@@ -180,6 +180,12 @@ async function executeOperation(message: QpdfWorkerMessage): Promise<QpdfWorkerR
         args = [INPUT_PATH, "--qdf", OUTPUT_PATH];
         break;
 
+      // Straight structural rewrite: fixes malformed objects/xrefs that stricter
+      // parsers (pdf-lib) reject, without the size blow-up of --qdf
+      case "rewrite":
+        args = [INPUT_PATH, OUTPUT_PATH];
+        break;
+
       case "linearize":
         args = [INPUT_PATH, "--linearize", OUTPUT_PATH];
         break;

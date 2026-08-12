@@ -1,4 +1,11 @@
-export type QpdfOperation = "encrypt" | "decrypt" | "repair" | "linearize" | "check" | "compress";
+export type QpdfOperation =
+  | "encrypt"
+  | "decrypt"
+  | "repair"
+  | "rewrite"
+  | "linearize"
+  | "check"
+  | "compress";
 
 export interface QpdfEncryptOptions {
   userPassword: string; // Password to open PDF (can be empty for owner-only)
