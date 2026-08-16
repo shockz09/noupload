@@ -48,3 +48,4 @@ test-results/
 dogfood-output/
 tests/
 --annotate
+e2e/.fixtures/
