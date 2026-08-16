@@ -265,26 +265,34 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
           >
             <button
               type="button"
-              onClick={() => setShowRates((s) => !s)}
+              // Opening only, never toggling: hovering already opened the menu by the time a
+              // click lands, so a toggle here would just shut it again. It closes when a rate
+              // is picked or the pointer leaves.
+              onClick={() => setShowRates(true)}
               className="text-white hover:text-white/80 px-1 text-xs font-mono tabular-nums"
               title="Playback speed"
             >
               {rate}&times;
             </button>
             {showRates && (
-              <div className="absolute bottom-full right-0 mb-1 bg-black/90 border border-white/20 py-0.5">
-                {PLAYBACK_RATES.map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => changeRate(r)}
-                    className={`block w-full px-2.5 py-1 text-xs font-mono tabular-nums text-right hover:bg-white/20 ${
-                      r === rate ? "text-white" : "text-white/70"
-                    }`}
-                  >
-                    {r}&times;
-                  </button>
-                ))}
+              // The offset is padding, not margin, so the gap between button and menu stays
+              // inside the hover area. A margin here leaves a dead strip that the cursor
+              // crosses on its way up, which closes the menu before it can be clicked.
+              <div className="absolute bottom-full right-0 pb-1">
+                <div className="bg-black/90 border border-white/20 py-0.5">
+                  {PLAYBACK_RATES.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => changeRate(r)}
+                      className={`block w-full px-2.5 py-1 text-xs font-mono tabular-nums text-right hover:bg-white/20 ${
+                        r === rate ? "text-white" : "text-white/70"
+                      }`}
+                    >
+                      {r}&times;
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

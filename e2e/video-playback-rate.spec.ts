@@ -67,4 +67,40 @@ test.describe("VideoPreview playback speed", () => {
 		await page.getByRole("button", { name: "0.5×", exact: true }).click();
 		expect(await video.evaluate((v: HTMLVideoElement) => v.playbackRate)).toBe(0.5);
 	});
+
+	test("menu survives the mouse travelling up into it", async ({ page }) => {
+		await page.goto("/video/convert");
+		const chooser = page.waitForEvent("filechooser");
+		await page.getByText(/drop|choose|browse|select/i).first().click();
+		await (await chooser).setFiles(makeMp4());
+		await page.getByRole("button", { name: /^Convert to / }).click();
+		await expect(page.locator("video").first()).toBeVisible({ timeout: 30_000 });
+
+		const speedButton = page.getByTitle("Playback speed");
+		// Hover then click, the way a hand actually reaches a button. The click must not
+		// toggle the hover-opened menu shut.
+		await speedButton.hover();
+		await speedButton.click();
+
+		const option = page.getByRole("button", { name: "2×", exact: true });
+		await expect(option).toBeVisible();
+
+		// Walk the cursor from the button up to the option the way a hand would,
+		// rather than teleporting. Any dead gap in between closes the menu.
+		const from = (await speedButton.boundingBox())!;
+		const to = (await option.boundingBox())!;
+		const startY = from.y + from.height / 2;
+		const endY = to.y + to.height / 2;
+		for (let i = 0; i <= 20; i++) {
+			const t = i / 20;
+			await page.mouse.move(
+				from.x + from.width / 2 + (to.x + to.width / 2 - (from.x + from.width / 2)) * t,
+				startY + (endY - startY) * t,
+			);
+		}
+
+		await expect(option).toBeVisible();
+		await option.click();
+		expect(await page.locator("video").first().evaluate((v: HTMLVideoElement) => v.playbackRate)).toBe(2);
+	});
 });
