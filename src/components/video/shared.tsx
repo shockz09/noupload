@@ -18,6 +18,8 @@ function fmtTime(s: number): string {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
+const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
 export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob }) {
   const [url, setUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -26,6 +28,8 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [showVolume, setShowVolume] = useState(false);
+  const [rate, setRate] = useState(1);
+  const [showRates, setShowRates] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [idle, setIdle] = useState(false);
@@ -70,8 +74,11 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
   }, [seeking]);
 
   const onLoaded = useCallback(() => {
-    if (vidRef.current) setDuration(vidRef.current.duration);
-  }, []);
+    if (!vidRef.current) return;
+    setDuration(vidRef.current.duration);
+    // Loading a new source resets the element's rate — reapply the chosen one.
+    vidRef.current.playbackRate = rate;
+  }, [rate]);
 
   // Seek via progress bar
   const seekFromEvent = useCallback(
@@ -121,6 +128,13 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
     setVolume(v);
     if (v === 0) setMuted(true);
     else setMuted(false);
+  }, []);
+
+  const changeRate = useCallback((r: number) => {
+    if (!vidRef.current) return;
+    vidRef.current.playbackRate = r;
+    setRate(r);
+    setShowRates(false);
   }, []);
 
   const toggleFullscreen = useCallback(() => {
@@ -240,6 +254,38 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
                 onChange={changeVolume}
                 className="w-16 h-1 ml-1.5 accent-white"
               />
+            )}
+          </div>
+
+          {/* Playback speed */}
+          <div
+            className="relative flex items-center"
+            onMouseEnter={() => setShowRates(true)}
+            onMouseLeave={() => setShowRates(false)}
+          >
+            <button
+              type="button"
+              onClick={() => setShowRates((s) => !s)}
+              className="text-white hover:text-white/80 px-1 text-xs font-mono tabular-nums"
+              title="Playback speed"
+            >
+              {rate}&times;
+            </button>
+            {showRates && (
+              <div className="absolute bottom-full right-0 mb-1 bg-black/90 border border-white/20 py-0.5">
+                {PLAYBACK_RATES.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => changeRate(r)}
+                    className={`block w-full px-2.5 py-1 text-xs font-mono tabular-nums text-right hover:bg-white/20 ${
+                      r === rate ? "text-white" : "text-white/70"
+                    }`}
+                  >
+                    {r}&times;
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
