@@ -304,15 +304,16 @@ function drawPath(
   ctx: CanvasRenderingContext2D,
   record: EditorPathRecord,
 ): void {
-  const { x, y, width, height, svgPath, style, rotation } = record;
+  const { x, y, width, height, placedSvgPath, style, rotation } = record;
   const opacity = style.opacity ?? 1;
 
   withRotation(ctx, x, y, width, height, rotation, () => {
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.translate(x, y);
 
-    const path2d = new Path2D(svgPath);
+    // The outline already carries its placement (see pathToPlacedSvg) —
+    // translating by the record's x/y here would offset the stroke twice.
+    const path2d = new Path2D(placedSvgPath);
 
     if (style.fill && style.fill !== "transparent") {
       ctx.fillStyle = style.fill;

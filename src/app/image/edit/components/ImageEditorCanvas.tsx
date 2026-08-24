@@ -103,7 +103,12 @@ export function ImageEditorCanvas({
   const erasedAnyRef = useRef(false);
 
   // Track loaded image element so zoom changes don't reload it
-  const loadedImageRef = useRef<HTMLImageElement | null>(null);
+  // Held in state, not a ref: the init effect below depends on it, and a ref
+  // assignment triggers no re-render. While this was a ref, an image whose fit
+  // zoom equalled the starting zoom (any image small enough to show at 100%)
+  // never re-ran that effect, so the editor came up with no fabric canvas and
+  // no background at all and exports came back as the untouched original.
+  const [loadedImage, setLoadedImage] = useState<HTMLImageElement | null>(null);
   const loadedFileRef = useRef<File | null>(null);
 
   // ──────────────────────────────────────────────
@@ -211,7 +216,7 @@ export function ImageEditorCanvas({
   // ──────────────────────────────────────────────
 
   useEffect(() => {
-    if (loadedFileRef.current === file && loadedImageRef.current) return;
+    if (loadedFileRef.current === file && loadedImage) return;
 
     let cancelled = false;
     const objectUrl = URL.createObjectURL(file);
@@ -224,9 +229,9 @@ export function ImageEditorCanvas({
         URL.revokeObjectURL(objectUrl);
         return;
       }
-      loadedImageRef.current = img;
       loadedFileRef.current = file;
       URL.revokeObjectURL(objectUrl);
+      setLoadedImage(img);
 
       // Calculate fit zoom
       const container = containerRef.current;
@@ -255,7 +260,7 @@ export function ImageEditorCanvas({
   // ──────────────────────────────────────────────
 
   useEffect(() => {
-    const img = loadedImageRef.current;
+    const img = loadedImage;
     if (!img) return;
 
     let cancelled = false;
@@ -291,7 +296,7 @@ export function ImageEditorCanvas({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadedImageRef.current, zoom]);
+  }, [loadedImage, zoom]);
 
   // ──────────────────────────────────────────────
   // initFabricCanvas
@@ -674,6 +679,10 @@ export function ImageEditorCanvas({
         shape.set({ x2: pointer.x, y2: pointer.y });
       }
 
+      // Resizing via set() leaves the cached corner coords stale — selection
+      // handles and hit-testing (and anything reading getBoundingRect) would
+      // still see the 0x0 shape created on mouse:down.
+      shape.setCoords();
       fabricCanvas.renderAll();
     };
 

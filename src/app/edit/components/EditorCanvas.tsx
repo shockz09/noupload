@@ -691,6 +691,9 @@ export function EditorCanvas({
         });
       }
 
+      // Same stale-coords trap as the image editor: set() does not refresh the
+      // cached corners, so selection handles and getBoundingRect lag behind.
+      shape.setCoords();
       fabricCanvas.renderAll();
     };
 

@@ -90,8 +90,10 @@ export interface EditorPathRecord extends EditorObjectBase {
   y: number;
   width: number;
   height: number;
+  /** Raw fabric segments, in canvas coordinates — used to rebuild the object. */
   path: unknown[];
-  svgPath: string;
+  /** Same outline in record space, placement already applied (pathToPlacedSvg). */
+  placedSvgPath: string;
 }
 
 export interface EditorImageRecord extends EditorObjectBase {
@@ -220,13 +222,21 @@ function getObjectBounds(obj: FabricObjectLike, zoom: number) {
   };
 }
 
-function buildStyle(obj: FabricObjectLike): EditorStyle {
+// Stroke width and font size live on the fabric object in on-screen pixels, so
+// they are divided by the zoom exactly like every coordinate is —
+// recordToFabricObject multiplies both back by the zoom when it rebuilds the
+// object. Skipping that here made a caption typed on a photo shown at a 0.28
+// fit zoom export onto the full-resolution image at a third of its size, and
+// shrank every stroke again on each zoom change, since a zoom change rebuilds
+// the canvas from these records.
+function buildStyle(obj: FabricObjectLike, zoom: number): EditorStyle {
+  const scale = zoom || 1;
   return {
     fill: typeof obj.fill === "string" ? obj.fill : undefined,
     stroke: typeof obj.stroke === "string" ? obj.stroke : undefined,
-    strokeWidth: obj.strokeWidth ? round(obj.strokeWidth) : undefined,
+    strokeWidth: obj.strokeWidth ? round(obj.strokeWidth / scale) : undefined,
     opacity: typeof obj.opacity === "number" ? round(obj.opacity) : undefined,
-    fontSize: obj.fontSize ? round(obj.fontSize) : undefined,
+    fontSize: obj.fontSize ? round(obj.fontSize / scale) : undefined,
     fontFamily: obj.fontFamily,
     fontWeight: obj.fontWeight != null ? String(obj.fontWeight) : undefined,
     fontStyle: obj.fontStyle,
@@ -259,6 +269,7 @@ function buildBaseRecord(
   page: number,
   zIndex: number,
   kind: EditorObjectKind,
+  zoom: number,
 ): Omit<EditorObjectBase, "page" | "zIndex" | "kind"> & Pick<EditorObjectBase, "page" | "zIndex" | "kind"> {
   const metadata = obj as FabricEditorMetadata;
   return {
@@ -267,7 +278,7 @@ function buildBaseRecord(
     page,
     zIndex,
     rotation: normalizeAngle(obj.angle),
-    style: buildStyle(obj),
+    style: buildStyle(obj, zoom),
     sourceTool: metadata.sourceTool || kind,
     fallbackMode: metadata.fallbackMode || (kind === "stamp" || kind === "unsupported" ? "raster" : "auto"),
     pairId: metadata.pairId,
@@ -284,6 +295,95 @@ function pathToSvg(path: unknown[]): string {
     })
     .filter(Boolean)
     .join(" ");
+}
+
+// How each entry of a path segment's value list behaves under the placement
+// transform: "x"/"y" are positions (scaled and shifted), "scaleX"/"scaleY" are
+// lengths (scaled only — shifting a radius would deform the curve), "none" is
+// a flag or an angle and is left alone. Fabric normalises parsed paths to
+// absolute commands, so the lower-case variants never appear here — they are
+// matched defensively anyway.
+type SegmentAxis = "x" | "y" | "scaleX" | "scaleY" | "none";
+
+function coordinateAxes(command: string): SegmentAxis[] {
+  switch (command.toUpperCase()) {
+    case "M":
+    case "L":
+    case "T":
+      return ["x", "y"];
+    case "H":
+      return ["x"];
+    case "V":
+      return ["y"];
+    case "Q":
+    case "S":
+      return ["x", "y", "x", "y"];
+    case "C":
+      return ["x", "y", "x", "y", "x", "y"];
+    case "A":
+      // rx, ry, x-axis-rotation, large-arc-flag, sweep-flag, x, y
+      return ["scaleX", "scaleY", "none", "none", "none", "x", "y"];
+    default:
+      return [];
+  }
+}
+
+function pathCoordinateBounds(path: unknown[]): { minX: number; minY: number } {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+
+  for (const segment of path) {
+    if (!Array.isArray(segment) || segment.length === 0) continue;
+    const axes = coordinateAxes(String(segment[0]));
+    for (let i = 0; i < axes.length; i++) {
+      const value = segment[i + 1];
+      if (typeof value !== "number") continue;
+      if (axes[i] === "x" && value < minX) minX = value;
+      if (axes[i] === "y" && value < minY) minY = value;
+    }
+  }
+
+  return {
+    minX: Number.isFinite(minX) ? minX : 0,
+    minY: Number.isFinite(minY) ? minY : 0,
+  };
+}
+
+/**
+ * Path data as stored by fabric is in canvas coordinates and, once the object
+ * has been dragged, no longer agrees with the object's left/top. Renderers that
+ * consume the outline therefore cannot position it themselves — the image
+ * exporter used to translate by the record's x/y and drew every freehand stroke
+ * at twice its offset. This bakes the placement in: the returned data is in the
+ * same coordinate space as the rest of the record (image pixels, zoom removed),
+ * with the stroke's own top-left sitting at (originX, originY).
+ */
+function pathToPlacedSvg(
+  path: unknown[],
+  sx: number,
+  sy: number,
+  originX: number,
+  originY: number,
+): string {
+  const { minX, minY } = pathCoordinateBounds(path);
+  const offsetX = originX - minX * sx;
+  const offsetY = originY - minY * sy;
+
+  const placed = path.map((segment) => {
+    if (!Array.isArray(segment) || segment.length === 0) return segment;
+    const axes = coordinateAxes(String(segment[0]));
+    return segment.map((value, i) => {
+      if (i === 0 || typeof value !== "number") return value;
+      const axis = axes[i - 1];
+      if (axis === "x") return round(value * sx + offsetX);
+      if (axis === "y") return round(value * sy + offsetY);
+      if (axis === "scaleX") return round(value * sx);
+      if (axis === "scaleY") return round(value * sy);
+      return value;
+    });
+  });
+
+  return pathToSvg(placed);
 }
 
 function createArrowAsset(record: EditorLineRecord): EditorAsset {
@@ -400,8 +500,16 @@ export function fabricObjectToRecord(
   zoom: number,
   zIndex: number,
 ): EditorObjectRecord {
+  // getBoundingRect() and the arrow/line branches below read fabric's cached
+  // corner coords. A shape grown by set({width, height}) / set({rx, ry}) during
+  // a drag never recomputes them, so without refreshing here the record carries
+  // the shape's creation-time 0x0 bounds and the export renders a dot instead
+  // of the rectangle the user drew. Done once at the entry point rather than
+  // inside getObjectBounds, so the read helpers stay free of side effects.
+  obj.setCoords?.();
+
   const kind = inferKind(obj);
-  const base = buildBaseRecord(obj, page, zIndex, kind);
+  const base = buildBaseRecord(obj, page, zIndex, kind, zoom);
   const bounds = getObjectBounds(obj, zoom);
 
   switch (kind) {
@@ -477,7 +585,13 @@ export function fabricObjectToRecord(
         y2: round(bounds.top + bounds.height),
       };
     }
-    case "path":
+    case "path": {
+      const path = Array.isArray(obj.path) ? obj.path : [];
+      // getBoundingRect() pads by half the stroke on every side; the path's
+      // geometry starts inside that padding.
+      const sx = (typeof obj.scaleX === "number" ? obj.scaleX : 1) / zoom;
+      const sy = (typeof obj.scaleY === "number" ? obj.scaleY : 1) / zoom;
+      const halfStroke = (typeof obj.strokeWidth === "number" ? obj.strokeWidth : 0) / 2;
       return {
         ...base,
         kind,
@@ -485,9 +599,10 @@ export function fabricObjectToRecord(
         y: bounds.top,
         width: bounds.width,
         height: bounds.height,
-        path: Array.isArray(obj.path) ? obj.path : [],
-        svgPath: pathToSvg(Array.isArray(obj.path) ? obj.path : []),
+        path,
+        placedSvgPath: pathToPlacedSvg(path, sx, sy, bounds.left + halfStroke * sx, bounds.top + halfStroke * sy),
       };
+    }
     case "image":
     case "signature": {
       const asset =
@@ -640,7 +755,13 @@ export function legacyFabricObjectToRecord(
       width: typeof obj.width === "number" ? obj.width * (typeof obj.scaleX === "number" ? obj.scaleX : 1) : 0,
       height: typeof obj.height === "number" ? obj.height * (typeof obj.scaleY === "number" ? obj.scaleY : 1) : 0,
       path,
-      svgPath: pathToSvg(path),
+      placedSvgPath: pathToPlacedSvg(
+        path,
+        typeof obj.scaleX === "number" ? obj.scaleX : 1,
+        typeof obj.scaleY === "number" ? obj.scaleY : 1,
+        typeof obj.left === "number" ? obj.left : 0,
+        typeof obj.top === "number" ? obj.top : 0,
+      ),
     };
   }
 
