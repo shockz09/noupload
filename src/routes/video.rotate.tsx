@@ -23,7 +23,7 @@ import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { formatFileSize } from "@/lib/utils";
 import { rotateVideo, type RotationAngle } from "@/lib/video/rotate";
-import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS } from "@/lib/constants";
+import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 
 function RotateVideoPage() {
   const { isInstant, isLoaded } = useInstantMode();
@@ -115,6 +115,7 @@ function RotateVideoPage() {
         <div className="space-y-6">
           <FileDropzone
             accept={VIDEO_EXTENSIONS}
+            maxSize={VIDEO_MAX_FILE_SIZE}
             multiple={false}
             onFilesSelected={handleFileSelected}
             title="Drop your video file here"

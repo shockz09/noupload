@@ -27,7 +27,7 @@ import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
-import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS } from "@/lib/constants";
+import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { analyzeVideo, type VideoInfo } from "@/lib/video/compress";
@@ -146,6 +146,7 @@ function SpeedVideoPage() {
         <div className="space-y-6">
           <FileDropzone
             accept={VIDEO_EXTENSIONS}
+            maxSize={VIDEO_MAX_FILE_SIZE}
             multiple={false}
             onFilesSelected={handleFileSelected}
             title="Drop your video file here"

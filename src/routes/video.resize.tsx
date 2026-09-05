@@ -24,7 +24,7 @@ import { getErrorMessage } from "@/lib/error";
 import { formatFileSize } from "@/lib/utils";
 import { analyzeVideo, type VideoInfo } from "@/lib/video/compress";
 import { resizeVideo } from "@/lib/video/resize";
-import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS } from "@/lib/constants";
+import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 
 const SIZE_OPTIONS = [
   { height: 2160, label: "4K (2160p)" },
@@ -138,6 +138,7 @@ function ResizeVideoPage() {
         <div className="space-y-6">
           <FileDropzone
             accept={VIDEO_EXTENSIONS}
+            maxSize={VIDEO_MAX_FILE_SIZE}
             multiple={false}
             onFilesSelected={handleFileSelected}
             title="Drop your video file here"

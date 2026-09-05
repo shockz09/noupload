@@ -319,6 +319,32 @@ test.describe("video speed conversion", () => {
 		expect(r.name).toBe("test_clip_2x.mp4");
 	});
 
+	test("timescale rounding noise doesn't get mistaken for pre-roll", async ({ page }) => {
+		await onApp(page);
+		const verdicts = await page.evaluate(async () => {
+			// @ts-expect-error -- dev-server module path
+			const { canCopyPacketsThrough } = await import("/src/lib/video/speed.ts");
+			return {
+				zero: canCopyPacketsThrough(0),
+				// The real value an ordinary 1080p H.264 file reported: a third of a
+				// microsecond below zero, purely from the container's timescale. Reading
+				// that as pre-roll sent an 11-minute file down the decode path — 93s and
+				// 255MB, against 3s and 100MB for the copy it should have been.
+				roundingNoise: canCopyPacketsThrough(-3.3333333333333335e-7),
+				subMillisecond: canCopyPacketsThrough(-0.0005),
+				oneFrameAt50fps: canCopyPacketsThrough(-0.02),
+				screenRecording: canCopyPacketsThrough(-0.95),
+			};
+		});
+		expect(verdicts).toEqual({
+			zero: true,
+			roundingNoise: true,
+			subMillisecond: true,
+			oneFrameAt50fps: false,
+			screenRecording: false,
+		});
+	});
+
 	test("a file whose packets start before zero (screen-recording shape) still works", async ({ page }) => {
 		await onApp(page);
 		const r = await speedUp(page, mp4NegativeStart("speed_negative_start.mp4", 4), 2);
@@ -455,6 +481,13 @@ test.describe("video speed page", () => {
 		await card.click();
 		await expect(page).toHaveURL(/\/video\/speed$/);
 		await expect(page.getByRole("heading", { name: "Change Video Speed" })).toBeVisible();
+	});
+
+	test("accepts videos up to the 2GB limit, not the dropzone's 100MB default", async ({ page }) => {
+		await onApp(page);
+		// Regression: without an explicit maxSize the dropzone falls back to 100MB and
+		// turns away ordinary recordings. Every other video route passes this through.
+		await expect(page.getByText(/Max 2048MB/)).toBeVisible();
 	});
 
 	test("processes a dropped file and shows the result player", async ({ page }) => {

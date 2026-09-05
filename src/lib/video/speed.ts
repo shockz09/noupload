@@ -27,8 +27,28 @@ const MONO_AUDIO_BITRATE = 128_000;
  * source is re-encoded instead of producing a file the user can't play.
  */
 const MP4_COPYABLE_CODECS = ["avc", "hevc", "vp9", "av1"];
+/**
+ * How negative a first timestamp has to be before it counts as real pre-roll.
+ *
+ * Container timescales don't divide evenly into seconds, so plenty of ordinary
+ * files report a first timestamp a fraction of a microsecond below zero. Genuine
+ * pre-roll is at least a frame — milliseconds at any sane frame rate — so 1ms sits
+ * comfortably between the two. Treating the rounding noise as pre-roll would push
+ * everyday files down the slow, lossy decode path.
+ */
+const PREROLL_THRESHOLD = 0.001;
+
 /** Frames per emitted audio sample. Big enough to keep encoder calls cheap, small enough to stay streaming. */
 const AUDIO_BLOCK_FRAMES = 4096;
+
+/**
+ * Whether a track's packets can be re-timed and copied as-is, given the timestamp
+ * its first packet carries. Exported for tests: the decision matters more than it
+ * looks, and the inputs that exercise it are hard to produce as fixtures.
+ */
+export function canCopyPacketsThrough(firstTimestamp: number): boolean {
+  return firstTimestamp > -PREROLL_THRESHOLD;
+}
 
 export interface SpeedOptions {
   /** Playback rate multiplier: 2 plays twice as fast (half the duration), 0.5 half as fast. */
@@ -70,6 +90,7 @@ async function prepareVideoTrack(
   track: InputVideoTrack,
   speed: number,
   canCopyThrough: boolean,
+  startShift: number,
   duration: number,
   progressShare: number,
 ) {
@@ -85,11 +106,12 @@ async function prepareVideoTrack(
     return highWater;
   };
 
-  // No clamping here on purpose. Clamping a negative timestamp to zero doesn't fix
-  // anything — it silently stacks every pre-roll frame on the same instant. The
-  // copy-through path is gated on a non-negative start instead, and if that gate
-  // ever fails the muxer's own error is the honest outcome.
-  const retime = (t: number) => t / speed;
+  // `startShift` only ever absorbs sub-millisecond rounding noise, so this is an
+  // exact rebase rather than a clamp. Clamping a genuinely negative timestamp to
+  // zero would silently stack every pre-roll frame on the same instant; files like
+  // that take the decode path instead, and if that gate ever fails the muxer's own
+  // error is the honest outcome.
+  const retime = (t: number) => (t - startShift) / speed;
 
   const codec = track.codec;
   if (
@@ -371,7 +393,12 @@ export async function changeVideoSpeed(
     // while the decoded sinks already start the presented timeline at zero. So a
     // file that starts before zero goes down the decode path: slower, but its output
     // holds exactly the footage every other tool in this app would produce.
-    const canCopyThrough = (await videoTrack.getFirstTimestamp()) >= 0;
+    const videoFirstTs = await videoTrack.getFirstTimestamp();
+    const canCopyThrough = canCopyPacketsThrough(videoFirstTs);
+    // Only the copy-through path needs this, and then only to absorb sub-millisecond
+    // rounding noise so the muxer never sees a negative timestamp. The decode path's
+    // samples already start at zero — shifting those would move the whole track.
+    const startShift = canCopyThrough ? Math.min(0, videoFirstTs) : 0;
 
     const useAudio = !!audioTrack && (await audioTrack.canDecode());
 
@@ -384,7 +411,16 @@ export async function changeVideoSpeed(
     const format = new Mp4OutputFormat({ fastStart: "in-memory" });
     const output = new Output({ format, target: new BufferTarget() });
 
-    const video = await prepareVideoTrack(mod, format, videoTrack, speed, canCopyThrough, duration, videoShare);
+    const video = await prepareVideoTrack(
+      mod,
+      format,
+      videoTrack,
+      speed,
+      canCopyThrough,
+      startShift,
+      duration,
+      videoShare,
+    );
     // Packet copy-through loses the container's rotation flag, and re-encoding
     // drops it too (a VideoFrame carries no rotation), so re-declare it here.
     output.addVideoTrack(video.source, { rotation: videoTrack.rotation });
