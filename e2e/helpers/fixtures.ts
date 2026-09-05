@@ -143,3 +143,31 @@ export function mp4UnsupportedCodec(name: string, duration = 2) {
 		]),
 	);
 }
+
+/**
+ * HE-AAC (AAC-LC + SBR) audio, the profile WhatsApp and a lot of phone video use.
+ * Its container sample rate is half the real one, and Mediabunny can never copy it
+ * into an MP4 — so it's the case that exposed tools falling back to Opus.
+ *
+ * Needs macOS's AudioToolbox encoder; ffmpeg's native aac encoder can't write HE.
+ */
+export function hasHeAacEncoder() {
+	try {
+		const out = execFileSync("ffmpeg", ["-hide_banner", "-encoders"], { encoding: "utf8" });
+		return /\baac_at\b/.test(out);
+	} catch {
+		return false;
+	}
+}
+
+export function mp4HeAac(name: string, duration = 3) {
+	return cached(name, (out) =>
+		ffmpeg([
+			"-f", "lavfi", "-i", `testsrc=size=320x240:rate=15:duration=${duration}`,
+			"-f", "lavfi", "-i", `sine=frequency=440:duration=${duration}`,
+			"-c:v", "libx264", "-pix_fmt", "yuv420p",
+			"-c:a", "aac_at", "-profile:a", "4", "-b:a", "48k", "-ar", "44100", "-ac", "2",
+			"-shortest", out,
+		]),
+	);
+}

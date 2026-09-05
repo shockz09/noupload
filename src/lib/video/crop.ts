@@ -1,4 +1,4 @@
-import { createInput, getBaseName } from "./utils";
+import { audioOptionsFor, createInput, getBaseName } from "./utils";
 
 export interface CropRegion {
   left: number;
@@ -26,6 +26,7 @@ export async function cropVideo(
       input,
       output,
       video: { crop },
+      audio: await audioOptionsFor(input),
       showWarnings: false,
     });
 

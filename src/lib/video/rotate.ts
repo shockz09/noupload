@@ -1,4 +1,4 @@
-import { createInput, getBaseName } from "./utils";
+import { audioOptionsFor, createInput, getBaseName } from "./utils";
 
 export type RotationAngle = 90 | 180 | 270;
 
@@ -21,6 +21,7 @@ export async function rotateVideo(
       input,
       output,
       video: { rotate: angle },
+      audio: await audioOptionsFor(input),
       showWarnings: false,
     });
 

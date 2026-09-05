@@ -1,4 +1,4 @@
-import { createInput, getBaseName } from "./utils";
+import { audioOptionsFor, createInput, getBaseName } from "./utils";
 
 export interface ResizeOptions {
   height: number;
@@ -23,6 +23,7 @@ export async function resizeVideo(
       input,
       output,
       video: { height: options.height },
+      audio: await audioOptionsFor(input),
       showWarnings: false,
     });
 

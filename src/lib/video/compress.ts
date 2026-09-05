@@ -1,6 +1,6 @@
 // Video compression using Mediabunny (WebCodecs)
 
-import { createInput, getBaseName } from "./utils";
+import { createInput, ensureAacEncoder, getBaseName } from "./utils";
 
 export interface VideoInfo {
   duration: number;
@@ -94,10 +94,7 @@ export async function compressVideo(
   const mod = await import("mediabunny");
   const { Output, Conversion, Mp4OutputFormat, BufferTarget } = mod;
 
-  if (!(await mod.canEncodeAudio("aac"))) {
-    const { registerAacEncoder } = await import("@mediabunny/aac-encoder");
-    registerAacEncoder();
-  }
+  await ensureAacEncoder();
 
   const targetHeight = RESOLUTION_HEIGHTS[options.resolution];
   const videoCodec = await resolveVideoCodec(mod, options.codec, options.videoBitrate, targetHeight);

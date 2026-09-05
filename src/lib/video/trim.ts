@@ -1,4 +1,4 @@
-import { createInput, getBaseName } from "./utils";
+import { audioOptionsFor, createInput, getBaseName } from "./utils";
 
 export interface TrimOptions {
   start: number;
@@ -10,6 +10,19 @@ export interface TimeRange {
   end: number;
 }
 
+/** Reject a range Mediabunny would otherwise accept and turn into an empty or reversed clip. */
+function validateTrimRange(start: number, end: number) {
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    throw new Error("Trim range: start and end must be numbers.");
+  }
+  if (start < 0) {
+    throw new Error("Trim range: start must be 0 or greater.");
+  }
+  if (end <= start) {
+    throw new Error("Trim range: end must be greater than start.");
+  }
+}
+
 /** Single-range trim using mediabunny's built-in Conversion (re-encodes, frame-accurate). */
 export async function trimVideo(
   file: File,
@@ -18,25 +31,35 @@ export async function trimVideo(
 ): Promise<{ blob: Blob; filename: string }> {
   const { Output, Conversion, Mp4OutputFormat, BufferTarget } = await import("mediabunny");
 
+  validateTrimRange(options.start, options.end);
+
   const input = await createInput(file);
-  const output = new Output({
-    format: new Mp4OutputFormat({ fastStart: "in-memory" }),
-    target: new BufferTarget(),
-  });
 
-  const conversion = await Conversion.init({
-    input,
-    output,
-    trim: { start: options.start, end: options.end },
-  });
+  try {
+    const output = new Output({
+      format: new Mp4OutputFormat({ fastStart: "in-memory" }),
+      target: new BufferTarget(),
+    });
 
-  if (onProgress) conversion.onProgress = onProgress;
-  await conversion.execute();
+    const conversion = await Conversion.init({
+      input,
+      output,
+      trim: { start: options.start, end: options.end },
+      audio: await audioOptionsFor(input),
+    });
 
-  const blob = new Blob([output.target.buffer!], { type: "video/mp4" });
-  input[Symbol.dispose]();
+    if (!conversion.isValid) {
+      throw new Error("Cannot trim — your browser doesn't support video encoding. Try Chrome or Edge.");
+    }
 
-  return { blob, filename: `${getBaseName(file.name)}_trimmed.mp4` };
+    if (onProgress) conversion.onProgress = onProgress;
+    await conversion.execute();
+
+    const blob = new Blob([output.target.buffer!], { type: "video/mp4" });
+    return { blob, filename: `${getBaseName(file.name)}_trimmed.mp4` };
+  } finally {
+    input[Symbol.dispose]();
+  }
 }
 
 /**
