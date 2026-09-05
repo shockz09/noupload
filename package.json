@@ -26,7 +26,9 @@
     "preview": "vite preview",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "check": "biome check --write ."
+    "check": "biome check --write .",
+    "test": "playwright test --project=chromium",
+    "test:all": "playwright test"
   },
   "dependencies": {
     "@bentopdf/gs-wasm": "^0.1.0",

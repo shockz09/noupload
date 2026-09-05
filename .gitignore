@@ -49,3 +49,4 @@ dogfood-output/
 tests/
 --annotate
 e2e/.fixtures/
+e2e/.fixtures-deep/

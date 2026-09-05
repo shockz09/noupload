@@ -6,6 +6,7 @@ import {
   VideoConvertIcon,
   VideoMergeIcon,
   VideoMetadataIcon,
+  VideoSpeedIcon,
   VideoToGifIcon,
   VideoTrimIcon,
 } from "@/components/icons/video";
@@ -55,6 +56,25 @@ export const videoTools = [
     category: "edit",
     colorClass: "tool-video-remove-audio",
     keywords: ["add audio", "replace audio", "add music", "soundtrack", "add sound", "audio over video"],
+  },
+  {
+    title: "Change Speed",
+    description: "Speed up or slow down a video",
+    href: "/video/speed",
+    icon: VideoSpeedIcon,
+    category: "edit",
+    colorClass: "tool-video-speed",
+    keywords: [
+      "speed",
+      "slow motion",
+      "slomo",
+      "timelapse",
+      "fast forward",
+      "playback rate",
+      "speed up video",
+      "slow down video",
+      "2x",
+    ],
   },
   {
     title: "To GIF",

@@ -223,3 +223,22 @@ export function VideoMergeIcon({ className = "w-6 h-6" }: { className?: string }
     </svg>
   );
 }
+
+export function VideoSpeedIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 18a8 8 0 1 1 16 0" />
+      <line x1="12" y1="18" x2="16" y2="11" />
+      <circle cx="12" cy="18" r="1" />
+    </svg>
+  );
+}

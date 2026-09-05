@@ -47,6 +47,7 @@ import { Route as ImageIndexRouteImport } from './routes/image.index'
 import { Route as AudioIndexRouteImport } from './routes/audio.index'
 import { Route as VideoTrimRouteImport } from './routes/video.trim'
 import { Route as VideoToGifRouteImport } from './routes/video.to-gif'
+import { Route as VideoSpeedRouteImport } from './routes/video.speed'
 import { Route as VideoRotateRouteImport } from './routes/video.rotate'
 import { Route as VideoResizeRouteImport } from './routes/video.resize'
 import { Route as VideoRemoveAudioRouteImport } from './routes/video.remove-audio'
@@ -284,6 +285,11 @@ const VideoTrimRoute = VideoTrimRouteImport.update({
 const VideoToGifRoute = VideoToGifRouteImport.update({
   id: '/video/to-gif',
   path: '/video/to-gif',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VideoSpeedRoute = VideoSpeedRouteImport.update({
+  id: '/video/speed',
+  path: '/video/speed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VideoRotateRoute = VideoRotateRouteImport.update({
@@ -608,6 +614,7 @@ export interface FileRoutesByFullPath {
   '/video/remove-audio': typeof VideoRemoveAudioRoute
   '/video/resize': typeof VideoResizeRoute
   '/video/rotate': typeof VideoRotateRoute
+  '/video/speed': typeof VideoSpeedRoute
   '/video/to-gif': typeof VideoToGifRoute
   '/video/trim': typeof VideoTrimRoute
   '/audio/': typeof AudioIndexRoute
@@ -696,6 +703,7 @@ export interface FileRoutesByTo {
   '/video/remove-audio': typeof VideoRemoveAudioRoute
   '/video/resize': typeof VideoResizeRoute
   '/video/rotate': typeof VideoRotateRoute
+  '/video/speed': typeof VideoSpeedRoute
   '/video/to-gif': typeof VideoToGifRoute
   '/video/trim': typeof VideoTrimRoute
   '/audio': typeof AudioIndexRoute
@@ -785,6 +793,7 @@ export interface FileRoutesById {
   '/video/remove-audio': typeof VideoRemoveAudioRoute
   '/video/resize': typeof VideoResizeRoute
   '/video/rotate': typeof VideoRotateRoute
+  '/video/speed': typeof VideoSpeedRoute
   '/video/to-gif': typeof VideoToGifRoute
   '/video/trim': typeof VideoTrimRoute
   '/audio/': typeof AudioIndexRoute
@@ -875,6 +884,7 @@ export interface FileRouteTypes {
     | '/video/remove-audio'
     | '/video/resize'
     | '/video/rotate'
+    | '/video/speed'
     | '/video/to-gif'
     | '/video/trim'
     | '/audio/'
@@ -963,6 +973,7 @@ export interface FileRouteTypes {
     | '/video/remove-audio'
     | '/video/resize'
     | '/video/rotate'
+    | '/video/speed'
     | '/video/to-gif'
     | '/video/trim'
     | '/audio'
@@ -1051,6 +1062,7 @@ export interface FileRouteTypes {
     | '/video/remove-audio'
     | '/video/resize'
     | '/video/rotate'
+    | '/video/speed'
     | '/video/to-gif'
     | '/video/trim'
     | '/audio/'
@@ -1140,6 +1152,7 @@ export interface RootRouteChildren {
   VideoRemoveAudioRoute: typeof VideoRemoveAudioRoute
   VideoResizeRoute: typeof VideoResizeRoute
   VideoRotateRoute: typeof VideoRotateRoute
+  VideoSpeedRoute: typeof VideoSpeedRoute
   VideoToGifRoute: typeof VideoToGifRoute
   VideoTrimRoute: typeof VideoTrimRoute
   AudioIndexRoute: typeof AudioIndexRoute
@@ -1414,6 +1427,13 @@ declare module '@tanstack/react-router' {
       path: '/video/to-gif'
       fullPath: '/video/to-gif'
       preLoaderRoute: typeof VideoToGifRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video/speed': {
+      id: '/video/speed'
+      path: '/video/speed'
+      fullPath: '/video/speed'
+      preLoaderRoute: typeof VideoSpeedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/video/rotate': {
@@ -1836,6 +1856,7 @@ const rootRouteChildren: RootRouteChildren = {
   VideoRemoveAudioRoute: VideoRemoveAudioRoute,
   VideoResizeRoute: VideoResizeRoute,
   VideoRotateRoute: VideoRotateRoute,
+  VideoSpeedRoute: VideoSpeedRoute,
   VideoToGifRoute: VideoToGifRoute,
   VideoTrimRoute: VideoTrimRoute,
   AudioIndexRoute: AudioIndexRoute,
