@@ -184,7 +184,7 @@ test.describe("video speed conversion", () => {
 		expect(r.audioChannels).toBe(2);
 	});
 
-	test("audio is genuinely resampled: pitch scales and the tone stays unbroken", async ({ page }) => {
+	test("speed changes without moving the pitch, and the tone stays unbroken", async ({ page }) => {
 		await onApp(page);
 		const bytes = toBytes(readFileSync(mp4WithAudio("speed_tone.mp4", 48000, 4)));
 
@@ -226,8 +226,13 @@ test.describe("video speed conversion", () => {
 				const source = await analyse(file);
 				const fast = await analyse((await changeVideoSpeed(file, { speed: 2 })).blob);
 				const slow = await analyse((await changeVideoSpeed(file, { speed: 0.5 })).blob);
+				const veryFast = await analyse((await changeVideoSpeed(file, { speed: 4 })).blob);
+				// Opting out gives the old tape behaviour, pitch and all.
+				const tape = await analyse(
+					(await changeVideoSpeed(file, { speed: 2, preservePitch: false })).blob,
+				);
 				await ctx.close();
-				return { ok: true as const, source, fast, slow };
+				return { ok: true as const, source, fast, slow, veryFast, tape };
 			} catch (e) {
 				return { ok: false as const, error: e instanceof Error ? e.message : String(e) };
 			}
@@ -239,14 +244,22 @@ test.describe("video speed conversion", () => {
 		const source = r.source as { freq: number; quietest: number; duration: number };
 		const fast = r.fast as { freq: number; quietest: number; duration: number };
 		const slow = r.slow as { freq: number; quietest: number; duration: number };
+		const veryFast = r.veryFast as { freq: number; quietest: number; duration: number };
+		const tape = r.tape as { freq: number; quietest: number; duration: number };
 
 		// The fixture is a 440Hz sine.
 		expect(source.freq).toBeGreaterThan(420);
 		expect(source.freq).toBeLessThan(460);
 
-		// Resampling shifts pitch with speed, the way a tape does.
-		expect(fast.freq / source.freq).toBeCloseTo(2, 1);
-		expect(slow.freq / source.freq).toBeCloseTo(0.5, 1);
+		// Time-stretching changes duration and leaves pitch where it was — a voice at
+		// 2x should sound faster, not higher. Plain resampling would put these at
+		// 880Hz and 220Hz.
+		expect(fast.freq).toBeCloseTo(source.freq, -1);
+		expect(slow.freq).toBeCloseTo(source.freq, -1);
+		expect(veryFast.freq).toBeCloseTo(source.freq, -1);
+
+		// And opting out still gives the tape effect.
+		expect(tape.freq / source.freq).toBeCloseTo(2, 1);
 
 		// No dropouts anywhere in either output: every window keeps close to the
 		// source's own level (ffmpeg's sine peaks around 0.09, so this is relative).
@@ -488,6 +501,24 @@ test.describe("video speed page", () => {
 		// Regression: without an explicit maxSize the dropzone falls back to 100MB and
 		// turns away ordinary recordings. Every other video route passes this through.
 		await expect(page.getByText(/Max 2048MB/)).toBeVisible();
+	});
+
+	test("offers the pitch toggle, on by default", async ({ page }) => {
+		await onApp(page);
+		const chooser = page.waitForEvent("filechooser");
+		await page
+			.getByText(/drop|choose|browse|select/i)
+			.first()
+			.click();
+		await (await chooser).setFiles(mp4WithAudio("speed_ui.mp4", 48000, 3));
+
+		const toggle = page.getByRole("checkbox");
+		await expect(toggle).toBeVisible({ timeout: 15_000 });
+		// Preserving pitch is the default: a video sped up should sound faster, not
+		// higher, unless the user asks for the tape effect.
+		await expect(toggle).toBeChecked();
+		await toggle.uncheck();
+		await expect(toggle).not.toBeChecked();
 	});
 
 	test("processes a dropped file and shows the result player", async ({ page }) => {

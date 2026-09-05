@@ -47,6 +47,7 @@ function SpeedVideoPage() {
   const [file, setFile] = useState<File | null>(null);
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const [speed, setSpeed] = useState(2);
+  const [preservePitch, setPreservePitch] = useState(true);
   const [usedSpeed, setUsedSpeed] = useState(2);
   const [result, setResult] = useState<{ blob: Blob; filename: string } | null>(null);
 
@@ -54,11 +55,11 @@ function SpeedVideoPage() {
     useFileProcessing();
 
   const processFile = useCallback(
-    async (f: File, s: number) => {
+    async (f: File, s: number, keepPitch: boolean) => {
       if (!startProcessing()) return;
       setResult(null);
       try {
-        const r = await changeVideoSpeed(f, { speed: s }, (p) => setProgress(p * 100));
+        const r = await changeVideoSpeed(f, { speed: s, preservePitch: keepPitch }, (p) => setProgress(p * 100));
         setUsedSpeed(s);
         setResult(r);
       } catch (err) {
@@ -82,9 +83,9 @@ function SpeedVideoPage() {
       analyzeVideo(f)
         .then(setInfo)
         .catch(() => {});
-      if (isInstant) processFile(f, speed);
+      if (isInstant) processFile(f, speed, preservePitch);
     },
-    [isInstant, processFile, speed, clearError],
+    [isInstant, processFile, speed, preservePitch, clearError],
   );
 
   const handleDownload = useCallback(
@@ -188,6 +189,24 @@ function SpeedVideoPage() {
             </fieldset>
           )}
 
+          {!isProcessing && (
+            <label className="flex items-start gap-3 border-2 border-foreground p-3 cursor-pointer hover:bg-muted transition-colors">
+              <input
+                type="checkbox"
+                checked={preservePitch}
+                onChange={(e) => setPreservePitch(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-foreground shrink-0"
+              />
+              <span className="text-sm">
+                <span className="font-bold">Keep the original pitch</span>
+                <span className="block text-muted-foreground">
+                  Voices and music stay at their normal pitch. Uncheck for the tape effect, where speeding up sounds
+                  higher.
+                </span>
+              </span>
+            </label>
+          )}
+
           {duration > 0 && (
             <div className="bg-muted/50 border-2 border-foreground p-4">
               <div className="flex justify-between text-sm">
@@ -205,7 +224,7 @@ function SpeedVideoPage() {
 
           <button
             type="button"
-            onClick={() => processFile(file, speed)}
+            onClick={() => processFile(file, speed, preservePitch)}
             disabled={isProcessing}
             className="btn-primary w-full"
           >
