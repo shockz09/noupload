@@ -21,6 +21,7 @@ import {
   AudioResultView,
   ErrorBox,
   ProcessButton,
+  ProgressBar,
   VideoExtractionProgress,
 } from "@/components/audio/shared";
 import { SpeedIcon } from "@/components/icons/audio";
@@ -38,6 +39,8 @@ function SpeedAudioPage() {
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [usedSpeed, setUsedSpeed] = useState(1);
+  const [preservePitch, setPreservePitch] = useState(true);
+  const [progress, setProgress] = useState(0);
 
   // Use custom hooks
   const { url: audioUrl, setSource: setAudioSource, revoke: revokeAudio } = useObjectURL();
@@ -75,8 +78,9 @@ function SpeedAudioPage() {
     if (!file) return;
     if (!startProcessing()) return;
 
+    setProgress(0);
     try {
-      const processed = await changeSpeed(file, speed);
+      const processed = await changeSpeed(file, speed, { preservePitch, onProgress: setProgress });
       const baseName = getFileBaseName(file.name);
       setResult(processed, `${baseName}_${speed}x.wav`);
       setUsedSpeed(speed);
@@ -85,7 +89,7 @@ function SpeedAudioPage() {
     } finally {
       stopProcessing();
     }
-  }, [file, speed, startProcessing, setResult, setError, stopProcessing]);
+  }, [file, speed, preservePitch, startProcessing, setResult, setError, stopProcessing]);
 
   const handleStartOver = useCallback(() => {
     revokeAudio();
@@ -167,6 +171,22 @@ function SpeedAudioPage() {
             </div>
           </div>
 
+          <label className="flex items-start gap-3 border-2 border-foreground p-3 cursor-pointer hover:bg-muted transition-colors">
+            <input
+              type="checkbox"
+              checked={preservePitch}
+              onChange={(e) => setPreservePitch(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-foreground shrink-0"
+            />
+            <span className="text-sm">
+              <span className="font-bold">Keep the original pitch</span>
+              <span className="block text-muted-foreground">
+                Voices and music stay at their normal pitch. Uncheck for the tape effect, where speeding up sounds
+                higher.
+              </span>
+            </span>
+          </label>
+
           <div className="bg-muted/50 border-2 border-foreground p-4">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Original duration:</span>
@@ -179,6 +199,8 @@ function SpeedAudioPage() {
           </div>
 
           {error && <ErrorBox message={error} />}
+
+          {isProcessing && <ProgressBar progress={progress} label="Changing speed..." />}
 
           <ProcessButton
             onClick={handleProcess}

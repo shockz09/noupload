@@ -28,6 +28,43 @@ function createOutputFormat(format: AudioOutputFormat, mod: typeof import("media
   }
 }
 
+export const AUDIO_OUTPUT_FORMATS = Object.keys(FORMAT_CONFIGS) as AudioOutputFormat[];
+
+/**
+ * Which output formats this browser can actually encode, at the given bitrate.
+ *
+ * OGG/Opus needs native WebCodecs Opus and FLAC needs a native FLAC encoder —
+ * neither ships a polyfill here, so on some builds they simply aren't available.
+ * Pages should call this before rendering the format picker; otherwise the only
+ * way a user finds out is by picking a format and watching the convert fail.
+ */
+export async function getSupportedAudioFormats(bitrate = 192_000): Promise<AudioOutputFormat[]> {
+  const mod = await import("mediabunny");
+  const supported: AudioOutputFormat[] = [];
+
+  for (const format of AUDIO_OUTPUT_FORMATS) {
+    const config = FORMAT_CONFIGS[format];
+
+    // WAV is written by hand from the AudioBuffer — no encoder involved.
+    if (!config.codec) {
+      supported.push(format);
+      continue;
+    }
+
+    // Register the bundled polyfill first, same as convertAudio does, so a
+    // codec that only works via polyfill still counts as supported.
+    if (config.encoder) await registerAudioEncoders([config.encoder]);
+
+    const codec = config.codec as Parameters<typeof mod.canEncodeAudio>[0];
+    const isLossless = format === "flac";
+    if (await mod.canEncodeAudio(codec, isLossless ? {} : { bitrate })) {
+      supported.push(format);
+    }
+  }
+
+  return supported;
+}
+
 /**
  * Convert audio using:
  *   Web Audio API (decode any format) → encode to target
@@ -51,7 +88,7 @@ export async function convertAudio(
   // WAV: direct conversion, no mediabunny needed
   if (format === "wav") {
     onProgress?.(0.5);
-    const blob = audioBufferToWav(audioBuffer);
+    const blob = await audioBufferToWav(audioBuffer);
     onProgress?.(1);
     return { blob, filename: `${baseName}.wav` };
   }

@@ -1,5 +1,8 @@
 // Audio processing utilities - all client-side using Web Audio API
 
+import { timeStretchPlanes } from "./audio/time-stretch";
+import { createYielder } from "./yield";
+
 export interface AudioInfo {
   duration: number;
   sampleRate: number;
@@ -10,9 +13,17 @@ export interface AudioInfo {
 export async function loadAudioFile(file: File): Promise<AudioBuffer> {
   const arrayBuffer = await file.arrayBuffer();
   const audioContext = new AudioContext();
-  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-  await audioContext.close();
-  return audioBuffer;
+  try {
+    return await audioContext.decodeAudioData(arrayBuffer);
+  } catch (err) {
+    // decodeAudioData rejects with a bare DOMException that says nothing about
+    // which file failed — unhelpful on a page where several are queued.
+    throw new Error(`Could not read audio from "${file.name}". The file may be corrupt or in an unsupported format.`, {
+      cause: err,
+    });
+  } finally {
+    await audioContext.close();
+  }
 }
 
 // Load audio from URL into AudioBuffer
@@ -57,8 +68,18 @@ export async function getAudioInfo(file: File): Promise<AudioInfo> {
   };
 }
 
-// Convert AudioBuffer to WAV Blob
-export function audioBufferToWav(buffer: AudioBuffer): Blob {
+/** Frames interleaved between checks of the yield clock — well under a millisecond. */
+const WAV_CHUNK_FRAMES = 16384;
+
+/**
+ * Convert an AudioBuffer to a WAV Blob.
+ *
+ * Async because a long file is a lot of samples to write one at a time: half an hour
+ * of stereo is 160 million of them, and doing that in one go froze the page for
+ * three and a half seconds with nothing painted. Yielding between chunks keeps the
+ * page alive; a short file never reaches the interval and never pays for it.
+ */
+export async function audioBufferToWav(buffer: AudioBuffer, onProgress?: (progress: number) => void): Promise<Blob> {
   const numOfChan = buffer.numberOfChannels;
   const length = buffer.length * numOfChan * 2;
   const bufferOut = new ArrayBuffer(44 + length);
@@ -101,27 +122,47 @@ export function audioBufferToWav(buffer: AudioBuffer): Blob {
     channels.push(buffer.getChannelData(i));
   }
 
+  const yieldIfDue = createYielder();
   while (offset < buffer.length) {
-    for (let i = 0; i < numOfChan; i++) {
-      let sample = channels[i][offset];
-      sample = Math.max(-1, Math.min(1, sample));
-      sample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-      view.setInt16(pos, sample, true);
-      pos += 2;
+    const chunkEnd = Math.min(offset + WAV_CHUNK_FRAMES, buffer.length);
+    while (offset < chunkEnd) {
+      for (let i = 0; i < numOfChan; i++) {
+        let sample = channels[i][offset];
+        sample = Math.max(-1, Math.min(1, sample));
+        sample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+        view.setInt16(pos, sample, true);
+        pos += 2;
+      }
+      offset++;
     }
-    offset++;
+    if (await yieldIfDue()) onProgress?.(offset / buffer.length);
   }
+  onProgress?.(1);
 
   return new Blob([bufferOut], { type: "audio/wav" });
 }
 
 // Trim audio
 export async function trimAudio(file: File, startTime: number, endTime: number): Promise<Blob> {
+  if (!Number.isFinite(startTime) || startTime < 0) {
+    throw new Error("Trim start must be 0 or greater.");
+  }
+  if (!Number.isFinite(endTime) || endTime <= startTime) {
+    throw new Error("Trim end must be after start.");
+  }
+
   const buffer = await loadAudioFile(file);
   const sampleRate = buffer.sampleRate;
-  const startSample = Math.floor(startTime * sampleRate);
-  const endSample = Math.floor(endTime * sampleRate);
+  // Clamp to the buffer. Reading past the end used to hand back `undefined`,
+  // which lands in the Float32Array as NaN and then gets written out as
+  // silence — so trimming 0–10s of a 1s file produced a 10s file.
+  const startSample = Math.min(Math.floor(startTime * sampleRate), buffer.length);
+  const endSample = Math.min(Math.floor(endTime * sampleRate), buffer.length);
   const newLength = endSample - startSample;
+
+  if (newLength <= 0) {
+    throw new Error("Trim range falls outside the audio.");
+  }
 
   const audioContext = new AudioContext();
   try {
@@ -129,13 +170,10 @@ export async function trimAudio(file: File, startTime: number, endTime: number):
 
     for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
       const oldData = buffer.getChannelData(channel);
-      const newData = newBuffer.getChannelData(channel);
-      for (let i = 0; i < newLength; i++) {
-        newData[i] = oldData[startSample + i];
-      }
+      newBuffer.getChannelData(channel).set(oldData.subarray(startSample, endSample));
     }
 
-    return audioBufferToWav(newBuffer);
+    return await audioBufferToWav(newBuffer);
   } finally {
     await audioContext.close();
   }
@@ -156,37 +194,80 @@ export async function adjustVolume(file: File, volumeMultiplier: number): Promis
       }
     }
 
-    return audioBufferToWav(newBuffer);
+    return await audioBufferToWav(newBuffer);
   } finally {
     await audioContext.close();
   }
 }
 
-// Change speed (also changes pitch)
-export async function changeSpeed(file: File, speed: number): Promise<Blob> {
+/**
+ * Change how fast audio plays.
+ *
+ * By default the pitch is preserved: the timeline is stretched with WSOLA, so a
+ * sped-up voice stays the same voice instead of turning into a chipmunk. Pass
+ * `preservePitch: false` for the old tape-speed behaviour, where resampling drags
+ * every frequency along with the speed.
+ */
+export async function changeSpeed(
+  file: File,
+  speed: number,
+  options?: { preservePitch?: boolean; onProgress?: (progress: number) => void },
+): Promise<Blob> {
+  // Without this, speed 0 makes newLength Infinity and createBuffer throws a
+  // bare "Invalid buffer length" RangeError with no hint at the cause.
+  if (!Number.isFinite(speed) || speed <= 0) {
+    throw new Error("Playback speed must be greater than 0.");
+  }
+
+  const onProgress = options?.onProgress;
+  onProgress?.(0);
   const buffer = await loadAudioFile(file);
-  const newLength = Math.floor(buffer.length / speed);
   const audioContext = new AudioContext();
   try {
-    const newBuffer = audioContext.createBuffer(buffer.numberOfChannels, newLength, buffer.sampleRate);
-
-    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-      const oldData = buffer.getChannelData(channel);
-      const newData = newBuffer.getChannelData(channel);
-      for (let i = 0; i < newLength; i++) {
-        const oldIndex = i * speed;
-        const index0 = Math.floor(oldIndex);
-        const index1 = Math.min(index0 + 1, buffer.length - 1);
-        const frac = oldIndex - index0;
-        // Linear interpolation
-        newData[i] = oldData[index0] * (1 - frac) + oldData[index1] * frac;
-      }
+    if (options?.preservePitch === false) {
+      const resampled = resampleBuffer(audioContext, buffer, speed);
+      return await audioBufferToWav(resampled, (p) => onProgress?.(p));
     }
 
-    return audioBufferToWav(newBuffer);
+    // Shares of the bar. Measured on a 10-minute file: decode and encode are each
+    // about half the length of the stretch, so the bar keeps moving to the end
+    // instead of sitting at 100% through a second of encoding.
+    const DECODED = 0.2;
+    const STRETCHED = 0.75;
+    onProgress?.(DECODED);
+    const planes = await timeStretchPlanes(
+      Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel).slice()),
+      speed,
+      (p) => onProgress?.(DECODED + p * (STRETCHED - DECODED)),
+    );
+    const stretched = audioContext.createBuffer(buffer.numberOfChannels, planes[0].length, buffer.sampleRate);
+    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+      stretched.getChannelData(channel).set(planes[channel]);
+    }
+    return await audioBufferToWav(stretched, (p) => onProgress?.(STRETCHED + p * (1 - STRETCHED)));
   } finally {
     await audioContext.close();
   }
+}
+
+/** Tape-speed resampling: shorter (or longer) and pitch-shifted with it. */
+function resampleBuffer(audioContext: AudioContext, buffer: AudioBuffer, speed: number): AudioBuffer {
+  const newLength = Math.floor(buffer.length / speed);
+  const newBuffer = audioContext.createBuffer(buffer.numberOfChannels, newLength, buffer.sampleRate);
+
+  for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+    const oldData = buffer.getChannelData(channel);
+    const newData = newBuffer.getChannelData(channel);
+    for (let i = 0; i < newLength; i++) {
+      const oldIndex = i * speed;
+      const index0 = Math.floor(oldIndex);
+      const index1 = Math.min(index0 + 1, buffer.length - 1);
+      const frac = oldIndex - index0;
+      // Linear interpolation
+      newData[i] = oldData[index0] * (1 - frac) + oldData[index1] * frac;
+    }
+  }
+  return newBuffer;
 }
 
 // Apply fade in/out
@@ -221,7 +302,7 @@ export async function applyFade(file: File, fadeInDuration: number, fadeOutDurat
       }
     }
 
-    return audioBufferToWav(newBuffer);
+    return await audioBufferToWav(newBuffer);
   } finally {
     await audioContext.close();
   }
@@ -242,7 +323,7 @@ export async function reverseAudio(file: File): Promise<Blob> {
       }
     }
 
-    return audioBufferToWav(newBuffer);
+    return await audioBufferToWav(newBuffer);
   } finally {
     await audioContext.close();
   }
@@ -417,7 +498,7 @@ export async function convertAudioFormat(
 
   switch (outputFormat) {
     case "wav":
-      return audioBufferToWav(buffer);
+      return await audioBufferToWav(buffer);
     case "mp3":
       return audioBufferToMp3(buffer, options?.bitrate || 128);
     default:
