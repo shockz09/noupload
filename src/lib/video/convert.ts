@@ -1,4 +1,5 @@
-import { audioOptionsFor, createInput, getBaseName } from "./utils";
+import { assertAudioDecodable, assertAudioNotDiscarded, audioOptionsFor } from "./audio-support";
+import { createInput, getBaseName } from "./utils";
 
 export type OutputFormat = "mp4" | "webm" | "mov" | "mkv";
 
@@ -31,6 +32,8 @@ export async function convertVideo(
 
     const output = new Output({ format: outputFormat, target: new BufferTarget() });
 
+    await assertAudioDecodable(input);
+
     const conversion = await Conversion.init(
       format === "webm"
         ? { input, output, video: { codec: "vp9" }, audio: { codec: "opus" }, showWarnings: false }
@@ -54,12 +57,7 @@ export async function convertVideo(
       );
     }
 
-    const droppedAudio = conversion.discardedTracks.find((t) => t.track.type === "audio");
-    if (droppedAudio) {
-      throw new Error(
-        `Cannot keep the audio track (${droppedAudio.track.codec ?? "unknown codec"}) in ${format.toUpperCase()} — your browser can't decode or re-encode it. Try Chrome or Edge.`,
-      );
-    }
+    assertAudioNotDiscarded(conversion, format.toUpperCase());
 
     if (onProgress) conversion.onProgress = onProgress;
     await conversion.execute();

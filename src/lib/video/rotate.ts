@@ -1,4 +1,5 @@
-import { audioOptionsFor, createInput, getBaseName } from "./utils";
+import { assertAudioDecodable, assertAudioNotDiscarded, audioOptionsFor } from "./audio-support";
+import { createInput, getBaseName } from "./utils";
 
 export type RotationAngle = 90 | 180 | 270;
 
@@ -17,6 +18,8 @@ export async function rotateVideo(
       target: new BufferTarget(),
     });
 
+    await assertAudioDecodable(input);
+
     const conversion = await Conversion.init({
       input,
       output,
@@ -28,6 +31,8 @@ export async function rotateVideo(
     if (!conversion.isValid) {
       throw new Error("Cannot rotate — your browser doesn't support video encoding. Try Chrome or Edge.");
     }
+
+    assertAudioNotDiscarded(conversion);
 
     if (onProgress) conversion.onProgress = onProgress;
     await conversion.execute();

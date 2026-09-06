@@ -10,6 +10,7 @@
 // behaviour as the audio Speed tool, pitch included — and re-encoded to AAC.
 
 import type { InputAudioTrack, InputVideoTrack, Mp4OutputFormat } from "mediabunny";
+import { assertAudioDecodable } from "./audio-support";
 import { createInput, getBaseName } from "./utils";
 
 type MediabunnyMod = typeof import("mediabunny");
@@ -563,8 +564,6 @@ export async function changeVideoSpeed(
       throw new Error("Could not determine the video's duration.");
     }
 
-    // Audio needs a decoder as well as an encoder; an undecodable track is
-    // dropped rather than failing the whole job.
     // Real files — macOS screen recordings especially — carry pre-roll packets at
     // negative timestamps that an edit list hides from playback. The raw packet sink
     // hands those out as-is, and the muxer rejects a negative timestamp outright,
@@ -578,7 +577,10 @@ export async function changeVideoSpeed(
     // samples already start at zero — shifting those would move the whole track.
     const startShift = canCopyThrough ? Math.min(0, videoFirstTs) : 0;
 
-    const useAudio = !!audioTrack && (await audioTrack.canDecode());
+    // A track this browser can't decode used to be dropped here, which handed back a
+    // silent video and said nothing. Refusing is the honest answer.
+    await assertAudioDecodable(input);
+    const useAudio = !!audioTrack;
 
     const audioChannels = audioTrack?.numberOfChannels || 2;
     const audioEncoding =

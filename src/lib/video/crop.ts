@@ -1,4 +1,5 @@
-import { audioOptionsFor, createInput, getBaseName } from "./utils";
+import { assertAudioDecodable, assertAudioNotDiscarded, audioOptionsFor } from "./audio-support";
+import { createInput, getBaseName } from "./utils";
 
 export interface CropRegion {
   left: number;
@@ -22,6 +23,8 @@ export async function cropVideo(
       target: new BufferTarget(),
     });
 
+    await assertAudioDecodable(input);
+
     const conversion = await Conversion.init({
       input,
       output,
@@ -33,6 +36,8 @@ export async function cropVideo(
     if (!conversion.isValid) {
       throw new Error("Cannot crop — your browser doesn't support video encoding. Try Chrome or Edge.");
     }
+
+    assertAudioNotDiscarded(conversion);
 
     if (onProgress) conversion.onProgress = onProgress;
     await conversion.execute();

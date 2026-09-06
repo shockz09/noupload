@@ -1,6 +1,7 @@
 // Video compression using Mediabunny (WebCodecs)
 
-import { createInput, ensureAacEncoder, getBaseName } from "./utils";
+import { assertAudioDecodable, assertAudioNotDiscarded, ensureAacEncoder } from "./audio-support";
+import { createInput, getBaseName } from "./utils";
 
 export interface VideoInfo {
   duration: number;
@@ -115,6 +116,8 @@ export async function compressVideo(
     if (targetHeight) videoOpts.height = targetHeight;
     if (options.frameRate) videoOpts.frameRate = options.frameRate;
 
+    await assertAudioDecodable(input);
+
     const conversion = await Conversion.init({
       input,
       output,
@@ -128,6 +131,8 @@ export async function compressVideo(
         "Cannot compress this video — your browser doesn't support encoding the required codecs. Try Chrome or Edge.",
       );
     }
+
+    assertAudioNotDiscarded(conversion);
 
     if (onProgress) conversion.onProgress = onProgress;
     await conversion.execute();

@@ -1,4 +1,5 @@
-import { audioOptionsFor, createInput, getBaseName } from "./utils";
+import { assertAudioDecodable, assertAudioNotDiscarded, audioOptionsFor } from "./audio-support";
+import { createInput, getBaseName } from "./utils";
 
 export interface TrimOptions {
   start: number;
@@ -41,6 +42,8 @@ export async function trimVideo(
       target: new BufferTarget(),
     });
 
+    await assertAudioDecodable(input);
+
     const conversion = await Conversion.init({
       input,
       output,
@@ -51,6 +54,8 @@ export async function trimVideo(
     if (!conversion.isValid) {
       throw new Error("Cannot trim — your browser doesn't support video encoding. Try Chrome or Edge.");
     }
+
+    assertAudioNotDiscarded(conversion);
 
     if (onProgress) conversion.onProgress = onProgress;
     await conversion.execute();
@@ -109,9 +114,7 @@ export async function trimVideoRanges(
   }
 
   // Video: use source codec if encodable, otherwise fall back to H.264
-  const videoCodec = (await mod.canEncodeVideo(sourceVideoCodec))
-    ? sourceVideoCodec
-    : "avc" as const;
+  const videoCodec = (await mod.canEncodeVideo(sourceVideoCodec)) ? sourceVideoCodec : ("avc" as const);
 
   // Audio: use source codec if encodable, otherwise fall back to AAC
   let audioCodec = sourceAudioCodec;
@@ -141,9 +144,7 @@ export async function trimVideoRanges(
     codec: videoCodec,
     bitrate: QUALITY_MEDIUM,
   });
-  const audioSource = audioTrack && audioCodec
-    ? new AudioSampleSource({ codec: audioCodec, bitrate: 192_000 })
-    : null;
+  const audioSource = audioTrack && audioCodec ? new AudioSampleSource({ codec: audioCodec, bitrate: 192_000 }) : null;
 
   // Output
   const output = new Output({
@@ -167,7 +168,7 @@ export async function trimVideoRanges(
     // Video frames
     for await (const sample of videoSink.samples(range.start, range.end)) {
       const originalPts = sample.timestamp;
-      const adjustedPts = Math.max(0, (originalPts - range.start) + timeOffset);
+      const adjustedPts = Math.max(0, originalPts - range.start + timeOffset);
       sample.setTimestamp(adjustedPts);
       await videoSource.add(sample);
       sample.close();
@@ -179,7 +180,7 @@ export async function trimVideoRanges(
     // Audio samples
     if (audioSink && audioSource) {
       for await (const sample of audioSink.samples(range.start, range.end)) {
-        const adjustedPts = Math.max(0, (sample.timestamp - range.start) + timeOffset);
+        const adjustedPts = Math.max(0, sample.timestamp - range.start + timeOffset);
         sample.setTimestamp(adjustedPts);
         await audioSource.add(sample);
         sample.close();
