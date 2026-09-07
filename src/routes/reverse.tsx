@@ -36,7 +36,7 @@ function ReversePage() {
   const [pageCount, setPageCount] = useState<number>(0);
 
   // Use custom hook for processing state
-  const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
+  const { isProcessing, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
     useFileProcessing();
 
   const processFile = useCallback(

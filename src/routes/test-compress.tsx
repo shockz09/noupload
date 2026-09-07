@@ -255,7 +255,7 @@ function TestCompress() {
 
         {/* Resolution */}
         <div>
-          <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 8 }}>Resolution</label>
+          <div style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 8 }}>Resolution</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {availableResolutions.map(([key, val]) => (
               <button
@@ -278,7 +278,7 @@ function TestCompress() {
 
         {/* Codec */}
         <div>
-          <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 8 }}>Codec</label>
+          <div style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 8 }}>Codec</div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" onClick={() => setCodec("avc")} style={btnStyle(codec === "avc")}>
               H.264 (universal)
@@ -297,7 +297,7 @@ function TestCompress() {
         {/* Frame rate */}
         {videoInfo && videoInfo.fps > 30 && (
           <div>
-            <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 8 }}>Frame Rate</label>
+            <div style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 8 }}>Frame Rate</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button type="button" onClick={() => setFrameRate("original")} style={btnStyle(frameRate === "original")}>
                 Original ({videoInfo.fps.toFixed(0)} fps)
@@ -314,10 +314,11 @@ function TestCompress() {
 
         {/* Bitrate slider */}
         <div>
-          <label style={{ fontWeight: 600, fontSize: 14 }}>
+          <label htmlFor="video-bitrate" style={{ fontWeight: 600, fontSize: 14 }}>
             Video bitrate: {bitrateKbps} kbps ({(targetBitrate / 1_000_000).toFixed(1)} Mbps)
           </label>
           <input
+            id="video-bitrate"
             type="range"
             min={videoInfo ? Math.max(100_000, Math.round(videoInfo.videoBitrate * 0.05)) : 500_000}
             max={videoInfo ? Math.round(videoInfo.videoBitrate * 0.95) : 10_000_000}
@@ -339,7 +340,7 @@ function TestCompress() {
 
         {/* Audio bitrate */}
         <div>
-          <label style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 8 }}>Audio bitrate</label>
+          <div style={{ fontWeight: 600, fontSize: 14, display: "block", marginBottom: 8 }}>Audio bitrate</div>
           <div style={{ display: "flex", gap: 8 }}>
             {[
               { value: 64_000, label: "64 kbps" },

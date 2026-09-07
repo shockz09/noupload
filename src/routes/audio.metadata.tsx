@@ -13,7 +13,7 @@ export const Route = createFileRoute("/audio/metadata")({
 	component: AudioMetadataPage,
 });
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 // jsmediatags is dynamically imported to avoid react-native-fs SSR error
 import { AudioFileInfo, AudioPageHeader, AudioResultView } from "@/components/audio/shared";
 import { MusicTagIcon } from "@/components/icons/audio";
@@ -127,12 +127,6 @@ function AudioMetadataPage() {
     },
     [clearResult],
   );
-
-  const hasChanges = useMemo(() => {
-    return (Object.keys(originalTags) as (keyof AudioMetadata)[]).some(
-      (key) => metadata[key] !== originalTags[key],
-    );
-  }, [metadata, originalTags]);
 
   const hasContent = metadata.title || metadata.artist || metadata.album;
 

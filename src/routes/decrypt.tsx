@@ -37,7 +37,7 @@ function DecryptPage() {
   const [localError, setLocalError] = useState<string | null>(null);
   const processingRef = useRef(false);
 
-  const { decrypt, isProcessing, progress, error: qpdfError, clearError } = useQpdf();
+  const { decrypt, isProcessing, error: qpdfError, clearError } = useQpdf();
 
   const error = localError || qpdfError;
 

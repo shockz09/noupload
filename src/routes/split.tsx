@@ -35,7 +35,6 @@ function SplitPage() {
   const [file, setFile] = useState<File | null>(null);
   const [pageCount, setPageCount] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<SplitMode>("extract");
   const [extractInput, setExtractInput] = useState("");
@@ -108,7 +107,6 @@ function SplitPage() {
     if (!file) return;
 
     setIsProcessing(true);
-    setProgress(0);
     setError(null);
     setResult(null);
 
@@ -121,30 +119,24 @@ function SplitPage() {
         if (pages.length === 0) {
           throw new Error("Please enter valid page numbers");
         }
-        setProgress(30);
         const data = await extractPages(file, pages);
-        setProgress(90);
         resultFiles = [{ data, filename: `${baseName}_pages_${pages.join("-")}.pdf` }];
       } else if (mode === "range") {
         const ranges = parseRanges(rangeInput);
         if (ranges.length === 0) {
           throw new Error("Please enter valid page ranges");
         }
-        setProgress(30);
         const results = await splitPDF(file, ranges);
-        setProgress(90);
         resultFiles = results.map((data, i) => ({
           data,
           filename: `${baseName}_part${i + 1}.pdf`,
         }));
       } else if (mode === "each") {
-        setProgress(10);
         const ranges = Array.from({ length: pageCount }, (_, i) => ({
           start: i,
           end: i,
         }));
         const results = await splitPDF(file, ranges);
-        setProgress(90);
         resultFiles = results.map((data, i) => ({
           data,
           filename: `${baseName}_page${i + 1}.pdf`,
@@ -152,7 +144,6 @@ function SplitPage() {
       }
 
       setResult({ files: resultFiles, mode });
-      setProgress(100);
     } catch (err) {
       setError(getErrorMessage(err, "Failed to split PDF"));
     } finally {
@@ -181,7 +172,6 @@ function SplitPage() {
     setPageCount(0);
     setResult(null);
     setError(null);
-    setProgress(0);
     setExtractInput("");
     setRangeInput("");
   }, []);

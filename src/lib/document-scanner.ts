@@ -256,7 +256,7 @@ function cannyEdgeDetection(
       const angle = direction[idx];
       
       // Quantize angle to 4 directions: 0°, 45°, 90°, 135°
-      let angleDeg = (angle * 180 / Math.PI + 180) % 180;
+      const angleDeg = (angle * 180 / Math.PI + 180) % 180;
       let neighbors: [number, number];
       
       if ((angleDeg >= 0 && angleDeg < 22.5) || (angleDeg >= 157.5 && angleDeg < 180)) {
@@ -379,7 +379,7 @@ function calculatePerimeter(points: Point[]): number {
   for (let i = 0; i < points.length; i++) {
     const p1 = points[i];
     const p2 = points[(i + 1) % points.length];
-    perimeter += Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    perimeter += Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
   }
   
   return perimeter;
@@ -478,7 +478,7 @@ function pointLineDistance(point: Point, lineStart: Point, lineEnd: Point): numb
   const dy = lineEnd.y - lineStart.y;
   const len2 = dx * dx + dy * dy;
   
-  if (len2 === 0) return Math.sqrt(Math.pow(point.x - lineStart.x, 2) + Math.pow(point.y - lineStart.y, 2));
+  if (len2 === 0) return Math.sqrt((point.x - lineStart.x) ** 2 + (point.y - lineStart.y) ** 2);
   
   let t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / len2;
   t = Math.max(0, Math.min(1, t));
@@ -486,7 +486,7 @@ function pointLineDistance(point: Point, lineStart: Point, lineEnd: Point): numb
   const projX = lineStart.x + t * dx;
   const projY = lineStart.y + t * dy;
   
-  return Math.sqrt(Math.pow(point.x - projX, 2) + Math.pow(point.y - projY, 2));
+  return Math.sqrt((point.x - projX) ** 2 + (point.y - projY) ** 2);
 }
 
 /**
@@ -496,8 +496,8 @@ function calculateAspectRatio(corners: Point[]): number {
   if (corners.length !== 4) return 1;
   
   // Calculate distances between consecutive corners
-  const d1 = Math.sqrt(Math.pow(corners[1].x - corners[0].x, 2) + Math.pow(corners[1].y - corners[0].y, 2));
-  const d2 = Math.sqrt(Math.pow(corners[2].x - corners[1].x, 2) + Math.pow(corners[2].y - corners[1].y, 2));
+  const d1 = Math.sqrt((corners[1].x - corners[0].x) ** 2 + (corners[1].y - corners[0].y) ** 2);
+  const d2 = Math.sqrt((corners[2].x - corners[1].x) ** 2 + (corners[2].y - corners[1].y) ** 2);
   
   return Math.max(d1, d2) / Math.min(d1, d2);
 }

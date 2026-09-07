@@ -38,7 +38,7 @@ function MergePage() {
   const [files, setFiles] = useState<FileItem[]>([]);
 
   // Use custom hooks
-  const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError } = useFileProcessing();
+  const { isProcessing, error, startProcessing, stopProcessing, setProgress, setError } = useFileProcessing();
   const { result, setResult, clearResult, download } = usePdfDataResult<MergeMetadata>();
 
   const handleFilesSelected = useCallback(

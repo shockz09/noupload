@@ -56,7 +56,7 @@ function CollagePage() {
 
   const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError } = useFileProcessing();
   const { result, setResult, clearResult, download } = useProcessingResult();
-  const { url: previewUrl, setSource: setPreviewSource, revoke: revokePreview } = useObjectURL();
+  const { setSource: setPreviewSource, revoke: revokePreview } = useObjectURL();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const columns = useMemo(() => {

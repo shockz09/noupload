@@ -1,6 +1,5 @@
-import { Link } from "@tanstack/react-router";
 import { memo, useEffect, useRef, type ReactNode } from "react";
-import { AlertIcon, ArrowLeftIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
+import { AlertIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { useDock } from "@/components/shared/DockToggle";
 import { BackButton } from "./BackButton";
 

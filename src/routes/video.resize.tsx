@@ -20,7 +20,6 @@ import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } fr
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
-import { formatFileSize } from "@/lib/utils";
 import { analyzeVideo, type VideoInfo } from "@/lib/video/compress";
 import { resizeVideo } from "@/lib/video/resize";
 import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";

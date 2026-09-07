@@ -41,7 +41,7 @@ function EncryptPage() {
   const [localError, setLocalError] = useState<string | null>(null);
   const processingRef = useRef(false);
 
-  const { encrypt, isProcessing, progress, error: qpdfError, clearError } = useQpdf();
+  const { encrypt, isProcessing, error: qpdfError, clearError } = useQpdf();
 
   const error = localError || qpdfError;
 

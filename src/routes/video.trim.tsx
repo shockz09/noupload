@@ -21,7 +21,6 @@ import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } fr
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
-import { formatFileSize } from "@/lib/utils";
 import { analyzeVideo, type VideoInfo } from "@/lib/video/compress";
 import { trimVideo, trimVideoRanges, type TimeRange } from "@/lib/video/trim";
 import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
@@ -518,7 +517,6 @@ function TrimVideoPage() {
   const hc = isRm ? "bg-red-500" : "bg-primary";
   const hch = isRm ? "hover:bg-red-500/80" : "hover:bg-primary/80";
   const bc = isRm ? "border-red-500" : "border-primary";
-  const tc = isRm ? "text-red-500" : "text-primary";
 
   // ── Render ────────────────────────────────────────────────
 
@@ -621,6 +619,9 @@ function TrimVideoPage() {
           {videoInfo && !isProcessing && (
             <div className="space-y-3">
               {/* Timeline */}
+              {/* biome-ignore lint/a11y/useKeyWithClickEvents: clicking the timeline seeks to a
+                  pointer coordinate, which has no key equivalent; ArrowLeft/ArrowRight already
+                  seek from the window-level shortcut handler above. */}
               <div
                 ref={tlRef}
                 className={`relative h-16 border-2 border-foreground select-none overflow-hidden ${
@@ -791,10 +792,20 @@ function TrimVideoPage() {
                   return (
                     <div key={r.id}>
                       <div
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={r.id === activeId}
                         className={`flex items-center gap-2 px-3 py-2 border-2 cursor-pointer transition-colors ${
                           r.id === activeId ? `${bc} bg-muted/40` : "border-foreground/20 hover:border-foreground/40"
                         }`}
                         onClick={() => {
+                          setActiveId(r.id);
+                          seekTo(r.start);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter" && e.key !== " ") return;
+                          if (e.target !== e.currentTarget) return;
+                          e.preventDefault();
                           setActiveId(r.id);
                           seekTo(r.start);
                         }}
@@ -855,9 +866,15 @@ function TrimVideoPage() {
                       {isExp && (
                         <div className="flex gap-2 px-3 py-2 border-x-2 border-b-2 border-foreground/20 bg-muted/20">
                           <div className="flex-1 space-y-0.5">
-                            <label className="text-[10px] font-bold text-muted-foreground uppercase">Start (s)</label>
+                            <label
+                              htmlFor={`trim-start-${r.id}`}
+                              className="text-[10px] font-bold text-muted-foreground uppercase"
+                            >
+                              Start (s)
+                            </label>
                             <div className="flex gap-1">
                               <input
+                                id={`trim-start-${r.id}`}
                                 type="number"
                                 min={0}
                                 max={r.end - 0.1}
@@ -866,7 +883,7 @@ function TrimVideoPage() {
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
                                   const v = Number(e.target.value);
-                                  if (!isNaN(v)) {
+                                  if (!Number.isNaN(v)) {
                                     const c = clamp(r.id, v, r.end);
                                     update(r.id, { start: c.start });
                                   }
@@ -888,9 +905,15 @@ function TrimVideoPage() {
                             </div>
                           </div>
                           <div className="flex-1 space-y-0.5">
-                            <label className="text-[10px] font-bold text-muted-foreground uppercase">End (s)</label>
+                            <label
+                              htmlFor={`trim-end-${r.id}`}
+                              className="text-[10px] font-bold text-muted-foreground uppercase"
+                            >
+                              End (s)
+                            </label>
                             <div className="flex gap-1">
                               <input
+                                id={`trim-end-${r.id}`}
                                 type="number"
                                 min={r.start + 0.1}
                                 max={Math.round(dur * 10) / 10}
@@ -899,7 +922,7 @@ function TrimVideoPage() {
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
                                   const v = Number(e.target.value);
-                                  if (!isNaN(v)) {
+                                  if (!Number.isNaN(v)) {
                                     const c = clamp(r.id, r.start, v);
                                     update(r.id, { end: c.end });
                                   }

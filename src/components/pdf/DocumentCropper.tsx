@@ -233,6 +233,7 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
           <>
             {/* SVG overlay for lines and dark area */}
             <svg
+              aria-hidden="true"
               className="absolute inset-0 pointer-events-none"
               style={{ width: containerSize.width, height: containerSize.height }}
             >
@@ -298,7 +299,7 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
             onClick={onRetake}
             className="flex items-center justify-center gap-2 px-6 h-12 border-2 border-foreground font-bold transition-all hover:bg-accent whitespace-nowrap"
           >
-            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg aria-hidden="true" className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="23 4 23 10 17 10" />
               <polyline points="1 20 1 14 7 14" />
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -312,7 +313,7 @@ export function DocumentCropper({ imageSrc, detectedCorners, onConfirm, onRetake
             disabled={!isReady}
             className="flex items-center justify-center gap-2 px-6 h-12 bg-primary text-white border-2 border-foreground font-bold transition-all hover:opacity-90 whitespace-nowrap disabled:opacity-50"
           >
-            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg aria-hidden="true" className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             Confirm & Add

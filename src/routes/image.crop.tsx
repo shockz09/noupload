@@ -24,7 +24,6 @@ import {
   type CropArea,
   copyImageToClipboard,
   cropImage,
-  formatFileSize,
   getImageDimensions,
   getOutputFilename,
 } from "@/lib/image-utils";

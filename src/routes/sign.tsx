@@ -126,16 +126,14 @@ function SignPage() {
   }, []);
 
   // Click on page background → drop a new signature centered at the click
-  const handlePageClick = useCallback(
-    (pageNumber: number, e: React.MouseEvent) => {
+  // Drop a signature centred on the given point (percentages within the page).
+  const placeSignature = useCallback(
+    (pageNumber: number, xPct: number, yPct: number) => {
       if (!signatureDataUrl) return;
-      // Don't place if we just finished dragging
-      if (dragRef.current) return;
 
       const pageEl = pageRefs.current.get(pageNumber);
       if (!pageEl) return;
 
-      const { xPct, yPct } = getPctFromEvent(pageEl, e.clientX, e.clientY);
       const w = DEFAULT_WIDTH_PCT;
       const heightPct = getHeightPct(w, pageEl.offsetWidth, pageEl.offsetHeight);
 
@@ -150,7 +148,32 @@ function SignPage() {
       setPlacements((prev) => [...prev, placement]);
       setSelectedId(placement.id);
     },
-    [signatureDataUrl, getHeightPct, getPctFromEvent, nextId],
+    [signatureDataUrl, getHeightPct, nextId],
+  );
+
+  const handlePageClick = useCallback(
+    (pageNumber: number, e: React.MouseEvent) => {
+      // Don't place if we just finished dragging
+      if (dragRef.current) return;
+
+      const pageEl = pageRefs.current.get(pageNumber);
+      if (!pageEl) return;
+
+      const { xPct, yPct } = getPctFromEvent(pageEl, e.clientX, e.clientY);
+      placeSignature(pageNumber, xPct, yPct);
+    },
+    [getPctFromEvent, placeSignature],
+  );
+
+  // Keyboard equivalent: place in the middle of the page, then arrow keys/drag adjust.
+  const handlePageKeyDown = useCallback(
+    (pageNumber: number, e: React.KeyboardEvent) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      if (e.target !== e.currentTarget) return;
+      e.preventDefault();
+      placeSignature(pageNumber, 50, 50);
+    },
+    [placeSignature],
   );
 
   // Start moving or resizing one placement
@@ -432,7 +455,7 @@ function SignPage() {
                           else pageRefs.current.delete(page.pageNumber);
                         }}
                         role="application"
-                        aria-label={`Page ${page.pageNumber} — click to place signature`}
+                        aria-label={`Page ${page.pageNumber} — click, or press Enter, to place signature`}
                         className={`relative border-2 bg-white select-none overflow-hidden transition-all ${
                           signatureDataUrl ? "cursor-crosshair" : "cursor-not-allowed opacity-75"
                         } ${
@@ -440,7 +463,9 @@ function SignPage() {
                             ? "border-primary ring-2 ring-primary/30"
                             : "border-foreground hover:border-primary/50"
                         }`}
+                        tabIndex={signatureDataUrl ? 0 : -1}
                         onClick={(e) => handlePageClick(page.pageNumber, e)}
+                        onKeyDown={(e) => handlePageKeyDown(page.pageNumber, e)}
                       >
                         <img
                           src={page.dataUrl}

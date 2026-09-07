@@ -233,9 +233,14 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
             onMouseEnter={() => setShowVolume(true)}
             onMouseLeave={() => setShowVolume(false)}
           >
-            <button type="button" onClick={toggleMute} className="text-white hover:text-white/80 p-0.5">
+            <button
+              type="button"
+              onClick={toggleMute}
+              aria-label={muted || volume === 0 ? "Unmute" : "Mute"}
+              className="text-white hover:text-white/80 p-0.5"
+            >
               {muted || volume === 0 ? (
-                <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden="true" className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                   <line x1="23" y1="9" x2="17" y2="15" />
                   <line x1="17" y1="9" x2="23" y2="15" />
@@ -298,8 +303,13 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
           </div>
 
           {/* Fullscreen */}
-          <button type="button" onClick={toggleFullscreen} className="text-white hover:text-white/80 p-0.5">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            aria-label="Toggle fullscreen"
+            className="text-white hover:text-white/80 p-0.5"
+          >
+            <svg aria-hidden="true" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 3 21 3 21 9" />
               <polyline points="9 21 3 21 3 15" />
               <line x1="21" y1="3" x2="14" y2="10" />

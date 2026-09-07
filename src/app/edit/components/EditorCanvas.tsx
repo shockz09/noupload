@@ -104,7 +104,7 @@ export function EditorCanvas({
   const fabricInstanceRef = useRef<any>(null);
 
   // Text extraction for click-to-edit
-  const { regions: textRegions, isExtracting: isExtractingText } = useTextExtraction({
+  const { regions: textRegions } = useTextExtraction({
     file,
     pageNumber: currentPage,
     zoom,
