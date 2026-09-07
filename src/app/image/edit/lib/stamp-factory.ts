@@ -7,7 +7,6 @@ import {
 } from "./image-editor-objects";
 
 interface StampResult {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   group: any;
   radius: number;
 }
@@ -28,7 +27,6 @@ async function createCircleStamp(
   const text = stamp.text.toUpperCase();
   const radius = 80;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const elements: any[] = [];
 
   // Serrated outer edge

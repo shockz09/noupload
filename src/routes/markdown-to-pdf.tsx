@@ -905,7 +905,6 @@ function MarkdownToPdfPage() {
       };
 
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (html2pdf as any)(container, opt);
       } finally {
         // Always cleanup

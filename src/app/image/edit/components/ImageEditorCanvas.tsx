@@ -73,15 +73,12 @@ export function ImageEditorCanvas({
   const imgCanvasRef = useRef<HTMLCanvasElement>(null);
   const fabricWrapperRef = useRef<HTMLDivElement>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fabricInstanceRef = useRef<any>(null);
 
   const [displayWidth, setDisplayWidth] = useState(0);
   const [displayHeight, setDisplayHeight] = useState(0);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedObject, setSelectedObject] = useState<any>(null);
   const [selectedObjectPos, setSelectedObjectPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -95,7 +92,6 @@ export function ImageEditorCanvas({
   // For shape drawing
   const isDrawingShapeRef = useRef(false);
   const shapeStartRef = useRef<{ x: number; y: number } | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentShapeRef = useRef<any>(null);
 
   // For eraser dragging
@@ -119,9 +115,7 @@ export function ImageEditorCanvas({
     if (!fabricCanvas) return;
     const records = fabricCanvas
       .getObjects()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((obj: any) => !obj.editorHelper)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((obj: any, index: number) => fabricObjectToRecord(obj, 1, zoom, index));
     onObjectsChange(records);
   }, [fabricCanvas, onObjectsChange, zoom]);
@@ -194,7 +188,6 @@ export function ImageEditorCanvas({
   // ──────────────────────────────────────────────
 
   const updateSelectionPos = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (obj: any) => {
       if (!obj) {
         setSelectedObjectPos(null);
@@ -252,7 +245,6 @@ export function ImageEditorCanvas({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file]);
 
   // ──────────────────────────────────────────────
@@ -295,7 +287,6 @@ export function ImageEditorCanvas({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedImage, zoom]);
 
   // ──────────────────────────────────────────────
@@ -346,9 +337,7 @@ export function ImageEditorCanvas({
       setSelectedObject(null);
       setSelectedObjectPos(null);
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     canvas.on("object:moving", (e: any) => updateSelectionPos(e.target));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     canvas.on("object:scaling", (e: any) => updateSelectionPos(e.target));
 
     // Restore saved objects
@@ -385,10 +374,8 @@ export function ImageEditorCanvas({
   useEffect(() => {
     if (!fabricCanvas) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleModified = (event: any) => {
       const target = event?.target;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const helper = target?.arrowHelper as any;
       if (target?.editorKind === "arrow" && helper) {
         const angle = Math.atan2(target.y2 - target.y1, target.x2 - target.x1);
@@ -418,7 +405,6 @@ export function ImageEditorCanvas({
   useEffect(() => {
     if (!fabricCanvas) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handlePathCreated = (event: any) => {
       if (event?.path) {
         attachEditorMetadata(event.path, {
@@ -491,7 +477,6 @@ export function ImageEditorCanvas({
       saveHistory();
       saveObjects();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fontSize, strokeColor, fillColor, drawWidth]);
 
   // ──────────────────────────────────────────────
@@ -510,7 +495,6 @@ export function ImageEditorCanvas({
     if (activeTool === "select") {
       fabricCanvas.selection = true;
       fabricCanvas.hoverCursor = "move";
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       fabricCanvas.getObjects().forEach((obj: any) => {
         obj.selectable = true;
         obj.evented = true;
@@ -528,7 +512,6 @@ export function ImageEditorCanvas({
     } else if (activeTool === "eraser") {
       fabricCanvas.defaultCursor = "crosshair";
       fabricCanvas.hoverCursor = "pointer";
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       fabricCanvas.getObjects().forEach((obj: any) => {
         obj.selectable = false;
         obj.evented = true;
@@ -548,7 +531,6 @@ export function ImageEditorCanvas({
   useEffect(() => {
     if (!fabricCanvas) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleMouseDown = async (opt: any) => {
       const pointer = opt.pointer;
 
@@ -640,7 +622,6 @@ export function ImageEditorCanvas({
       }
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleMouseMove = (opt: any) => {
       // Eraser drag
       if (isErasingRef.current && activeTool === "eraser") {
@@ -733,9 +714,7 @@ export function ImageEditorCanvas({
           selectable: false,
           evented: false,
         });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (arrowHead as any).editorHelper = true;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (line as any).arrowHelper = arrowHead;
         fabricCanvas.add(arrowHead);
       }
@@ -748,7 +727,6 @@ export function ImageEditorCanvas({
     };
 
     // Remove empty textboxes on editing exit
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleTextEditingExited = (e: any) => {
       const target = e?.target;
       if (target && typeof target.text === "string" && target.text.trim() === "") {
@@ -823,7 +801,6 @@ export function ImageEditorCanvas({
   const deleteSelectedObjects = useCallback(() => {
     if (!fabricCanvas) return;
     const activeObjects = fabricCanvas.getActiveObjects();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     activeObjects.forEach((obj: any) => {
       if (obj.arrowHelper) fabricCanvas.remove(obj.arrowHelper);
       fabricCanvas.remove(obj);

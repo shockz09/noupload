@@ -106,7 +106,6 @@ function rgbToHex(r: number, g: number, b: number): string {
  * Extract text colors from operatorList
  */
 async function extractTextColors(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
 ): Promise<Map<number, string>> {
   const colorMap = new Map<number, string>();
@@ -162,7 +161,6 @@ async function extractNativeText(file: File, pageNumber: number, scale: number):
 }
 
 async function extractNativeTextWithPdfjs(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
   pageNumber: number,
   scale: number,
@@ -171,7 +169,6 @@ async function extractNativeTextWithPdfjs(
   const viewport = page.getViewport({ scale });
   const textContent = await page.getTextContent();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const styles =
     ((textContent as any).styles as Record<
       string,
@@ -231,7 +228,6 @@ async function extractNativeTextWithPdfjs(
 }
 
 function resolvePdfjsFontInfo(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
   internalFontName: string,
   styleFontFamily: string,
@@ -240,7 +236,6 @@ function resolvePdfjsFontInfo(
   fontWeight: string;
   fontStyle: string;
 } {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fontObject: any | null = page?.commonObjs?.has?.(internalFontName) ? page.commonObjs.get(internalFontName) : null;
   const actualFontName =
     fontObject?.name ||
@@ -284,7 +279,6 @@ async function extractOCRText(file: File, pageNumber: number, targetScale: numbe
   await page.render({
     canvasContext: ctx,
     viewport,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any).promise;
 
   const blob = await new Promise<Blob>((resolve) => {
@@ -297,7 +291,6 @@ async function extractOCRText(file: File, pageNumber: number, targetScale: numbe
   await worker.terminate();
 
   const regions: TextRegion[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = result.data as any;
 
   const scaleFactor = targetScale / ocrRenderScale;

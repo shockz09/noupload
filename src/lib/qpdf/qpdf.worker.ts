@@ -75,7 +75,6 @@ async function initQpdf(): Promise<void> {
       );
 
       // Create a function that executes the script and returns init
-      // eslint-disable-next-line @typescript-eslint/no-implied-eval
       const getInit = new Function(`${scriptText}; return init;`);
       const createModule = getInit() as (options?: Record<string, unknown>) => Promise<QpdfModule>;
 

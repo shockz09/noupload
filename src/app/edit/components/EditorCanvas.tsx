@@ -84,13 +84,10 @@ export function EditorCanvas({
   const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
   const fabricWrapperRef = useRef<HTMLDivElement>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pdfDoc, setPdfDoc] = useState<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedObject, setSelectedObject] = useState<any>(null);
 
   // History for undo/redo
@@ -103,9 +100,7 @@ export function EditorCanvas({
   // For shape drawing
   const isDrawingShapeRef = useRef(false);
   const shapeStartRef = useRef<{ x: number; y: number } | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentShapeRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fabricInstanceRef = useRef<any>(null);
 
   // Text extraction for click-to-edit
@@ -133,7 +128,6 @@ export function EditorCanvas({
     if (!fabricCanvas || !onObjectsChange) return;
     const objects = fabricCanvas
       .getObjects()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((obj: any) => !obj.editorHelper)
       .map((obj: unknown, index: number) => fabricObjectToRecord(obj, currentPage, zoom, index));
     onObjectsChange(currentPage, objects);
@@ -472,7 +466,6 @@ export function EditorCanvas({
       return null;
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleMouseDown = async (opt: any) => {
       const pointer = opt.pointer;
 
@@ -566,7 +559,6 @@ export function EditorCanvas({
           activeTool === "whiteout" ||
           activeTool === "redact"
         ) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           let fill: any = fillColor;
           let stroke = strokeColor;
           let opacity = 1;
@@ -651,7 +643,6 @@ export function EditorCanvas({
       }
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleMouseMove = (opt: any) => {
       if (!isDrawingShapeRef.current || !shapeStartRef.current || !currentShapeRef.current) return;
 
@@ -731,9 +722,7 @@ export function EditorCanvas({
           selectable: false,
           evented: false,
         });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (arrowHead as any).editorHelper = true;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (line as any).arrowHelper = arrowHead;
         fabricCanvas.add(arrowHead);
       }
@@ -825,10 +814,8 @@ export function EditorCanvas({
   useEffect(() => {
     if (!fabricCanvas) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleModified = (event: any) => {
       const target = event?.target;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const helper = target?.arrowHelper as any;
       if (target?.editorKind === "arrow" && helper) {
         const angle = Math.atan2(target.y2 - target.y1, target.x2 - target.x1);
@@ -855,7 +842,6 @@ export function EditorCanvas({
   useEffect(() => {
     if (!fabricCanvas) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handlePathCreated = (event: any) => {
       if (event?.path) {
         attachEditorMetadata(event.path, {
@@ -920,7 +906,6 @@ export function EditorCanvas({
     const applyUnderline = () => {
       const activeObject = fabricCanvas.getActiveObject();
       if (activeObject && activeObject.type === "textbox") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const textbox = activeObject as any;
         textbox.set("underline", !textbox.underline);
         fabricCanvas.renderAll();
@@ -932,7 +917,6 @@ export function EditorCanvas({
     const applyStrikethrough = () => {
       const activeObject = fabricCanvas.getActiveObject();
       if (activeObject && activeObject.type === "textbox") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const textbox = activeObject as any;
         textbox.set("linethrough", !textbox.linethrough);
         fabricCanvas.renderAll();
@@ -947,7 +931,6 @@ export function EditorCanvas({
     let currentStrikethrough = false;
 
     if (activeObject && activeObject.type === "textbox") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const textbox = activeObject as any;
       currentUnderline = !!textbox.underline;
       currentStrikethrough = !!textbox.linethrough;
@@ -966,7 +949,6 @@ export function EditorCanvas({
       let currentStrikethrough = false;
 
       if (activeObject && activeObject.type === "textbox") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const textbox = activeObject as any;
         currentUnderline = !!textbox.underline;
         currentStrikethrough = !!textbox.linethrough;
@@ -975,7 +957,6 @@ export function EditorCanvas({
       const applyUnderline = () => {
         const obj = fabricCanvas.getActiveObject();
         if (obj && obj.type === "textbox") {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (obj as any).set("underline", !(obj as any).underline);
           fabricCanvas.renderAll();
           saveHistory();
@@ -986,7 +967,6 @@ export function EditorCanvas({
       const applyStrikethrough = () => {
         const obj = fabricCanvas.getActiveObject();
         if (obj && obj.type === "textbox") {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (obj as any).set("linethrough", !(obj as any).linethrough);
           fabricCanvas.renderAll();
           saveHistory();
@@ -1031,7 +1011,6 @@ export function EditorCanvas({
         // === AUTHENTIC RUBBER STAMP DESIGN ===
         const radius = 80;
         stampRadius = radius;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const elements: any[] = [];
         const text = pendingStamp.text.toUpperCase();
 

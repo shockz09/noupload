@@ -21,7 +21,6 @@ function easeOutBack(t: number): number {
 // Stamp animation frames
 // ──────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function animateCircleStamp(group: any, progress: number, finalAngle: number, x: number, y: number): void {
   if (progress < 0.55) {
     const p = progress / 0.55;
@@ -57,7 +56,6 @@ export function animateCircleStamp(group: any, progress: number, finalAngle: num
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function animateRectStamp(group: any, progress: number, finalAngle: number, x: number, y: number): void {
   if (progress < 0.6) {
     const p = progress / 0.6;

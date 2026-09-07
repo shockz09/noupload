@@ -163,18 +163,15 @@ interface FabricEditorMetadata {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FabricObjectLike = any;
 
 export async function loadFabricModule(): Promise<FabricModule> {
   if (!fabricModule) {
     fabricModule = await import("fabric");
     const customProperties = new Set([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...(((fabricModule as any).FabricObject.customProperties as string[]) || []),
       ...EDITOR_CUSTOM_PROPERTIES,
     ]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (fabricModule as any).FabricObject.customProperties = [...customProperties];
   }
   return fabricModule;

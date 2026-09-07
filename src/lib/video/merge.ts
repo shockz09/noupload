@@ -191,7 +191,6 @@ export async function mergeVideos(
   // ── Process files ─────────────────────────────────────────
 
   let globalTimeOffset = 0;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const inputs: any[] = [];
 
   try {

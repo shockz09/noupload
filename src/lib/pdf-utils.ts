@@ -550,7 +550,6 @@ export async function extractImagesFromPDF(
     if (!xObjects) continue;
 
     const xObjectDict = pdfDoc.lookup(xObjects);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dictAny = xObjectDict as any;
     if (!xObjectDict || typeof dictAny.entries !== "function") continue;
 
@@ -558,7 +557,6 @@ export async function extractImagesFromPDF(
       const xObject = pdfDoc.lookup(ref);
       if (!xObject) continue;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const xObjAny = xObject as any;
       const subtype = xObjAny.get?.(pdfDoc.obj("Subtype"));
       if (subtype && subtype.toString() === "/Image") {

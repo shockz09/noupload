@@ -8,7 +8,6 @@ interface HeicDecoded {
 }
 
 async function decodeHeic(file: File): Promise<HeicDecoded> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const decode = (await import("heic-decode" as any)).default as (opts: { buffer: Uint8Array }) => Promise<HeicDecoded>;
   const buffer = new Uint8Array(await file.arrayBuffer());
   return decode({ buffer });

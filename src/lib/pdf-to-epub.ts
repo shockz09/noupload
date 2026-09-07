@@ -58,7 +58,6 @@ interface ConversionResult {
 // ============ PDF Bookmark/Outline Extraction ============
 
 async function extractBookmarks(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pdf: any,
 ): Promise<BookmarkNode[]> {
   try {
@@ -72,9 +71,7 @@ async function extractBookmarks(
 }
 
 async function resolveOutline(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pdf: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   items: any[],
 ): Promise<BookmarkNode[]> {
   const nodes: BookmarkNode[] = [];
@@ -129,7 +126,6 @@ async function extractTextItems(
 
   // Extract metadata
   const meta = await pdf.getMetadata().catch(() => null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const info = (meta?.info as any) || {};
   const metadata = {
     title: info.Title || undefined,

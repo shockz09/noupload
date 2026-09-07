@@ -142,7 +142,6 @@ function AudioMetadataPage() {
     try {
       setProgress(20);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ID3Writer = (await import("browser-id3-writer")).default as any;
 
       setProgress(40);
@@ -175,7 +174,6 @@ function AudioMetadataPage() {
     try {
       setProgress(30);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ID3Writer = (await import("browser-id3-writer")).default as any;
 
       setProgress(50);

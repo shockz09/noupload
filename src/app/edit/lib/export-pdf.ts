@@ -85,14 +85,11 @@ async function drawRecord({
   rgb,
   StandardFonts,
 }: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any;
   pageWidth: number;
   pageHeight: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pdf: any;
   record: EditorObjectRecord;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rgb: any;
   StandardFonts: Record<string, string>;
 }): Promise<void> {
@@ -152,11 +149,9 @@ function buildFormFillValues(formFields: FormField[]): Record<string, boolean | 
 }
 
 function drawRectangleRecord(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
   pageHeight: number,
   record: Extract<EditorObjectRecord, { kind: "rectangle" | "highlight" | "whiteout" | "redaction" }>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rgb: any,
 ) {
   const fillColor =
@@ -175,11 +170,9 @@ function drawRectangleRecord(
 }
 
 function drawEllipseRecord(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
   pageHeight: number,
   record: Extract<EditorObjectRecord, { kind: "ellipse" }>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rgb: any,
 ) {
   page.drawEllipse({
@@ -197,11 +190,9 @@ function drawEllipseRecord(
 }
 
 function drawLineRecord(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
   pageHeight: number,
   record: { x1: number; y1: number; x2: number; y2: number; style: EditorObjectRecord["style"] },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rgb: any,
 ) {
   page.drawLine({
@@ -221,11 +212,9 @@ function drawLineRecord(
 }
 
 function drawArrowRecord(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
   pageHeight: number,
   record: { x1: number; y1: number; x2: number; y2: number; style: EditorObjectRecord["style"] },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rgb: any,
 ) {
   drawLineRecord(page, pageHeight, record, rgb);
@@ -263,9 +252,7 @@ function drawArrowRecord(
 }
 
 async function drawNativeImageRecord(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pdf: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
   pageHeight: number,
   record: Extract<EditorObjectRecord, { kind: "image" | "signature" }>,
@@ -287,11 +274,9 @@ async function drawNativeImageRecord(
 }
 
 function drawTextRecord(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
   pageHeight: number,
   record: EditorTextRecord,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rgb: any,
   StandardFonts: Record<string, string>,
 ) {
@@ -335,9 +320,7 @@ function drawTextRecord(
 }
 
 async function drawOverlayRecord(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pdf: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   page: any,
   pageHeight: number,
   record: EditorObjectRecord,
@@ -413,7 +396,6 @@ async function buildOverlay(record: EditorObjectRecord, pageWidth: number, pageH
 
 function hexToRgb(
   value: string | undefined,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rgb: any,
 ) {
   if (!value || value === "transparent") return undefined;

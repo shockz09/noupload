@@ -240,7 +240,6 @@ async function extractOCRWordsWithWorker(worker: Tesseract.Worker, imageBlob: Bl
   // Request blocks output which includes word bounding boxes
   const result = await worker.recognize(imageBlob, {}, { blocks: true, text: true, hocr: true });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = result.data as any;
 
   const words: OCRWord[] = [];
