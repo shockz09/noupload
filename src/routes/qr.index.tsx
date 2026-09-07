@@ -50,14 +50,6 @@ function QRPage() {
         <p className="text-xl text-muted-foreground max-w-xl leading-relaxed">
           Generate QR codes for any content or scan existing ones. Everything happens in your browser.
         </p>
-
-        <div className="flex flex-wrap items-center gap-4 pt-2 text-sm font-semibold">
-          <span>No uploads</span>
-          <span className="text-muted-foreground">·</span>
-          <span>No servers</span>
-          <span className="text-muted-foreground">·</span>
-          <span>Free forever</span>
-        </div>
       </section>
 
       {/* Tool Selection */}

@@ -56,14 +56,6 @@ function ImagesPage() {
         <p className="text-xl text-muted-foreground max-w-xl leading-relaxed">
           Compress, resize, convert, and edit images entirely in your browser. No uploads, no waiting.
         </p>
-
-        <div className="flex flex-wrap items-center gap-4 pt-2 text-sm font-semibold">
-          <span>No uploads</span>
-          <span className="text-muted-foreground">·</span>
-          <span>No servers</span>
-          <span className="text-muted-foreground">·</span>
-          <span>Free forever</span>
-        </div>
       </section>
 
       {/* Tools Grid */}

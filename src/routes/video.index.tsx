@@ -57,14 +57,6 @@ function VideoPage() {
         <p className="text-xl text-muted-foreground max-w-xl leading-relaxed">
           Compress, convert, and edit videos entirely in your browser. Hardware-accelerated, no uploads.
         </p>
-
-        <div className="flex flex-wrap items-center gap-4 pt-2 text-sm font-semibold">
-          <span>No uploads</span>
-          <span className="text-muted-foreground">·</span>
-          <span>No servers</span>
-          <span className="text-muted-foreground">·</span>
-          <span>Free forever</span>
-        </div>
       </section>
 
       {/* Tools Grid */}
