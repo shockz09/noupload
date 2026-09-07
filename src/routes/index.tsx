@@ -39,14 +39,6 @@ function Home() {
           Everything runs in your browser. Your files never touch our{" "}
           <span className="whitespace-nowrap">servers—because</span> we don&apos;t have any.
         </p>
-
-        <div className="flex flex-wrap items-center gap-4 pt-2 text-sm font-semibold">
-          <span>No uploads</span>
-          <span className="text-muted-foreground">·</span>
-          <span>No servers</span>
-          <span className="text-muted-foreground">·</span>
-          <span>Free forever</span>
-        </div>
       </section>
 
       {/* Unified Tools Hub */}
