@@ -128,7 +128,7 @@ function AudioCompressPage() {
       blob: result.blob,
       mimeType: "audio/mp4",
       size: result.blob.size,
-      fileType: "other",
+      fileType: "audio",
       sourceToolLabel: "Compress Audio",
     });
   }, [result, addToBuffer]);

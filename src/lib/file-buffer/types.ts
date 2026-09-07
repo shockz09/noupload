@@ -1,4 +1,14 @@
-export type BufferFileType = "pdf" | "image" | "audio" | "other";
+export type BufferFileType = "pdf" | "image" | "video" | "audio" | "other";
+
+// Derives the dock category from a MIME type. Callers may pass fileType
+// explicitly, but leaving it off keeps the category and the blob in sync.
+export function inferFileType(mimeType: string): BufferFileType {
+  if (mimeType === "application/pdf") return "pdf";
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+  return "other";
+}
 
 export interface BufferItem {
   id: string;
@@ -12,7 +22,9 @@ export interface BufferItem {
   previewUrl?: string;
 }
 
-export type AddBufferItemInput = Omit<BufferItem, "id" | "createdAt" | "previewUrl">;
+export type AddBufferItemInput = Omit<BufferItem, "id" | "createdAt" | "previewUrl" | "fileType"> & {
+  fileType?: BufferFileType;
+};
 
 export interface AddBufferResult {
   ok: boolean;

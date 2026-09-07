@@ -242,7 +242,6 @@ function VideoCompressPage() {
       blob: result.blob,
       mimeType: isGif ? "image/gif" : "video/mp4",
       size: result.blob.size,
-      fileType: "other",
       sourceToolLabel: isGif ? "Compress GIF" : "Compress Video",
     });
   }, [result, addToBuffer, isGif]);

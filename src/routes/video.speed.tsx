@@ -109,7 +109,7 @@ function SpeedVideoPage() {
       blob: result.blob,
       mimeType: "video/mp4",
       size: result.blob.size,
-      fileType: "other",
+      fileType: "video",
       sourceToolLabel: "Change Video Speed",
     });
   }, [result, addToBuffer]);

@@ -163,7 +163,6 @@ function ConvertVideoPage() {
       blob: result.blob,
       mimeType: result.blob.type,
       size: result.blob.size,
-      fileType: "other",
       sourceToolLabel: "Convert Video",
     });
   }, [result, addToBuffer]);

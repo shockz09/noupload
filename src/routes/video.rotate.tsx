@@ -80,7 +80,7 @@ function RotateVideoPage() {
       blob: result.blob,
       mimeType: "video/mp4",
       size: result.blob.size,
-      fileType: "other",
+      fileType: "video",
       sourceToolLabel: "Rotate Video",
     });
   }, [result, addToBuffer]);

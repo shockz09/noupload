@@ -9,6 +9,7 @@ import { formatFileSize } from "@/lib/utils";
 const FILE_TYPE_LABELS: Record<string, string> = {
   pdf: "PDF",
   image: "IMG",
+  video: "VID",
   audio: "AUD",
   other: "FILE",
 };
@@ -32,6 +33,16 @@ const TOOL_ROUTES: Record<string, { label: string; href: string }[]> = {
     { label: "Rotate", href: "/image/rotate" },
     { label: "Filters", href: "/image/filters" },
     { label: "Watermark", href: "/image/watermark" },
+  ],
+  video: [
+    { label: "Compress", href: "/video/compress" },
+    { label: "Trim", href: "/video/trim" },
+    { label: "Crop", href: "/video/crop" },
+    { label: "Resize", href: "/video/resize" },
+    { label: "Rotate", href: "/video/rotate" },
+    { label: "Convert", href: "/video/convert" },
+    { label: "Speed", href: "/video/speed" },
+    { label: "To GIF", href: "/video/to-gif" },
   ],
   audio: [
     { label: "Trim", href: "/audio/trim" },

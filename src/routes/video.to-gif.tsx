@@ -96,7 +96,7 @@ function VideoToGifPage() {
       blob: result.blob,
       mimeType: "image/gif",
       size: result.blob.size,
-      fileType: "other",
+      fileType: "image",
       sourceToolLabel: "Video to GIF",
     });
   }, [result, addToBuffer]);
