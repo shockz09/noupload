@@ -342,7 +342,7 @@ function EditPdfPage() {
   return (
     <div className="page-enter">
       {!file ? (
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-2xl mx-auto space-y-8">
           <PdfPageHeader
             icon={<EditIcon className="w-7 h-7" />}
             iconClass="tool-edit"

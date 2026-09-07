@@ -143,14 +143,17 @@ export const FileDropzone = memo(function FileDropzone({
   );
 
   // Memoize display label
-  const acceptLabel = useMemo(
-    () =>
-      accept
-        .split(",")
-        .map((a) => a.trim().toUpperCase().replace(".", ""))
-        .join(", "),
+  const acceptedFormats = useMemo(
+    () => accept.split(",").map((a) => a.trim().toUpperCase().replace(".", "")),
     [accept],
   );
+  const acceptLabel = useMemo(() => acceptedFormats.join(", "), [acceptedFormats]);
+  // The audio tools accept 16 formats, which wrapped the footer onto a second
+  // line and made those dropzones taller than every other one.
+  const acceptLabelShort = useMemo(() => {
+    if (acceptedFormats.length <= 8) return acceptLabel;
+    return `${acceptedFormats.slice(0, 4).join(", ")} +${acceptedFormats.length - 4} more`;
+  }, [acceptedFormats, acceptLabel]);
 
   if (compact) {
     return (
@@ -182,7 +185,14 @@ export const FileDropzone = memo(function FileDropzone({
     <div
       role="button"
       tabIndex={0}
-      className={cn("dropzone relative cursor-pointer", isDragging && "dragging dropzone-active", className)}
+      className={cn(
+        // Every tool page has its own container width (max-w-2xl through max-w-6xl),
+        // which used to make the same dropzone render at a different size per tool.
+        // Pin it here so the empty state looks identical everywhere.
+        "dropzone relative cursor-pointer mx-auto w-full max-w-2xl",
+        isDragging && "dragging dropzone-active",
+        className,
+      )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -227,7 +237,7 @@ export const FileDropzone = memo(function FileDropzone({
 
         {/* File info */}
         <p className="text-xs text-muted-foreground font-medium pt-2">
-          {acceptLabel} files • Max {Math.round(maxSize / 1024 / 1024)}MB
+          {acceptLabelShort} files • Max {Math.round(maxSize / 1024 / 1024)}MB
           {multiple && ` • Up to ${maxFiles} files`}
         </p>
 

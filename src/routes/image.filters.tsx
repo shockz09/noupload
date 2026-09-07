@@ -413,8 +413,12 @@ function ImageFiltersPage() {
     [selectedFilter],
   );
 
+  // Upload and result states are a single column that lines up with the dropzone;
+  // only the working view needs the extra width.
+  const isNarrowLayout = !file || Boolean(result);
+
   return (
-    <div className="page-enter max-w-4xl mx-auto space-y-8">
+    <div className={`page-enter mx-auto space-y-8 ${isNarrowLayout ? "max-w-2xl" : "max-w-4xl"}`}>
       <ImagePageHeader
         icon={<FiltersIcon className="w-7 h-7" />}
         iconClass="tool-filters"

@@ -184,8 +184,12 @@ function RotatePage() {
 
   const rotatedCount = Object.values(pageRotations).filter((r) => r !== 0).length;
 
+  // Upload and result states are a single column that lines up with the dropzone;
+  // only the working view needs the extra width.
+  const isNarrowLayout = !file || Boolean(result);
+
   return (
-    <div className="page-enter max-w-5xl mx-auto space-y-8">
+    <div className={`page-enter mx-auto space-y-8 ${isNarrowLayout ? "max-w-2xl" : "max-w-5xl"}`}>
       <PdfPageHeader
         icon={<RotateIcon className="w-7 h-7" />}
         iconClass="tool-rotate"
