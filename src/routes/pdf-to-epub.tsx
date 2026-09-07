@@ -18,7 +18,6 @@ import { BookIcon, PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView, ProcessButton, ProgressBar } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -33,7 +32,6 @@ interface ConvertResult {
 }
 
 function PdfToEpubPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ConvertResult | null>(null);
 
@@ -72,12 +70,9 @@ function PdfToEpubPage() {
         clearError();
         setResult(null);
 
-        if (isInstant) {
-          processFile(selectedFile);
-        }
       }
     },
-    [isInstant, processFile, clearError],
+    [clearError],
   );
 
   const handleClear = useCallback(() => {
@@ -120,8 +115,6 @@ function PdfToEpubPage() {
       sourceToolLabel: "PDF to EPUB",
     });
   }, [result, addToBuffer]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

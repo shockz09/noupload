@@ -19,7 +19,6 @@ import { ExtractIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { AudioResultView } from "@/components/audio/shared";
 import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader } from "@/components/video/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -35,7 +34,6 @@ const FORMATS: { key: AudioOutputFormat; label: string; desc: string }[] = [
 ];
 
 function ExtractAudioPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [format, setFormat] = useState<AudioOutputFormat>("mp3");
   const [result, setResult] = useState<{ blob: Blob; filename: string; url: string } | null>(null);
@@ -65,9 +63,8 @@ function ExtractAudioPage() {
       setFile(files[0]);
       setResult(null);
       clearError();
-      if (isInstant) processFile(files[0], format);
     },
-    [isInstant, processFile, format, clearError],
+    [clearError],
   );
 
   const handleDownload = useCallback(() => {
@@ -93,8 +90,6 @@ function ExtractAudioPage() {
       sourceToolLabel: "Extract Audio",
     });
   }, [result, addToBuffer]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -127,7 +122,7 @@ function ExtractAudioPage() {
             title="Drop your video file here"
             subtitle="MP4, MOV, WebM, MKV"
           />
-          <InfoBox>{isInstant ? "Drop a video and audio will be extracted automatically." : "Extracts the audio track from your video into a separate file."}</InfoBox>
+          <InfoBox>Extracts the audio track from your video into a separate file.</InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

@@ -26,7 +26,6 @@ import {
 } from "@/components/audio/shared";
 import { SilenceIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useFileBuffer, useVideoToAudio } from "@/hooks";
 import { getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
@@ -62,7 +61,6 @@ const durations = [
 type ProcessingState = "idle" | "loading-ffmpeg" | "processing";
 
 function RemoveSilencePage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
   const [mode, setMode] = useState<SilenceMode>("trim-ends");
@@ -120,13 +118,9 @@ function RemoveSilencePage() {
           // Duration not critical
         }
 
-        if (isInstant) {
-          // Instant mode: remove-all with normal settings
-          processFile(selectedFile, "remove-all", -50, 0.5);
-        }
       }
     },
-    [isInstant, processFile, clearResult],
+    [clearResult],
   );
 
   const handleFileSelected = useCallback(
@@ -163,8 +157,6 @@ function RemoveSilencePage() {
   }, [result, addToBuffer]);
 
   const isProcessing = processingState !== "idle";
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

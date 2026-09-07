@@ -26,7 +26,6 @@ import { DownloadIcon } from "@/components/icons/ui";
 import { VideoCompressIcon, VideoToolIcon } from "@/components/icons/video";
 import { ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import {
   ErrorBox,
   InfoBox,
@@ -151,7 +150,6 @@ function PresetSelector({ preset, onSelect }: { preset: PresetKey; onSelect: (ke
 // ── Component ───────────────────────────────────────────────
 
 function VideoCompressPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [preset, setPreset] = useState<PresetKey>("balanced");
 
   // ── Single mode state ──
@@ -201,7 +199,6 @@ function VideoCompressPage() {
 
         if (isGifFile(selectedFile)) {
           setVideoInfo(null);
-          if (isInstant) processFile(selectedFile, "balanced");
           return;
         }
 
@@ -209,7 +206,6 @@ function VideoCompressPage() {
         try {
           const info = await analyzeVideo(selectedFile);
           setVideoInfo(info);
-          if (isInstant) processFile(selectedFile, "balanced");
         } catch {
           setError("Could not analyze video. The format may not be supported.");
         }
@@ -221,7 +217,7 @@ function VideoCompressPage() {
         setBulkResults([]);
       }
     },
-    [isInstant, processFile, clearError, setError, bulkFiles.length],
+    [clearError, setError, bulkFiles.length],
   );
 
   const handleCompress = useCallback(() => {
@@ -328,8 +324,6 @@ function VideoCompressPage() {
   }, [successfulResults]);
 
   const totalBulkOriginalSize = useMemo(() => bulkFiles.reduce((sum, f) => sum + f.file.size, 0), [bulkFiles]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -463,12 +457,10 @@ function VideoCompressPage() {
             title="Drop your video or GIF files here"
             subtitle="MP4, MOV, WebM, MKV, GIF · Single or multiple files"
           />
-          {!isInstant && (
-            <InfoBox title="About compression">
-              Hardware-accelerated video compression and palette-optimized GIF compression, both running entirely in
-              your browser. No uploads, complete privacy.
-            </InfoBox>
-          )}
+          <InfoBox title="About compression">
+            Hardware-accelerated video compression and palette-optimized GIF compression, both running entirely in your
+            browser. No uploads, complete privacy.
+          </InfoBox>
         </div>
 
         /* ── Single mode: file selected ── */

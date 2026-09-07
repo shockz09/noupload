@@ -18,7 +18,6 @@ import { VideoToGifIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader } from "@/components/video/shared";
 import { ImageResultView } from "@/components/image/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -40,7 +39,6 @@ const WIDTH_OPTIONS: { value: number | "original"; label: string; desc: string }
 ];
 
 function VideoToGifPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<{ blob: Blob; filename: string } | null>(null);
   const [fps, setFps] = useState<number>(15);
@@ -71,9 +69,8 @@ function VideoToGifPage() {
       setFile(files[0]);
       setResult(null);
       clearError();
-      if (isInstant) processFile(files[0], { fps, width });
     },
-    [isInstant, processFile, clearError, fps, width],
+    [clearError],
   );
 
   const handleDownload = useCallback(
@@ -104,8 +101,6 @@ function VideoToGifPage() {
     });
   }, [result, addToBuffer]);
 
-  if (!isLoaded) return null;
-
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
       <VideoPageHeader
@@ -135,10 +130,8 @@ function VideoToGifPage() {
             title="Drop your video file here"
             subtitle="MP4, MOV, WebM, MKV"
           />
-          <InfoBox title={isInstant ? "Instant conversion" : "About this tool"}>
-            {isInstant
-              ? "Drop a video and it will be converted to GIF automatically."
-              : "Converts video to animated GIF with palette optimization for best quality at small file sizes."}
+          <InfoBox title="About this tool">
+            Converts video to animated GIF with palette optimization for best quality at small file sizes.
           </InfoBox>
         </div>
       ) : (

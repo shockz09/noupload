@@ -4,7 +4,7 @@ import { DownloadIcon, PlayIcon, PauseIcon } from "@/components/icons/ui";
 import { VolumeIcon } from "@/components/icons/audio";
 import { VideoToolIcon } from "@/components/icons/video";
 import { FileInfo, PageHeader } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
+import { useDock } from "@/components/shared/DockToggle";
 import { formatFileSize } from "@/lib/utils";
 
 // Re-export common components
@@ -338,14 +338,14 @@ export const VideoResultView = memo(function VideoResultView({
   startOverLabel,
   children,
 }: VideoResultProps) {
-  const { isInstant } = useInstantMode();
+  const { isDockEnabled } = useDock();
   const bufferedRef = useRef(false);
   useEffect(() => {
-    if (isInstant && onHoldInBuffer && !bufferedRef.current) {
+    if (isDockEnabled && onHoldInBuffer && !bufferedRef.current) {
       bufferedRef.current = true;
       onHoldInBuffer();
     }
-  }, [isInstant, onHoldInBuffer]);
+  }, [isDockEnabled, onHoldInBuffer]);
 
   return (
     <div className="animate-fade-up space-y-0">

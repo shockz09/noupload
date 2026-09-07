@@ -26,7 +26,6 @@ import {
 } from "@/components/audio/shared";
 import { NormalizeIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useFileBuffer, useVideoToAudio } from "@/hooks";
 import { getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
@@ -69,7 +68,6 @@ const presets: {
 type ProcessingState = "idle" | "loading-ffmpeg" | "normalizing";
 
 function NormalizeAudioPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
   const [preset, setPreset] = useState<NormalizePreset>("podcast");
@@ -125,12 +123,9 @@ function NormalizeAudioPage() {
           // Duration not critical
         }
 
-        if (isInstant) {
-          processFile(selectedFile, "podcast"); // -16 LUFS default
-        }
       }
     },
-    [isInstant, processFile, clearResult],
+    [clearResult],
   );
 
   const handleFileSelected = useCallback(
@@ -169,8 +164,6 @@ function NormalizeAudioPage() {
   const isProcessing = processingState !== "idle";
   const _selectedPreset = presets.find((p) => p.value === preset);
   const usedPresetInfo = presets.find((p) => p.value === usedPreset);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

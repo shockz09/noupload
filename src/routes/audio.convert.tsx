@@ -22,7 +22,6 @@ import {
 } from "@/components/audio/shared";
 import { ConvertIcon } from "@/components/icons/image";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useFileProcessing } from "@/hooks";
 import { getAudioInfo } from "@/lib/audio-utils";
 import { convertAudio, type AudioOutputFormat } from "@/lib/audio/convert";
@@ -45,7 +44,6 @@ const BITRATES = [
 ];
 
 function AudioConvertPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
   const [outputFormat, setOutputFormat] = useState<AudioOutputFormat>("mp3");
@@ -85,12 +83,8 @@ function AudioConvertPage() {
       } catch {
         // Duration not critical
       }
-
-      if (isInstant) {
-        processFile(f, "mp3", 192);
-      }
     },
-    [clearResult, clearError, isInstant, processFile],
+    [clearResult, clearError],
   );
 
   const handleConvert = useCallback(() => {
@@ -107,8 +101,6 @@ function AudioConvertPage() {
 
   const inputFormat = file?.name.split(".").pop()?.toUpperCase() || "AUDIO";
   const isLossless = outputFormat === "wav" || outputFormat === "flac";
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

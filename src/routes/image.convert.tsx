@@ -26,7 +26,6 @@ import {
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -58,7 +57,6 @@ const formats: { value: ImageFormat; label: string; description: string }[] = [
 const FORMAT_EXT: Record<ImageFormat, string> = { jpeg: "jpg", png: "png", webp: "webp" };
 
 function ImageConvertPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [targetFormat, setTargetFormat] = useState<ImageFormat>("jpeg");
   const [quality, setQuality] = useState(90);
 
@@ -118,11 +116,6 @@ function ImageConvertPage() {
         if (ext === "png") autoFormat = "jpeg";
         else if (ext === "jpg" || ext === "jpeg") autoFormat = "png";
         setTargetFormat(autoFormat);
-
-        if (isInstant) {
-          const autoQuality = autoFormat === "png" ? 100 : 90;
-          processFile(selectedFile, autoFormat, autoQuality);
-        }
       } else {
         // Multi file path
         setFile(null);
@@ -134,7 +127,7 @@ function ImageConvertPage() {
         setBulkResults([]);
       }
     },
-    [files.length, isInstant, processFile, clearResult, setPreview, revokePreview],
+    [files.length, clearResult, setPreview, revokePreview],
   );
 
   useImagePaste(handleFilesSelected, !result && bulkResults.length === 0);
@@ -222,8 +215,6 @@ function ImageConvertPage() {
       sourceToolLabel: "Convert Image",
     });
   }, [result, addToBuffer]);
-
-  if (!isLoaded) return null;
 
   // --- Bulk results view ---
   if (bulkResults.length > 0) {
@@ -369,10 +360,8 @@ function ImageConvertPage() {
             title="Drop your images here"
             subtitle="Single or multiple files · Ctrl+V to paste"
           />
-          <InfoBox title={isInstant ? "Instant conversion" : "Format guide"}>
-            {isInstant
-              ? "Drop an image and it will be converted automatically. HEIC & SVG supported."
-              : "JPEG: Best for photos. PNG: Lossless with transparency. WebP: Modern format. SVG → raster supported."}
+          <InfoBox title="Format guide">
+            JPEG: Best for photos. PNG: Lossless with transparency. WebP: Modern format. SVG → raster supported.
           </InfoBox>
         </div>
       ) : isMulti ? (

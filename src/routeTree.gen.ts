@@ -58,7 +58,6 @@ import { Route as VideoCropRouteImport } from './routes/video.crop'
 import { Route as VideoConvertRouteImport } from './routes/video.convert'
 import { Route as VideoCompressRouteImport } from './routes/video.compress'
 import { Route as VideoAddAudioRouteImport } from './routes/video.add-audio'
-import { Route as TestBgCompareRouteImport } from './routes/test.bg-compare'
 import { Route as QrScanRouteImport } from './routes/qr.scan'
 import { Route as QrGenerateRouteImport } from './routes/qr.generate'
 import { Route as QrBulkRouteImport } from './routes/qr.bulk'
@@ -342,11 +341,6 @@ const VideoAddAudioRoute = VideoAddAudioRouteImport.update({
   path: '/video/add-audio',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TestBgCompareRoute = TestBgCompareRouteImport.update({
-  id: '/test/bg-compare',
-  path: '/test/bg-compare',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const QrScanRoute = QrScanRouteImport.update({
   id: '/qr/scan',
   path: '/qr/scan',
@@ -603,7 +597,6 @@ export interface FileRoutesByFullPath {
   '/qr/bulk': typeof QrBulkRoute
   '/qr/generate': typeof QrGenerateRoute
   '/qr/scan': typeof QrScanRoute
-  '/test/bg-compare': typeof TestBgCompareRoute
   '/video/add-audio': typeof VideoAddAudioRoute
   '/video/compress': typeof VideoCompressRoute
   '/video/convert': typeof VideoConvertRoute
@@ -692,7 +685,6 @@ export interface FileRoutesByTo {
   '/qr/bulk': typeof QrBulkRoute
   '/qr/generate': typeof QrGenerateRoute
   '/qr/scan': typeof QrScanRoute
-  '/test/bg-compare': typeof TestBgCompareRoute
   '/video/add-audio': typeof VideoAddAudioRoute
   '/video/compress': typeof VideoCompressRoute
   '/video/convert': typeof VideoConvertRoute
@@ -782,7 +774,6 @@ export interface FileRoutesById {
   '/qr/bulk': typeof QrBulkRoute
   '/qr/generate': typeof QrGenerateRoute
   '/qr/scan': typeof QrScanRoute
-  '/test/bg-compare': typeof TestBgCompareRoute
   '/video/add-audio': typeof VideoAddAudioRoute
   '/video/compress': typeof VideoCompressRoute
   '/video/convert': typeof VideoConvertRoute
@@ -873,7 +864,6 @@ export interface FileRouteTypes {
     | '/qr/bulk'
     | '/qr/generate'
     | '/qr/scan'
-    | '/test/bg-compare'
     | '/video/add-audio'
     | '/video/compress'
     | '/video/convert'
@@ -962,7 +952,6 @@ export interface FileRouteTypes {
     | '/qr/bulk'
     | '/qr/generate'
     | '/qr/scan'
-    | '/test/bg-compare'
     | '/video/add-audio'
     | '/video/compress'
     | '/video/convert'
@@ -1051,7 +1040,6 @@ export interface FileRouteTypes {
     | '/qr/bulk'
     | '/qr/generate'
     | '/qr/scan'
-    | '/test/bg-compare'
     | '/video/add-audio'
     | '/video/compress'
     | '/video/convert'
@@ -1141,7 +1129,6 @@ export interface RootRouteChildren {
   QrBulkRoute: typeof QrBulkRoute
   QrGenerateRoute: typeof QrGenerateRoute
   QrScanRoute: typeof QrScanRoute
-  TestBgCompareRoute: typeof TestBgCompareRoute
   VideoAddAudioRoute: typeof VideoAddAudioRoute
   VideoCompressRoute: typeof VideoCompressRoute
   VideoConvertRoute: typeof VideoConvertRoute
@@ -1506,13 +1493,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VideoAddAudioRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/test/bg-compare': {
-      id: '/test/bg-compare'
-      path: '/test/bg-compare'
-      fullPath: '/test/bg-compare'
-      preLoaderRoute: typeof TestBgCompareRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/qr/scan': {
       id: '/qr/scan'
       path: '/qr/scan'
@@ -1845,7 +1825,6 @@ const rootRouteChildren: RootRouteChildren = {
   QrBulkRoute: QrBulkRoute,
   QrGenerateRoute: QrGenerateRoute,
   QrScanRoute: QrScanRoute,
-  TestBgCompareRoute: TestBgCompareRoute,
   VideoAddAudioRoute: VideoAddAudioRoute,
   VideoCompressRoute: VideoCompressRoute,
   VideoConvertRoute: VideoConvertRoute,

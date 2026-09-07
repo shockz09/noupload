@@ -22,7 +22,6 @@ import {
 } from "@/components/audio/shared";
 import { CompressIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing, useObjectURL } from "@/hooks";
 import { getAudioInfo } from "@/lib/audio-utils";
 import { compressAudio } from "@/lib/audio/compress";
@@ -59,7 +58,6 @@ const PRESETS: Record<PresetKey, Preset> = {
 };
 
 function AudioCompressPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
   const [preset, setPreset] = useState<PresetKey>("balanced");
@@ -101,12 +99,8 @@ function AudioCompressPage() {
       } catch {
         // Duration not critical
       }
-
-      if (isInstant) {
-        processFile(f, PRESETS.balanced.bitrate);
-      }
     },
-    [clearError, isInstant, processFile],
+    [clearError],
   );
 
   const handleCompress = useCallback(() => {
@@ -140,8 +134,6 @@ function AudioCompressPage() {
   }, [result, addToBuffer]);
 
   const savings = result ? Math.round((1 - result.compressedSize / result.originalSize) * 100) : 0;
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -189,9 +181,7 @@ function AudioCompressPage() {
           />
           <div className="flex items-start gap-3 p-4 border-2 border-foreground/30 bg-muted/30 text-sm">
             <p className="text-muted-foreground">
-              {isInstant
-                ? "Drop a file and it will be compressed automatically."
-                : "Compresses audio to AAC format. Works great for WAV, FLAC, and high-bitrate files."}
+              Compresses audio to AAC format. Works great for WAV, FLAC, and high-bitrate files.
             </p>
           </div>
         </div>

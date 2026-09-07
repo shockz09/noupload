@@ -19,12 +19,10 @@ import { Base64Icon, ImageIcon } from "@/components/icons/image";
 import { ErrorBox, ImageFileInfo, ImagePageHeader } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing, useImagePaste, useObjectURL } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { formatFileSize, imageToBase64 } from "@/lib/image-utils";
 function ImageToBase64Page() {
-  const { isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [base64, setBase64] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -83,8 +81,6 @@ function ImageToBase64Page() {
       setTimeout(() => setCopied(false), 2000);
     }
   }, [base64]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

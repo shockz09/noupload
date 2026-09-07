@@ -19,7 +19,6 @@ import { HeicIcon, ImageIcon } from "@/components/icons/image";
 import { ErrorBox, ImageFileInfo, ImagePageHeader, ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing, useImagePaste } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { convertHeicToJpeg } from "@/lib/heic-utils";
@@ -32,7 +31,6 @@ interface ConvertResult {
 }
 
 function HeicToJpegPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ConvertResult | null>(null);
 
@@ -73,12 +71,9 @@ function HeicToJpegPage() {
         setFile(selectedFile);
         clearError();
         setResult(null);
-        if (isInstant) {
-          processFile(selectedFile);
-        }
       }
     },
-    [isInstant, processFile, clearError],
+    [clearError],
   );
 
   useImagePaste(handleFileSelected, !result);
@@ -109,8 +104,6 @@ function HeicToJpegPage() {
       sourceToolLabel: "HEIC to JPEG",
     });
   }, [result, addToBuffer]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -161,10 +154,8 @@ function HeicToJpegPage() {
             title="Drop your HEIC file here"
             subtitle="or click to browse from your device"
           />
-          <InfoBox title={isInstant ? "Instant conversion" : "Manual mode"}>
-            {isInstant
-              ? "Drop a HEIC file and it will be converted automatically."
-              : "Drop a HEIC file, then click to convert."}
+          <InfoBox title="How it works">
+            Drop a HEIC file, then click to convert.
           </InfoBox>
         </div>
       ) : (

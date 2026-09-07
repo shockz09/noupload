@@ -19,7 +19,6 @@ import { FaviconIcon, ImageIcon } from "@/components/icons/image";
 import { ErrorBox, ImageFileInfo, ImagePageHeader } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing, useImagePaste, useObjectURL } from "@/hooks";
 import { downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -38,7 +37,6 @@ const pngSizes = [
 ];
 
 function FaviconPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [isSvgUpload, setIsSvgUpload] = useState(false);
   const [result, setResult] = useState<FaviconResult | null>(null);
@@ -74,12 +72,9 @@ function FaviconPage() {
         setIsSvgUpload(isSvg);
         setPreview(selectedFile);
 
-        if (isInstant) {
-          processFile(selectedFile);
-        }
       }
     },
-    [isInstant, processFile, setPreview],
+    [setPreview],
   );
 
   // Use clipboard paste hook
@@ -130,8 +125,6 @@ function FaviconPage() {
     setIsSvgUpload(false);
     setResult(null);
   }, [revokePreview]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -241,10 +234,8 @@ function FaviconPage() {
             subtitle="Square images work best · Ctrl+V to paste"
           />
 
-          <InfoBox title={isInstant ? "Instant generation" : "Tip"}>
-            {isInstant
-              ? "Drop a square image and all favicon sizes will be generated automatically."
-              : "Use a square image for best results. We'll generate all sizes for browsers, iOS, and Android."}
+          <InfoBox title="Tip">
+            Use a square image for best results. We'll generate all sizes for browsers, iOS, and Android.
           </InfoBox>
         </div>
       ) : (

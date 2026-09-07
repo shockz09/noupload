@@ -1,7 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { memo, useMemo } from "react";
 import { BufferDock } from "@/components/file-buffer";
-import { InstantModeNavToggle } from "@/components/shared/InstantModeToggle";
+import { DockNavToggle } from "@/components/shared/DockToggle";
 
 export const Header = memo(function Header() {
 	const location = useLocation();
@@ -23,7 +23,7 @@ export const Header = memo(function Header() {
 						noupload{section && <span>/{section.name}</span>}
 					</Link>
 					<div className="flex items-center gap-2">
-						<InstantModeNavToggle />
+						<DockNavToggle />
 					</div>
 				</div>
 			</header>

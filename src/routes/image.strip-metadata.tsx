@@ -21,7 +21,6 @@ import { LoaderIcon, ShieldIcon } from "@/components/icons/ui";
 import { ErrorBox, ImageFileInfo, ImagePageHeader, ImageResultView } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { getErrorMessage } from "@/lib/error";
 import { copyImageToClipboard, formatFileSize, getOutputFilename, stripMetadata } from "@/lib/image-utils";
@@ -280,7 +279,6 @@ function MetadataDisplay({ metadata }: { metadata: ParsedMetadata }) {
 // ============ Main page ============
 
 function StripMetadataPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<ParsedMetadata | null>(null);
 
@@ -316,11 +314,6 @@ function StripMetadataPage() {
       setPreview(selectedFile);
       setMetadata(null);
 
-      if (isInstant) {
-        processFile(selectedFile);
-        return;
-      }
-
       try {
         const parsed = await extractMetadata(selectedFile);
         setMetadata(parsed);
@@ -328,7 +321,7 @@ function StripMetadataPage() {
         setMetadata({});
       }
     },
-    [isInstant, processFile, clearResult, setPreview],
+    [clearResult, setPreview],
   );
 
   useImagePaste(handleFileSelected, !result);
@@ -360,8 +353,6 @@ function StripMetadataPage() {
   }, [file, processFile]);
 
   const showProcessingState = useMemo(() => isProcessing && !result, [isProcessing, result]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -418,10 +409,8 @@ function StripMetadataPage() {
             subtitle="or click to browse · Ctrl+V to paste"
           />
 
-          <InfoBox title={isInstant ? "Instant processing" : "Manual mode"} icon={<ShieldIcon className="w-5 h-5 mt-0.5" />}>
-            {isInstant
-              ? "Drop or paste an image and it will be cleaned automatically."
-              : "Drop an image to view its metadata, then strip it if needed."}
+          <InfoBox title="How it works" icon={<ShieldIcon className="w-5 h-5 mt-0.5" />}>
+            Drop an image to view its metadata, then strip it if needed.
           </InfoBox>
         </div>
       ) : (

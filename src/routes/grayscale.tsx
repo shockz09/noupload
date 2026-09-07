@@ -13,12 +13,11 @@ export const Route = createFileRoute("/grayscale")({
 	component: GrayscalePage,
 });
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -52,11 +51,9 @@ interface ConvertResult {
 }
 
 function GrayscalePage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const { toGrayscale, progress: gsProgress } = useGhostscript();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ConvertResult | null>(null);
-  const instantTriggeredRef = useRef(false);
 
   // Use custom hook for processing state
   const { isProcessing, error, startProcessing, stopProcessing, setError, clearError } = useFileProcessing();
@@ -91,19 +88,10 @@ function GrayscalePage() {
         setFile(files[0]);
         clearError();
         setResult(null);
-        instantTriggeredRef.current = false;
       }
     },
     [clearError],
   );
-
-  // Instant mode auto-process
-  useEffect(() => {
-    if (isInstant && file && !instantTriggeredRef.current && !isProcessing && !result) {
-      instantTriggeredRef.current = true;
-      processFile(file);
-    }
-  }, [isInstant, file, isProcessing, result, processFile]);
 
   const handleClear = useCallback(() => {
     setFile(null);
@@ -131,7 +119,6 @@ function GrayscalePage() {
     setFile(null);
     setResult(null);
     clearError();
-    instantTriggeredRef.current = false;
   }, [clearError]);
 
   const { add: addToBuffer } = useFileBuffer();
@@ -147,8 +134,6 @@ function GrayscalePage() {
       sourceToolLabel: "Grayscale PDF",
     });
   }, [result, addToBuffer]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -180,10 +165,8 @@ function GrayscalePage() {
             title="Drop your PDF file here"
           />
 
-          <InfoBox title={isInstant ? "Instant conversion" : "About grayscale"}>
-            {isInstant
-              ? "Drop a PDF and it will be converted automatically."
-              : "Converts all colors to shades of gray. Great for printing or reducing file size."}
+          <InfoBox title="About grayscale">
+            Converts all colors to shades of gray. Great for printing or reducing file size.
           </InfoBox>
         </div>
       ) : (

@@ -1,10 +1,9 @@
 
 import type React from "react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView, ProgressBar } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -30,7 +29,6 @@ export interface ToolPageTemplateProps<T> {
   // Info box
   infoBoxTitle: string;
   infoBoxContent: React.ReactNode;
-  instantInfoBoxContent?: React.ReactNode;
 
   // Optional: Custom processing UI (if not provided, shows simple button)
   renderProcessingUI?: (props: {
@@ -67,7 +65,6 @@ export const ToolPageTemplate = memo(function ToolPageTemplate<T extends { data:
     startOverLabel,
     infoBoxTitle,
     infoBoxContent,
-    instantInfoBoxContent,
     renderProcessingUI,
     getFileSizeDisplay = (file) => formatFileSize(file.size),
     multiple = false,
@@ -75,10 +72,8 @@ export const ToolPageTemplate = memo(function ToolPageTemplate<T extends { data:
     className = "max-w-2xl mx-auto",
   } = props;
 
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<T | null>(null);
-  const instantTriggeredRef = useRef(false);
 
   const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
     useFileProcessing();
@@ -106,19 +101,10 @@ export const ToolPageTemplate = memo(function ToolPageTemplate<T extends { data:
         setFile(files[0]);
         clearError();
         setResult(null);
-        instantTriggeredRef.current = false;
       }
     },
     [clearError],
   );
-
-  // Instant mode auto-process
-  useEffect(() => {
-    if (isInstant && file && !instantTriggeredRef.current && !isProcessing && !result) {
-      instantTriggeredRef.current = true;
-      handleProcess(file);
-    }
-  }, [isInstant, file, isProcessing, result, handleProcess]);
 
   const handleClear = useCallback(() => {
     setFile(null);
@@ -141,10 +127,7 @@ export const ToolPageTemplate = memo(function ToolPageTemplate<T extends { data:
     setFile(null);
     setResult(null);
     clearError();
-    instantTriggeredRef.current = false;
   }, [clearError]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className={`page-enter space-y-8 ${className}`}>
@@ -172,8 +155,8 @@ export const ToolPageTemplate = memo(function ToolPageTemplate<T extends { data:
             title="Drop your file here"
           />
 
-          <InfoBox title={isInstant && instantInfoBoxContent ? infoBoxTitle : infoBoxTitle}>
-            {isInstant && instantInfoBoxContent ? instantInfoBoxContent : infoBoxContent}
+          <InfoBox title={infoBoxTitle}>
+            {infoBoxContent}
           </InfoBox>
         </div>
       ) : (

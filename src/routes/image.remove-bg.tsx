@@ -25,7 +25,6 @@ import {
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useImagePaste, useObjectURL } from "@/hooks";
 import {
   compositeOnColor,
@@ -115,7 +114,6 @@ function progressValue(p: ProgressState): number {
 }
 
 function RemoveBgPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const { removeBackground, isProcessing, progress, error: bgError, capability } = useBackgroundRemoval();
 
   const [file, setFile] = useState<File | null>(null);
@@ -135,7 +133,6 @@ function RemoveBgPage() {
   const [foregroundUrl, setForegroundUrl] = useState<string | null>(null);
 
   const processingRef = useRef(false);
-  const instantTriggeredRef = useRef(false);
 
   const processFile = useCallback(
     async (fileToProcess: File) => {
@@ -223,7 +220,6 @@ function RemoveBgPage() {
         setError(null);
         setResult(null);
         setForegroundUrl(null);
-        instantTriggeredRef.current = false;
         setPreview(selectedFile);
       }
     },
@@ -232,14 +228,6 @@ function RemoveBgPage() {
 
   // Use clipboard paste hook
   useImagePaste(handleFileSelected, !result);
-
-  // Instant mode
-  useEffect(() => {
-    if (isInstant && file && !instantTriggeredRef.current && !isProcessing && !result) {
-      instantTriggeredRef.current = true;
-      processFile(file);
-    }
-  }, [isInstant, file, isProcessing, result, processFile]);
 
   const handleClear = useCallback(() => {
     revokePreview();
@@ -280,7 +268,6 @@ function RemoveBgPage() {
     setForegroundUrl(null);
     setError(null);
     setBgType("transparent");
-    instantTriggeredRef.current = false;
   }, [revokePreview, revokeBgImagePreview]);
 
   const { add: addToBuffer } = useFileBuffer();
@@ -297,8 +284,6 @@ function RemoveBgPage() {
   }, [result, addToBuffer]);
 
   const displayError = error || bgError;
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -452,10 +437,8 @@ function RemoveBgPage() {
             </div>
           )}
 
-          <InfoBox title={isInstant ? "Instant removal" : "WebGPU-accelerated background removal"}>
-            {isInstant
-              ? "Drop an image and the background will be removed automatically."
-              : "Uses WebGPU-accelerated AI for fast background removal. Model downloads once (~40 MB) and is cached."}
+          <InfoBox title="WebGPU-accelerated background removal">
+            Uses WebGPU-accelerated AI for fast background removal. Model downloads once (~40 MB) and is cached.
           </InfoBox>
         </div>
       ) : (

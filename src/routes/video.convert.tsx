@@ -18,7 +18,6 @@ import { DownloadIcon } from "@/components/icons/ui";
 import { VideoConvertIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, ProgressBar, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob, downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -85,7 +84,6 @@ function FormatSelector({
 // ── Component ───────────────────────────────────────────────
 
 function ConvertVideoPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [format, setFormat] = useState<OutputFormat>("mp4");
 
   // ── Single mode state ──
@@ -138,7 +136,6 @@ function ConvertVideoPage() {
         const src = EXT_TO_FORMAT[ext] || "";
         const firstAvailable = FORMATS.find((fmt) => fmt.key !== src);
         if (firstAvailable) setFormat(firstAvailable.key);
-        if (isInstant && firstAvailable) processFile(f, firstAvailable.key);
       } else {
         // Bulk mode
         const newItems = selectedFiles.map((f) => ({ id: crypto.randomUUID(), file: f }));
@@ -146,7 +143,7 @@ function ConvertVideoPage() {
         setBulkResults([]);
       }
     },
-    [isInstant, processFile, clearError, bulkFiles.length],
+    [clearError, bulkFiles.length],
   );
 
   const handleDownload = useCallback(
@@ -238,8 +235,6 @@ function ConvertVideoPage() {
     () => bulkFiles.reduce((sum, f) => sum + f.file.size, 0),
     [bulkFiles],
   );
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -334,7 +329,7 @@ function ConvertVideoPage() {
             title="Drop your video files here"
             subtitle="MP4, MOV, WebM, MKV, GoPro LRV · Single or multiple files"
           />
-          <InfoBox>{isInstant ? "Drop a video and it will be converted automatically." : "Converts video to a different container format. Transmuxes when possible for speed."}</InfoBox>
+          <InfoBox>Converts video to a different container format. Transmuxes when possible for speed.</InfoBox>
         </div>
 
       /* ── Single mode: file selected ── */

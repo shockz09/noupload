@@ -24,7 +24,6 @@ export const Route = createFileRoute("/video/speed")({
 import { useCallback, useState } from "react";
 import { VideoSpeedIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
@@ -43,7 +42,6 @@ function formatDuration(seconds: number): string {
 }
 
 function SpeedVideoPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const [speed, setSpeed] = useState(2);
@@ -83,9 +81,8 @@ function SpeedVideoPage() {
       analyzeVideo(f)
         .then(setInfo)
         .catch(() => {});
-      if (isInstant) processFile(f, speed, preservePitch);
     },
-    [isInstant, processFile, speed, preservePitch, clearError],
+    [clearError],
   );
 
   const handleDownload = useCallback(
@@ -116,8 +113,6 @@ function SpeedVideoPage() {
       sourceToolLabel: "Change Video Speed",
     });
   }, [result, addToBuffer]);
-
-  if (!isLoaded) return null;
 
   const duration = info?.duration ?? 0;
 
@@ -154,9 +149,7 @@ function SpeedVideoPage() {
             subtitle="MP4, MOV, WebM, MKV"
           />
           <InfoBox>
-            {isInstant
-              ? "Drop a video and its speed will be changed automatically."
-              : "Re-times the video without re-encoding it, so the picture keeps its original quality. Audio is resampled to match, so its pitch shifts like a record played faster or slower."}
+            Re-times the video without re-encoding it, so the picture keeps its original quality. Audio is resampled to match, so its pitch shifts like a record played faster or slower.
           </InfoBox>
         </div>
       ) : (

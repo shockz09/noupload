@@ -4,7 +4,7 @@ import { AudioPlayer as AudioPlayerDirect } from "@/components/audio/AudioPlayer
 import { DownloadIcon, InfoIcon, LoaderIcon } from "@/components/icons/ui";
 import { AudioIcon, VideoIcon } from "@/components/icons/audio";
 import { ProgressBar as BaseProgressBar, FileInfo, PageHeader } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
+import { useDock } from "@/components/shared/DockToggle";
 import type { ExtractionState } from "@/hooks/useVideoToAudio";
 import { formatDuration, formatFileSize } from "@/lib/audio-utils";
 
@@ -151,15 +151,15 @@ export const AudioResultView = memo(function AudioResultView({
   startOverLabel,
   children,
 }: AudioResultProps) {
-  const { isInstant } = useInstantMode();
+  const { isDockEnabled } = useDock();
   const bufferedRef = useRef(false);
 
   useEffect(() => {
-    if (isInstant && onHoldInBuffer && !bufferedRef.current) {
+    if (isDockEnabled && onHoldInBuffer && !bufferedRef.current) {
       bufferedRef.current = true;
       onHoldInBuffer();
     }
-  }, [isInstant, onHoldInBuffer]);
+  }, [isDockEnabled, onHoldInBuffer]);
 
   return (
     <div className="animate-fade-up space-y-0">

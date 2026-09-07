@@ -26,7 +26,6 @@ import { LoaderIcon } from "@/components/icons/ui";
 import { ReverseIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useFileBuffer, useFileProcessing, useObjectURL, useVideoToAudio } from "@/hooks";
 import { formatDuration, getAudioInfo, reverseAudio } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
@@ -34,7 +33,6 @@ import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
 
 function ReverseAudioPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
 
@@ -78,12 +76,9 @@ function ReverseAudioPage() {
           // ignore
         }
 
-        if (isInstant) {
-          processFile(selectedFile);
-        }
       }
     },
-    [isInstant, processFile, clearResult, setAudioSource],
+    [clearResult, setAudioSource],
   );
 
   const handleFileSelected = useCallback(
@@ -116,8 +111,6 @@ function ReverseAudioPage() {
       sourceToolLabel: "Reverse Audio",
     });
   }, [result, addToBuffer]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -168,10 +161,8 @@ function ReverseAudioPage() {
             title="Drop your audio or video file here"
             subtitle="MP3, WAV, OGG, M4A, MP4, MOV, etc."
           />
-          <InfoBox title={isInstant ? "Instant reverse" : "Manual mode"} icon={<ReverseIcon className="w-5 h-5 mt-0.5" />}>
-            {isInstant
-              ? "Drop an audio file and it will be reversed automatically."
-              : "Drop an audio file, preview it, then click to reverse."}
+          <InfoBox title="How it works" icon={<ReverseIcon className="w-5 h-5 mt-0.5" />}>
+            Drop an audio file, preview it, then click to reverse.
           </InfoBox>
         </div>
       ) : (

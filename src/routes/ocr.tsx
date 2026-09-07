@@ -19,7 +19,6 @@ import { ArrowLeftIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { OcrIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -45,7 +44,6 @@ const LANGUAGES = [
 ] as const;
 
 function OcrPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<OCRMode>("searchable");
   const [statusText, setStatusText] = useState("");
@@ -136,13 +134,9 @@ function OcrPage() {
         setExtractedText("");
         setSearchablePdf(null);
 
-        if (isInstant) {
-          // Instant mode: create searchable PDF with English
-          processFile(files[0], "searchable", "eng");
-        }
       }
     },
-    [isInstant, processFile, clearError],
+    [clearError],
   );
 
   const handleClear = useCallback(() => {
@@ -192,8 +186,6 @@ function OcrPage() {
   }, []);
 
   const hasResult = extractedText || searchablePdf;
-
-  if (!isLoaded) return null;
 
   // Upload and result states are a single column that lines up with the dropzone;
   // only the working view needs the extra width.

@@ -17,7 +17,6 @@ import { useCallback, useState } from "react";
 import { RemoveAudioIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -25,7 +24,6 @@ import { removeAudio } from "@/lib/video/remove-audio";
 import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 
 function RemoveAudioPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<{ blob: Blob; filename: string } | null>(null);
 
@@ -54,9 +52,8 @@ function RemoveAudioPage() {
       setFile(files[0]);
       setResult(null);
       clearError();
-      if (isInstant) processFile(files[0]);
     },
-    [isInstant, processFile, clearError],
+    [clearError],
   );
 
   const handleDownload = useCallback(
@@ -87,8 +84,6 @@ function RemoveAudioPage() {
     });
   }, [result, addToBuffer]);
 
-  if (!isLoaded) return null;
-
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
       <VideoPageHeader
@@ -118,10 +113,8 @@ function RemoveAudioPage() {
             title="Drop your video file here"
             subtitle="MP4, MOV, WebM, MKV"
           />
-          <InfoBox title={isInstant ? "Instant processing" : "About this tool"}>
-            {isInstant
-              ? "Drop a video and the audio will be removed automatically."
-              : "Removes the audio track from your video. The video quality stays the same."}
+          <InfoBox title="About this tool">
+            Removes the audio track from your video. The video quality stays the same.
           </InfoBox>
         </div>
       ) : (

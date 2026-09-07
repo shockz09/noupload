@@ -19,7 +19,6 @@ import { PdfIcon, TextIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
 import { downloadText } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -55,7 +54,6 @@ async function extractTextFromPDF(file: File): Promise<{ text: string; pageCount
 }
 
 function PdfToTextPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ExtractResult | null>(null);
 
@@ -100,12 +98,9 @@ function PdfToTextPage() {
         clearError();
         setResult(null);
 
-        if (isInstant) {
-          processFile(selectedFile);
-        }
       }
     },
-    [isInstant, processFile, clearError],
+    [clearError],
   );
 
   const handleClear = useCallback(() => {
@@ -145,8 +140,6 @@ function PdfToTextPage() {
     setResult(null);
     clearError();
   }, [clearError]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

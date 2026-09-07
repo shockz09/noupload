@@ -18,7 +18,6 @@ import { PdfIcon, ReversePagesIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, PdfFileInfo, PdfPageHeader, PdfResultView } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -32,7 +31,6 @@ interface ReverseResult {
 }
 
 function ReversePage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ReverseResult | null>(null);
   const [pageCount, setPageCount] = useState<number>(0);
@@ -82,13 +80,10 @@ function ReversePage() {
         } catch {
           setPageCount(0);
         } finally {
-          if (isInstant) {
-            processFile(selectedFile);
-          }
         }
       }
     },
-    [isInstant, processFile, clearError],
+    [clearError],
   );
 
   const handleClear = useCallback(() => {
@@ -134,8 +129,6 @@ function ReversePage() {
       sourceToolLabel: "Reverse Pages",
     });
   }, [result, addToBuffer]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

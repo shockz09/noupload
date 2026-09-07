@@ -17,7 +17,6 @@ import { useCallback, useState } from "react";
 import { VideoResizeIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -36,7 +35,6 @@ const SIZE_OPTIONS = [
 ];
 
 function ResizeVideoPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [targetHeight, setTargetHeight] = useState(720);
@@ -73,12 +71,11 @@ function ResizeVideoPage() {
         // Default to one step down
         const lower = SIZE_OPTIONS.find((s) => s.height < info.height);
         if (lower) setTargetHeight(lower.height);
-        if (isInstant && lower) processFile(files[0], lower.height);
       } catch {
         setError("Could not analyze video.");
       }
     },
-    [isInstant, processFile, clearError, setError],
+    [clearError, setError],
   );
 
   const handleDownload = useCallback(
@@ -112,8 +109,6 @@ function ResizeVideoPage() {
 
   const availableSizes = videoInfo ? SIZE_OPTIONS.filter((s) => s.height < videoInfo.height) : SIZE_OPTIONS;
 
-  if (!isLoaded) return null;
-
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
       <VideoPageHeader
@@ -144,7 +139,7 @@ function ResizeVideoPage() {
             title="Drop your video file here"
             subtitle="MP4, MOV, WebM, MKV"
           />
-          <InfoBox>{isInstant ? "Drop a video and it will be resized automatically." : "Resizes your video to a lower resolution. Aspect ratio is preserved."}</InfoBox>
+          <InfoBox>Resizes your video to a lower resolution. Aspect ratio is preserved.</InfoBox>
         </div>
       ) : (
         <div className="space-y-6">

@@ -17,7 +17,6 @@ import { useCallback, useState } from "react";
 import { VideoCropIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -81,7 +80,6 @@ const ASPECT_OPTIONS: Record<AspectKey, AspectOption> = {
 };
 
 function CropVideoPage() {
-  const { isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [aspect, setAspect] = useState<AspectKey>("1:1");
@@ -160,8 +158,6 @@ function CropVideoPage() {
       ? customCrop
       : ASPECT_OPTIONS[aspect].getCrop(videoInfo.width, videoInfo.height)
     : null;
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

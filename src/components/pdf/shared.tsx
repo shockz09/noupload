@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { DownloadIcon } from "@/components/icons/ui";
 import { FileInfo, PageHeader } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
+import { useDock } from "@/components/shared/DockToggle";
 import { formatFileSize } from "@/lib/utils";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
@@ -226,14 +226,14 @@ export const PdfResultView = memo(function PdfResultView({
   startOverLabel,
   children,
 }: PdfResultViewProps) {
-  const { isInstant } = useInstantMode();
+  const { isDockEnabled } = useDock();
   const bufferedRef = useRef(false);
   useEffect(() => {
-    if (isInstant && onHoldInBuffer && !bufferedRef.current) {
+    if (isDockEnabled && onHoldInBuffer && !bufferedRef.current) {
       bufferedRef.current = true;
       onHoldInBuffer();
     }
-  }, [isInstant, onHoldInBuffer]);
+  }, [isDockEnabled, onHoldInBuffer]);
 
   return (
     <div className="animate-fade-up space-y-0">

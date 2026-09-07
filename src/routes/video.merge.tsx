@@ -13,12 +13,11 @@ export const Route = createFileRoute("/video/merge")({
 	component: MergeVideoPage,
 });
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { GripIcon, XIcon } from "@/components/icons/ui";
 import { VideoMergeIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, ProgressBar, VideoPageHeader, VideoResultView } from "@/components/video/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -47,7 +46,6 @@ function fmtDur(s: number): string {
 // ── Component ─────────────────────────────────────────────────
 
 function MergeVideoPage() {
-	const { isInstant, isLoaded } = useInstantMode();
 	const [files, setFiles] = useState<FileItem[]>([]);
 	const [result, setResult] = useState<{ blob: Blob; filename: string } | null>(null);
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -162,28 +160,8 @@ function MergeVideoPage() {
 		}
 	}, [files, allAnalyzed, startProcessing, setProgress, setError, stopProcessing]);
 
-	// ── Instant mode ──────────────────────────────────────────
-
-	const hasTriggeredInstant = useRef(false);
 	const processRef = useRef(process);
 	processRef.current = process;
-
-	// Fire auto-merge once when instant mode is active and all files are ready
-	useEffect(() => {
-		if (!isInstant) return;
-		if (!allAnalyzed) return;
-		if (files.length < 2) return;
-		if (isProcessing) return;
-		if (hasTriggeredInstant.current) return;
-
-		hasTriggeredInstant.current = true;
-		processRef.current();
-	}, [isInstant, allAnalyzed, files.length, isProcessing]);
-
-	// Reset the trigger when files change (new files added)
-	useEffect(() => {
-		hasTriggeredInstant.current = false;
-	}, [files.length]);
 
 	// ── Download / Buffer ─────────────────────────────────────
 
@@ -199,7 +177,6 @@ function MergeVideoPage() {
 		setFiles([]);
 		setResult(null);
 		setDraggedIndex(null);
-		hasTriggeredInstant.current = false;
 		clearError();
 	}, [clearError]);
 
@@ -217,8 +194,6 @@ function MergeVideoPage() {
 	}, [result, addToBuffer]);
 
 	// ── Render ────────────────────────────────────────────────
-
-	if (!isLoaded) return null;
 
 	return (
 		<div className="page-enter max-w-2xl mx-auto space-y-8">

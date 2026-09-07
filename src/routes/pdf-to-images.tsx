@@ -13,14 +13,13 @@ export const Route = createFileRoute("/pdf-to-images")({
 	component: PdfToImagesPage,
 });
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DownloadIcon, LoaderIcon } from "@/components/icons/ui";
 import { ImageIcon } from "@/components/icons/image";
 import { PdfIcon } from "@/components/icons/pdf";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { usePdfPages } from "@/components/pdf/pdf-page-preview";
 import { ErrorBox, PdfFileInfo, PdfPageHeader } from "@/components/pdf/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -76,14 +75,12 @@ const QUALITY_SETTINGS: Record<ImageQuality, { scale: number; quality: number; l
 };
 
 function PdfToImagesPage() {
-  const { isInstant } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [pageItems, setPageItems] = useState<PageItem[]>([]);
   const [images, setImages] = useState<ConvertedImage[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [format, setFormat] = useState<ImageFormat>("jpeg");
   const [quality, setQuality] = useState<ImageQuality>("medium");
-  const instantTriggeredRef = useRef(false);
 
   // Use custom hook for processing state
   const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
@@ -110,44 +107,10 @@ function PdfToImagesPage() {
     );
   }
 
-  // Process all pages with default settings (for instant mode)
-  const processAllPages = useCallback(async () => {
-    if (!file || pages.length === 0) return;
-    if (!startProcessing()) return;
-
-    try {
-      const settings = QUALITY_SETTINGS.medium;
-      const result = await pdfToImages(file, {
-        format: "jpeg",
-        quality: settings.quality,
-        scale: settings.scale,
-        pageNumbers: pages.map((p) => p.pageNumber),
-        rotations: {},
-        onProgress: (current, total) => {
-          setProgress(Math.round((current / total) * 100));
-        },
-      });
-      setImages(result);
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to convert PDF"));
-    } finally {
-      stopProcessing();
-    }
-  }, [file, pages, startProcessing, setProgress, setError, stopProcessing]);
-
-  // Instant mode: auto-convert when pages are loaded
-  useEffect(() => {
-    if (isInstant && file && pages.length > 0 && !instantTriggeredRef.current && !isProcessing && images.length === 0) {
-      instantTriggeredRef.current = true;
-      processAllPages();
-    }
-  }, [isInstant, file, pages, isProcessing, images.length, processAllPages]);
-
   const handleFileSelected = useCallback(
     (files: File[]) => {
       if (files.length > 0) {
         images.forEach((img) => URL.revokeObjectURL(img.dataUrl));
-        instantTriggeredRef.current = false;
         setFile(files[0]);
         clearError();
         setImages([]);
@@ -159,7 +122,6 @@ function PdfToImagesPage() {
 
   const handleClear = useCallback(() => {
     images.forEach((img) => URL.revokeObjectURL(img.dataUrl));
-    instantTriggeredRef.current = false;
     setFile(null);
     clearError();
     setImages([]);
@@ -237,7 +199,6 @@ function PdfToImagesPage() {
 
   const handleNewFile = useCallback(() => {
     images.forEach((img) => URL.revokeObjectURL(img.dataUrl));
-    instantTriggeredRef.current = false;
     setFile(null);
     setImages([]);
     clearError();

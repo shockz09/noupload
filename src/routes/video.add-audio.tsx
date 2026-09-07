@@ -26,7 +26,6 @@ import { AudioFileInfo } from "@/components/audio/shared";
 import { AudioIcon } from "@/components/icons/audio";
 import { AddAudioIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import {
@@ -39,7 +38,6 @@ import { getErrorMessage } from "@/lib/error";
 import { addAudio } from "@/lib/video/add-audio";
 
 function AddAudioPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [audioDragActive, setAudioDragActive] = useState(false);
@@ -70,9 +68,8 @@ function AddAudioPage() {
       setVideoFile(files[0]);
       setResult(null);
       clearError();
-      if (isInstant && audioFile) processFiles(files[0], audioFile);
     },
-    [isInstant, audioFile, processFiles, clearError],
+    [clearError],
   );
 
   const handleAudioSelected = useCallback(
@@ -87,9 +84,8 @@ function AddAudioPage() {
       setAudioFile(f);
       setResult(null);
       clearError();
-      if (isInstant && videoFile) processFiles(videoFile, f);
     },
-    [isInstant, videoFile, processFiles, clearError, setError],
+    [clearError, setError],
   );
 
   const handleAudioDrop = useCallback(
@@ -129,8 +125,6 @@ function AddAudioPage() {
       sourceToolLabel: "Add Audio",
     });
   }, [result, addToBuffer]);
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

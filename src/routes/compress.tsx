@@ -23,7 +23,6 @@ import {
   PdfResultView,
 } from "@/components/pdf/shared";
 import { InfoBox } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -38,7 +37,6 @@ interface CompressResult {
 }
 
 function CompressPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const { compress: gsCompress, progress: gsProgress } = useGhostscript();
   const [file, setFile] = useState<File | null>(null);
   const [compressionLevel, setCompressionLevel] = useState<CompressionLevel>("balanced");
@@ -78,12 +76,9 @@ function CompressPage() {
         clearError();
         setResult(null);
 
-        if (isInstant) {
-          processFile(files[0], compressionLevel);
-        }
       }
     },
-    [isInstant, processFile, compressionLevel, clearError],
+    [clearError],
   );
 
   const handleClear = useCallback(() => {
@@ -129,8 +124,6 @@ function CompressPage() {
   }, [result, addToBuffer]);
 
   const savings = result ? Math.round((1 - result.compressedSize / result.originalSize) * 100) : 0;
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
@@ -189,10 +182,8 @@ function CompressPage() {
             <p className="text-xs text-muted-foreground">{COMPRESSION_DESCRIPTIONS[compressionLevel]}</p>
           </fieldset>
 
-          <InfoBox title={isInstant ? "Instant compression" : "About compression"}>
-            {isInstant
-              ? "Drop a PDF and it will be compressed automatically."
-              : "Recompresses images for major file size reduction. First use may take longer to load."}
+          <InfoBox title="About compression">
+            Recompresses images for major file size reduction. First use may take longer to load.
           </InfoBox>
         </div>
       ) : (

@@ -26,7 +26,6 @@ import {
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { InfoBox, QualitySlider } from "@/components/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -49,7 +48,6 @@ interface CompressedItem {
 }
 
 function ImageCompressPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [quality, setQuality] = useState(80);
 
   // Single file state
@@ -100,7 +98,6 @@ function ImageCompressPage() {
         setFile(selectedFile);
         clearResult();
         setPreview(selectedFile);
-        if (isInstant) processFile(selectedFile, 80);
       } else {
         // Multi file path
         setFile(null);
@@ -112,7 +109,7 @@ function ImageCompressPage() {
         setBulkResults([]);
       }
     },
-    [files.length, isInstant, processFile, clearResult, setPreview, revokePreview],
+    [files.length, clearResult, setPreview, revokePreview],
   );
 
   useImagePaste(handleFilesSelected, !result && bulkResults.length === 0);
@@ -210,8 +207,6 @@ function ImageCompressPage() {
     const totalCompressed = bulkResults.reduce((sum, r) => sum + r.blob.size, 0);
     return Math.round((1 - totalCompressed / totalOriginalSize) * 100);
   }, [bulkResults, totalOriginalSize]);
-
-  if (!isLoaded) return null;
 
   // --- Multi results view ---
   if (bulkResults.length > 0) {
@@ -317,10 +312,8 @@ function ImageCompressPage() {
             title="Drop your images here"
             subtitle="Single or multiple files · Ctrl+V to paste"
           />
-          <InfoBox title={isInstant ? "Instant compression" : "About compression"}>
-            {isInstant
-              ? "Drop an image and it will be compressed at 80% quality automatically."
-              : "Compresses images using JPEG encoding. Drop one or multiple files."}
+          <InfoBox title="About compression">
+            Compresses images using JPEG encoding. Drop one or multiple files.
           </InfoBox>
         </div>
       ) : isMulti ? (

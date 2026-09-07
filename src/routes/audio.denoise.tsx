@@ -26,7 +26,6 @@ import {
 } from "@/components/audio/shared";
 import { DenoiseIcon } from "@/components/icons/audio";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useAudioResult, useFileBuffer, useVideoToAudio } from "@/hooks";
 import { getAudioInfo } from "@/lib/audio-utils";
 import { AUDIO_VIDEO_EXTENSIONS } from "@/lib/constants";
@@ -47,7 +46,6 @@ const strengthOptions: {
 type ProcessingState = "idle" | "loading-ffmpeg" | "denoising";
 
 function DenoiseAudioPage() {
-  const { isInstant, isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
   const [strength, setStrength] = useState<DenoiseStrength>("medium");
@@ -103,12 +101,9 @@ function DenoiseAudioPage() {
           // Duration not critical
         }
 
-        if (isInstant) {
-          processFile(selectedFile, "medium");
-        }
       }
     },
-    [isInstant, processFile, clearResult],
+    [clearResult],
   );
 
   const handleFileSelected = useCallback(
@@ -145,8 +140,6 @@ function DenoiseAudioPage() {
   }, [result, addToBuffer]);
 
   const isProcessing = processingState !== "idle";
-
-  if (!isLoaded) return null;
 
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">

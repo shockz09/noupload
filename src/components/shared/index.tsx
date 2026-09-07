@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { memo, useEffect, useRef, type ReactNode } from "react";
 import { AlertIcon, ArrowLeftIcon, CopyIcon, DownloadIcon, LoaderIcon } from "@/components/icons/ui";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
+import { useDock } from "@/components/shared/DockToggle";
 import { BackButton } from "./BackButton";
 
 // ============ Page Header ============
@@ -133,15 +133,15 @@ export const SuccessCard = memo(function SuccessCard({
   onStartOver,
   startOverLabel,
 }: SuccessCardProps) {
-  // Auto-buffer on mount (only in instant mode)
-  const { isInstant } = useInstantMode();
+  // Auto-buffer on mount (only when the dock is enabled)
+  const { isDockEnabled } = useDock();
   const bufferedRef = useRef(false);
   useEffect(() => {
-    if (isInstant && onHoldInBuffer && !bufferedRef.current) {
+    if (isDockEnabled && onHoldInBuffer && !bufferedRef.current) {
       bufferedRef.current = true;
       onHoldInBuffer();
     }
-  }, [isInstant, onHoldInBuffer]);
+  }, [isDockEnabled, onHoldInBuffer]);
 
   return (
     <div className="animate-fade-up">

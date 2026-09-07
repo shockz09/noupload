@@ -18,7 +18,6 @@ import { PauseIcon, PlayIcon } from "@/components/icons/ui";
 import { VideoTrimIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
-import { useInstantMode } from "@/components/shared/InstantModeToggle";
 import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -110,7 +109,6 @@ function computeKeepRanges(regions: Region[], mode: TrimMode, duration: number):
 // ── Component ─────────────────────────────────────────────────
 
 function TrimVideoPage() {
-  const { isLoaded } = useInstantMode();
   const [file, setFile] = useState<File | null>(null);
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -521,8 +519,6 @@ function TrimVideoPage() {
   const hch = isRm ? "hover:bg-red-500/80" : "hover:bg-primary/80";
   const bc = isRm ? "border-red-500" : "border-primary";
   const tc = isRm ? "text-red-500" : "text-primary";
-
-  if (!isLoaded) return null;
 
   // ── Render ────────────────────────────────────────────────
 
