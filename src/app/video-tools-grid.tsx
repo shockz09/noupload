@@ -38,6 +38,10 @@ export const videoTools = [
     category: "convert",
     colorClass: "tool-video-convert",
     keywords: ["mp4 to webm", "webm to mp4", "mov to mp4", "avi to mp4", "mkv to mp4", "video format", "change format"],
+    io: {
+      from: ["mp4", "mov", "mkv", "avi", "webm", "flv", "wmv", "m4v", "video"],
+      to: ["mp4", "webm", "mov", "mkv", "avi", "gif"],
+    },
   },
   {
     title: "Remove Audio",
@@ -84,6 +88,7 @@ export const videoTools = [
     category: "convert",
     colorClass: "tool-video-to-gif",
     keywords: ["video to gif", "animated", "mp4 to gif", "loop"],
+    io: { from: ["mp4", "mov", "mkv", "avi", "webm", "video"], to: ["gif"] },
   },
   {
     title: "Extract Audio",
@@ -93,6 +98,10 @@ export const videoTools = [
     category: "convert",
     colorClass: "tool-audio-extract",
     keywords: ["get audio", "rip audio", "video to mp3", "video to audio"],
+    io: {
+      from: ["mp4", "mov", "mkv", "avi", "webm", "video"],
+      to: ["mp3", "wav", "m4a", "aac", "flac", "ogg", "audio"],
+    },
   },
   {
     title: "Metadata",

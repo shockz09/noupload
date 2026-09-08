@@ -1,4 +1,3 @@
-
 import { ExtractImageIcon, GrayscaleIcon, ImageIcon } from "@/components/icons/image";
 import {
   ArchiveIcon,
@@ -6,6 +5,7 @@ import {
   CompressIcon,
   DeletePagesIcon,
   DuplicateIcon,
+  ExcelIcon,
   FileIcon,
   HtmlIcon,
   MergeIcon,
@@ -14,15 +14,13 @@ import {
   OcrIcon,
   OrganizeIcon,
   PptxIcon,
-  WordIcon,
-  ExcelIcon,
   ReversePagesIcon,
   RotateIcon,
-
   SignatureIcon,
   SplitIcon,
   TextIcon,
   WatermarkIcon,
+  WordIcon,
 } from "@/components/icons/pdf";
 import { EditIcon, LockIcon, UnlockIcon } from "@/components/icons/ui";
 import { ToolSearch } from "@/components/shared/ToolSearch";
@@ -72,6 +70,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-images-to-pdf",
     keywords: ["jpg to pdf", "png to pdf", "photo to pdf", "image to pdf", "pictures to pdf"],
+    io: { from: ["jpg", "jpeg", "png", "webp", "heic", "heif", "avif", "bmp", "tiff", "image"], to: ["pdf"] },
   },
   {
     title: "PDF → Images",
@@ -81,6 +80,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-pdf-to-images",
     keywords: ["pdf to jpg", "pdf to png", "pdf to image", "screenshot pages", "export pages"],
+    io: { from: ["pdf"], to: ["jpg", "jpeg", "png", "image"] },
   },
   {
     title: "Sign PDF",
@@ -135,6 +135,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-pdfa",
     keywords: ["archive", "long term", "preservation", "iso", "compliance"],
+    io: { from: ["pdf"], to: ["pdfa", "pdf/a"] },
   },
   {
     title: "Markdown → PDF",
@@ -144,6 +145,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-markdown-to-pdf",
     keywords: ["md to pdf", "markdown", "latex", "math equations"],
+    io: { from: ["md", "markdown", "text"], to: ["pdf"] },
   },
   {
     title: "HTML → PDF",
@@ -153,6 +155,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-html-to-pdf",
     keywords: ["webpage to pdf", "website to pdf", "html"],
+    io: { from: ["html", "webpage", "website", "url", "web"], to: ["pdf"] },
   },
   {
     title: "Rotate",
@@ -189,6 +192,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-ocr",
     keywords: ["scan", "recognize text", "scanned pdf", "image to text", "searchable"],
+    io: { from: ["pdf", "image", "scan"], to: ["text", "txt", "pdf"] },
   },
   {
     title: "Reverse Pages",
@@ -207,6 +211,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-convert",
     keywords: ["extract text", "copy text", "pdf to txt", "plain text"],
+    io: { from: ["pdf"], to: ["txt", "text"] },
   },
   {
     title: "Duplicate Pages",
@@ -243,6 +248,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-extract-images",
     keywords: ["get images", "save images", "pull photos"],
+    io: { from: ["pdf"], to: ["jpg", "png", "image"] },
   },
   {
     title: "PDF → EPUB",
@@ -252,6 +258,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-convert",
     keywords: ["ebook", "kindle", "reader", "epub"],
+    io: { from: ["pdf"], to: ["epub", "ebook"] },
   },
   {
     title: "PPTX → PDF",
@@ -261,6 +268,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-pptx-to-pdf",
     keywords: ["powerpoint", "ppt", "slides", "presentation to pdf"],
+    io: { from: ["pptx", "ppt", "powerpoint", "presentation"], to: ["pdf"] },
   },
   {
     title: "DOCX → PDF",
@@ -270,6 +278,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-docx-to-pdf",
     keywords: ["word to pdf", "docx", "doc", "document to pdf", "odt"],
+    io: { from: ["docx", "doc", "odt", "word", "document"], to: ["pdf"] },
   },
   {
     title: "XLSX → PDF",
@@ -279,6 +288,7 @@ export const pdfTools = [
     category: "convert",
     colorClass: "tool-xlsx-to-pdf",
     keywords: ["excel to pdf", "xlsx", "xls", "spreadsheet to pdf", "ods"],
+    io: { from: ["xlsx", "xls", "csv", "ods", "excel", "spreadsheet"], to: ["pdf"] },
   },
 ];
 
