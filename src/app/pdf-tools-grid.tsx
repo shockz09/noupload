@@ -51,7 +51,7 @@ export const pdfTools = [
     icon: MergeIcon,
     category: "organize",
     colorClass: "tool-merge",
-    keywords: ["combine", "join", "concatenate", "append"],
+    keywords: ["merge", "combine", "join", "concatenate", "append"],
   },
   {
     title: "Split PDF",

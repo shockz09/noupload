@@ -106,8 +106,32 @@ const SYNONYMS: Record<string, string[]> = {
   transparent: ["remove-bg"],
 };
 
-/** Words ignored when matching terms (the "to" in "mp4 to mp3"). */
-const STOPWORDS = new Set(["a", "an", "the", "my", "me", "for", "of", "from", "into", "with", "and"]);
+/**
+ * Words ignored when matching terms: filler and number words that would
+ * otherwise fluke-match text somewhere on an unrelated card.
+ */
+const STOPWORDS = new Set([
+  "a",
+  "an",
+  "the",
+  "my",
+  "me",
+  "for",
+  "of",
+  "from",
+  "into",
+  "with",
+  "and",
+  "to",
+  "two",
+  "three",
+  "four",
+  "five",
+]);
+
+/** Verbs people prefix to conversion queries ("change mp4 to mp3"). */
+const LEADING_VERBS =
+  /^(?:convert|change|turn|transform|make|create|generate|get|produce|export|save|switch)\s+(?=.+\s)/;
 
 function normalize(q: string): string {
   return q.toLowerCase().trim().replace(/\s+/g, " ");
@@ -133,8 +157,9 @@ function matchesTerm(text: string, term: string): boolean {
 
 /** Parse "mp4 to mp3" style queries. Returns null when not a conversion. */
 export function parseConvertIntent(query: string): ConvertIntent | null {
-  const q = normalize(query);
-  const m = CONVERT_RE.exec(q);
+  // Drop a leading verb so "change mp4 to mp3" parses like "mp4 to mp3".
+  const stripped = normalize(query).replace(LEADING_VERBS, "");
+  const m = CONVERT_RE.exec(stripped);
   if (!m) return null;
   const [, rawFrom, rawTo] = m;
   const from = rawFrom.trim();
@@ -202,8 +227,14 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
     const category = tool.category.toLowerCase();
     const kwLower = (tool.keywords ?? []).map((kw) => kw.toLowerCase());
 
-    const exactKw = kwLower.some((kw) => kw === q);
-    const partialKw = kwLower.some((kw) => kw.includes(q) || q.includes(kw));
+    // Very short queries skip phrase matching: "to" would otherwise
+    // keyword-match "video to gif" and crown nonsense winners.
+    const phrase = q.length >= 3;
+    const exactKw = phrase && kwLower.some((kw) => kw === q);
+    // Keyword covers the query ("video to mp3" for "mp3") is a strong
+    // signal; a keyword merely appearing inside the longer query is weak.
+    const kwCoversQuery = phrase && kwLower.some((kw) => kw.includes(q));
+    const queryCoversKw = phrase && kwLower.some((kw) => q.includes(kw));
     const titleMatch = terms.some((t) => title.includes(t));
     const descMatch = terms.some((t) => desc.includes(t));
 
@@ -226,8 +257,13 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
     const termExactKw = terms.some((t) => kwLower.includes(t));
 
     let score =
-      (exactKw ? 100 : 0) + (partialKw ? 50 : 0) + (termExactKw ? 15 : 0) + (titleMatch ? 20 : 0) + (descMatch ? 5 : 0);
-    let matched = termsMatch || partialKw || exactKw;
+      (exactKw ? 100 : 0) +
+      (kwCoversQuery ? 50 : 0) +
+      (queryCoversKw ? 20 : 0) +
+      (termExactKw ? 20 : 0) +
+      (titleMatch ? 20 : 0) +
+      (descMatch ? 5 : 0);
+    let matched = termsMatch || kwCoversQuery || queryCoversKw || exactKw;
 
     // Conversion intent: io declarations decide the winner.
     if (intent && tool.io) {
