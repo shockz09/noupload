@@ -132,21 +132,6 @@
   mix-blend-mode: multiply;
 }
 
-/* Ruled lines pattern */
-.ruled-pattern {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 39px,
-    #C84C1C08 39px,
-    #C84C1C08 40px
-  );
-}
-
 /* ============================================
    ANIMATIONS
    ============================================ */
@@ -198,16 +183,6 @@
   50% { transform: translateY(-6px); }
 }
 
-@keyframes slide-in-left {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
 
 @keyframes progress-stripe {
   0% { background-position: 0 0; }
@@ -218,24 +193,6 @@
   to { stroke-dashoffset: 0; }
 }
 
-@keyframes flash {
-  0% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-@keyframes pulse-ring-brutal {
-  0%, 100% {
-    box-shadow: 0 0 0 0 #C84C1C40;
-  }
-  50% {
-    box-shadow: 0 0 0 12px #C84C1C00;
-  }
-}
-
-@keyframes float-gentle {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-8px) rotate(1deg); }
-}
 
 @keyframes icon-wiggle {
   0%, 100% { transform: rotate(0deg); }
@@ -261,20 +218,8 @@
   animation: fade-in 0.4s ease-out forwards;
 }
 
-.animate-stamp {
-  animation: stamp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
 .animate-shake {
   animation: shake 0.5s ease-in-out;
-}
-
-.animate-bounce-subtle {
-  animation: bounce-subtle 2s ease-in-out infinite;
-}
-
-.animate-float {
-  animation: float-gentle 3s ease-in-out infinite;
 }
 
 /* Stagger children */
@@ -314,26 +259,6 @@
 
 .header-logo span {
   color: #C84C1C;
-}
-
-.header-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #1A1612;
-  background: #FFF0D4;
-  border: 1.5px solid #1A1612;
-  transition: all 0.2s ease;
-}
-
-.header-badge:hover {
-  background: #C84C1C;
-  color: #FFFEFA;
 }
 
 /* ============================================
@@ -420,10 +345,7 @@
 .tool-watermark { --tool-color: #8B4513; }
 .tool-page-numbers { --tool-color: #4A5568; }
 .tool-ocr { --tool-color: #9C4221; }
-.tool-protect { --tool-color: #7C1E4A; }
-.tool-unlock { --tool-color: #2D7C5A; }
 .tool-sign { --tool-color: #4A1E7C; }
-.tool-sanitize { --tool-color: #6B21A8; }
 .tool-encrypt { --tool-color: #1E3A5F; }
 .tool-decrypt { --tool-color: #047857; }
 .tool-reverse { --tool-color: #0F766E; }
@@ -449,7 +371,6 @@
 .tool-base64 { --tool-color: #115E59; }
 .tool-favicon { --tool-color: #4A1E7C; }
 .tool-screenshot { --tool-color: #7C3AED; }
-.tool-qr { --tool-color: #0E7490; }
 .tool-qr-generate { --tool-color: #1E4A7C; }
 .tool-qr-scan { --tool-color: #7C1E4A; }
 .tool-audio-trim { --tool-color: #5B21B6; }
@@ -822,18 +743,6 @@
   transition: width 0.3s ease;
 }
 
-.progress-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #1A1612;
-  mix-blend-mode: difference;
-}
-
 /* ============================================
    SUCCESS STATE - Approval Stamp
    ============================================ */
@@ -1073,19 +982,8 @@
    MISC UTILITIES
    ============================================ */
 
-.text-balance {
-  text-wrap: balance;
-}
-
 .font-display {
   font-family: var(--font-display);
-}
-
-.gradient-text {
-  background: linear-gradient(135deg, #C84C1C 0%, #E85A2A 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 /* Focus outline */
@@ -1106,33 +1004,6 @@ input.markdown-editor:focus-visible,
 input.markdown-editor:focus {
   outline: none !important;
   box-shadow: none !important;
-}
-
-/* ============================================
-   FEATURE CARDS - HOMEPAGE
-   ============================================ */
-
-.feature-item {
-  padding: 24px;
-  background: #FFFEFA;
-  border: 2px solid #1A1612;
-  transition: all 0.2s ease;
-}
-
-.feature-item:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 0 0 #1A1612;
-}
-
-.feature-icon {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #FFF0D4;
-  border: 2px solid #1A1612;
-  margin-bottom: 16px;
 }
 
 /* ============================================
@@ -1170,33 +1041,6 @@ input.markdown-editor:focus {
 }
 
 /* ============================================
-   HERO SECTION
-   ============================================ */
-
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  background: #2D5A3D;
-  color: #FFFEFA;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  border: 2px solid #1A1612;
-}
-
-.hero-badge::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  background: #4ADE80;
-  border-radius: 50%;
-  animation: pulse-ring-brutal 2s infinite;
-}
-
-/* ============================================
    DRAG AND DROP - Paper Office Aesthetic
    ============================================ */
 
@@ -1207,14 +1051,6 @@ input.markdown-editor:focus {
   100% { transform: scale(1) rotate(0deg); }
 }
 
-@keyframes border-march {
-  to { background-position: 24px 0; }
-}
-
-@keyframes drag-wobble {
-  0%, 100% { transform: scale(1.04) rotate(1.5deg); }
-  50% { transform: scale(1.04) rotate(-1deg); }
-}
 
 @keyframes icon-lift {
   0%, 100% { transform: translateY(0); }
@@ -1284,15 +1120,6 @@ input.markdown-editor:focus {
   height: 60px !important;
   background: linear-gradient(135deg, transparent 50%, #C84C1C 50%) !important;
   border-color: #C84C1C !important;
-}
-
-/* Gap indicator for list reordering */
-.drag-gap-indicator {
-  height: 4px;
-  background: #C84C1C;
-  margin: -2px 0;
-  border-radius: 2px;
-  transition: all 0.15s ease;
 }
 
 /* ============================================
