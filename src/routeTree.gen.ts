@@ -37,6 +37,7 @@ import { Route as EncryptRouteImport } from './routes/encrypt'
 import { Route as EditRouteImport } from './routes/edit'
 import { Route as DuplicateRouteImport } from './routes/duplicate'
 import { Route as DocxToPdfRouteImport } from './routes/docx-to-pdf'
+import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as DeleteRouteImport } from './routes/delete'
 import { Route as DecryptRouteImport } from './routes/decrypt'
 import { Route as CompressRouteImport } from './routes/compress'
@@ -234,6 +235,11 @@ const DuplicateRoute = DuplicateRouteImport.update({
 const DocxToPdfRoute = DocxToPdfRouteImport.update({
   id: '/docx-to-pdf',
   path: '/docx-to-pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignSystemRoute = DesignSystemRouteImport.update({
+  id: '/design-system',
+  path: '/design-system',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeleteRoute = DeleteRouteImport.update({
@@ -532,6 +538,7 @@ export interface FileRoutesByFullPath {
   '/compress': typeof CompressRoute
   '/decrypt': typeof DecryptRoute
   '/delete': typeof DeleteRoute
+  '/design-system': typeof DesignSystemRoute
   '/docx-to-pdf': typeof DocxToPdfRoute
   '/duplicate': typeof DuplicateRoute
   '/edit': typeof EditRoute
@@ -620,6 +627,7 @@ export interface FileRoutesByTo {
   '/compress': typeof CompressRoute
   '/decrypt': typeof DecryptRoute
   '/delete': typeof DeleteRoute
+  '/design-system': typeof DesignSystemRoute
   '/docx-to-pdf': typeof DocxToPdfRoute
   '/duplicate': typeof DuplicateRoute
   '/edit': typeof EditRoute
@@ -709,6 +717,7 @@ export interface FileRoutesById {
   '/compress': typeof CompressRoute
   '/decrypt': typeof DecryptRoute
   '/delete': typeof DeleteRoute
+  '/design-system': typeof DesignSystemRoute
   '/docx-to-pdf': typeof DocxToPdfRoute
   '/duplicate': typeof DuplicateRoute
   '/edit': typeof EditRoute
@@ -799,6 +808,7 @@ export interface FileRouteTypes {
     | '/compress'
     | '/decrypt'
     | '/delete'
+    | '/design-system'
     | '/docx-to-pdf'
     | '/duplicate'
     | '/edit'
@@ -887,6 +897,7 @@ export interface FileRouteTypes {
     | '/compress'
     | '/decrypt'
     | '/delete'
+    | '/design-system'
     | '/docx-to-pdf'
     | '/duplicate'
     | '/edit'
@@ -975,6 +986,7 @@ export interface FileRouteTypes {
     | '/compress'
     | '/decrypt'
     | '/delete'
+    | '/design-system'
     | '/docx-to-pdf'
     | '/duplicate'
     | '/edit'
@@ -1064,6 +1076,7 @@ export interface RootRouteChildren {
   CompressRoute: typeof CompressRoute
   DecryptRoute: typeof DecryptRoute
   DeleteRoute: typeof DeleteRoute
+  DesignSystemRoute: typeof DesignSystemRoute
   DocxToPdfRoute: typeof DocxToPdfRoute
   DuplicateRoute: typeof DuplicateRoute
   EditRoute: typeof EditRoute
@@ -1344,6 +1357,13 @@ declare module '@tanstack/react-router' {
       path: '/docx-to-pdf'
       fullPath: '/docx-to-pdf'
       preLoaderRoute: typeof DocxToPdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/design-system': {
+      id: '/design-system'
+      path: '/design-system'
+      fullPath: '/design-system'
+      preLoaderRoute: typeof DesignSystemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/delete': {
@@ -1760,6 +1780,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompressRoute: CompressRoute,
   DecryptRoute: DecryptRoute,
   DeleteRoute: DeleteRoute,
+  DesignSystemRoute: DesignSystemRoute,
   DocxToPdfRoute: DocxToPdfRoute,
   DuplicateRoute: DuplicateRoute,
   EditRoute: EditRoute,
