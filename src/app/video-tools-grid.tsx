@@ -28,7 +28,7 @@ export const videoTools = [
     icon: VideoTrimIcon,
     category: "edit",
     colorClass: "tool-video-trim",
-    keywords: ["cut", "clip", "shorten", "start end"],
+    keywords: ["cut", "clip", "shorten", "start end", "cut video", "video cutter"],
   },
   {
     title: "Convert",

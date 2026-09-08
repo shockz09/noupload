@@ -103,7 +103,7 @@ const SYNONYMS: Record<string, string[]> = {
   esign: ["sign"],
   screenshot: ["capture"],
   background: ["remove-bg", "transparent"],
-  transparent: ["remove-bg"],
+  read: ["extract", "ocr"],
 };
 
 /**
@@ -127,11 +127,23 @@ const STOPWORDS = new Set([
   "three",
   "four",
   "five",
+  "part",
 ]);
 
 /** Verbs people prefix to conversion queries ("change mp4 to mp3"). */
 const LEADING_VERBS =
   /^(?:convert|change|turn|transform|make|create|generate|get|produce|export|save|switch)\s+(?=.+\s)/;
+
+/**
+ * Suite nouns steer results toward the matching tool family: "black and
+ * white photo" should prefer an image tool over the PDF one.
+ */
+const SUITE_HINTS: Array<[string[], string]> = [
+  [["photo", "image", "picture", "png", "jpg", "jpeg", "heic", "heif", "webp", "avif"], "/image/"],
+  [["video", "movie", "clip", "mp4", "mov", "mkv", "webm"], "/video/"],
+  [["audio", "song", "sound", "music", "mp3", "wav", "flac"], "/audio/"],
+  [["qr", "barcode"], "/qr/"],
+];
 
 function normalize(q: string): string {
   return q.toLowerCase().trim().replace(/\s+/g, " ");
@@ -220,7 +232,6 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
   const expansions = expandedTerms(terms);
   const scored: { tool: T; score: number }[] = [];
   const unmatched: { tool: T; score: number }[] = [];
-
   for (const tool of tools) {
     const title = tool.title.toLowerCase();
     const desc = tool.description.toLowerCase();
@@ -233,8 +244,10 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
     const exactKw = phrase && kwLower.some((kw) => kw === q);
     // Keyword covers the query ("video to mp3" for "mp3") is a strong
     // signal; a keyword merely appearing inside the longer query is weak.
-    const kwCoversQuery = phrase && kwLower.some((kw) => kw.includes(q));
-    const queryCoversKw = phrase && kwLower.some((kw) => q.includes(kw));
+    // Containment checks use strict inequality: exact equality is the
+    // exactKw signal, and must not triple-count through both directions.
+    const kwCoversQuery = phrase && kwLower.some((kw) => kw.includes(q) && kw !== q);
+    const queryCoversKw = phrase && kwLower.some((kw) => q.includes(kw) && kw !== q);
     const titleMatch = terms.some((t) => title.includes(t));
     const descMatch = terms.some((t) => desc.includes(t));
 
@@ -256,14 +269,34 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
 
     const termExactKw = terms.some((t) => kwLower.includes(t));
 
+    // A multi-word keyword whose every word appears in the query (directly
+    // or via a synonym) is a strong hit even when not contiguous:
+    // "remove password" ⊆ "remove pdf password".
+    const termSet = new Set(terms);
+    const extrasVocab = new Set(terms.flatMap((t) => expansions.get(t) ?? []).flatMap((e) => e.split(/\s+/)));
+    const wordKnown = (w: string) => termSet.has(w) || extrasVocab.has(w);
+    const kwPhraseCovered = kwLower.some((kw) => kw.includes(" ") && kw.split(/\s+/).every(wordKnown));
+
+    // Query that names the tool: "sign pdf" is literally the tool's title.
+    // Typing a tool's exact name is the strongest possible signal.
+    const titleWords = title.replace(/[^a-z0-9]+/g, " ").trim();
+    const titleExact = phrase && titleWords === q;
+
+    // Suite nouns ("photo", "song") prefer the matching tool family.
+    const suiteHint = SUITE_HINTS.some(
+      ([nouns, prefix]) => terms.some((t) => nouns.includes(t)) && tool.href.startsWith(prefix),
+    );
     let score =
       (exactKw ? 100 : 0) +
+      (titleExact ? 120 : 0) +
       (kwCoversQuery ? 50 : 0) +
+      (kwPhraseCovered ? 45 : 0) +
       (queryCoversKw ? 20 : 0) +
       (termExactKw ? 20 : 0) +
       (titleMatch ? 20 : 0) +
+      (suiteHint ? 15 : 0) +
       (descMatch ? 5 : 0);
-    let matched = termsMatch || kwCoversQuery || queryCoversKw || exactKw;
+    let matched = termsMatch || kwCoversQuery || queryCoversKw || exactKw || titleExact;
 
     // Conversion intent: io declarations decide the winner.
     if (intent && tool.io) {

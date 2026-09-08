@@ -89,7 +89,7 @@ export const pdfTools = [
     icon: SignatureIcon,
     category: "edit",
     colorClass: "tool-sign",
-    keywords: ["signature", "e-sign", "esign", "autograph"],
+    keywords: ["sign", "signing", "signature", "e-sign", "esign", "autograph"],
   },
   {
     title: "Encrypt PDF",

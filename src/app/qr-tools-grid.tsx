@@ -54,7 +54,7 @@ export const qrTools = [
     icon: ScanIcon,
     category: "read",
     colorClass: "tool-qr-scan",
-    keywords: ["camera", "decode", "read qr", "reader"],
+    keywords: ["camera", "decode", "read qr", "reader", "scan", "scan qr code", "qr reader"],
   },
   {
     title: "Bulk Generate",
