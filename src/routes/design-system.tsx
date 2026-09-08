@@ -1,10 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
+
+const IS_DEV = (import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV === true;
 
 export const Route = createFileRoute("/design-system")({
+  // Dev-only page. In a production build the route 404s like any unknown URL
+  // instead of rendering anything of its own.
+  beforeLoad: () => {
+    if (!IS_DEV) throw notFound();
+  },
   head: () => ({
     meta: [{ title: "Design System — noupload (local only)" }, { name: "robots", content: "noindex, nofollow" }],
   }),
-  component: DesignSystemPage,
+  component: DesignSystem,
 });
 
 import type React from "react";
@@ -291,21 +298,6 @@ function Frame({ children, className = "" }: { children: ReactNode; className?: 
 // ─────────────────────────────────────────────────────────────
 // Page
 // ─────────────────────────────────────────────────────────────
-
-function DesignSystemPage() {
-  const isDev = (import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV === true;
-  if (!isDev) {
-    return (
-      <div className="page-enter max-w-xl mx-auto text-center space-y-4 py-16">
-        <h1 className="text-4xl font-display">Not here</h1>
-        <p className="text-muted-foreground">
-          The design system reference is a local development page. Run <Code>pnpm dev</Code> to open it.
-        </p>
-      </div>
-    );
-  }
-  return <DesignSystem />;
-}
 
 /** Highlights the section currently under the header as the page scrolls. */
 function useActiveSection(): string {

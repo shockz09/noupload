@@ -3,8 +3,16 @@ import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 
-export default defineConfig({
-	plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react()],
+export default defineConfig(({ command }) => ({
+	plugins: [
+		tanstackRouter({
+			target: "react",
+			autoCodeSplitting: true,
+			// Keep dev-only route files out of a production build entirely.
+			...(command === "build" ? { routeFileIgnorePattern: "design-system" } : {}),
+		}),
+		react(),
+	],
 	server: {
 		headers: {
 			"Cross-Origin-Opener-Policy": "same-origin",
@@ -18,4 +26,4 @@ export default defineConfig({
 			"react-native-fs": resolve(__dirname, "src/stubs/empty.ts"),
 		},
 	},
-});
+}));
