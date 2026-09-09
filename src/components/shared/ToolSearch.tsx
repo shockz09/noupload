@@ -44,6 +44,7 @@ export const ToolSearch = memo(function ToolSearch({
 }: ToolSearchProps) {
   const [query, setQuery] = useState("");
 
+  const isSearching = query.trim().length > 0;
   const filteredTools = useMemo(() => scoreTools(tools, query), [tools, query]);
 
   const handleClear = useCallback(() => {
@@ -76,17 +77,16 @@ export const ToolSearch = memo(function ToolSearch({
         )}
       </div>
 
-      {/* Results count when searching */}
-      {query && (
-        <p className="text-sm text-muted-foreground font-medium">
-          {filteredTools.length === 0
-            ? "No tools found"
-            : `${filteredTools.length} tool${filteredTools.length === 1 ? "" : "s"} found`}
-        </p>
-      )}
+      {/* Results count. Always occupies its row - rendering it only while
+          searching pushed the whole grid down on the first keystroke. */}
+      <p className={`text-sm text-muted-foreground font-medium ${isSearching ? "" : "invisible"}`} aria-live="polite">
+        {filteredTools.length === 0
+          ? "No tools found"
+          : `${filteredTools.length} tool${filteredTools.length === 1 ? "" : "s"} found`}
+      </p>
 
       {/* Tools Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
+      <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${isSearching ? "" : "stagger-children"}`}>
         {filteredTools.map((tool) => {
           const Icon = tool.icon;
 

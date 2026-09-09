@@ -108,6 +108,13 @@
   * {
     @apply border-border;
   }
+  html {
+    /* Reserve the scrollbar track at all times. Filtering a tool grid changes
+       the page height on almost every keystroke, and without this the
+       scrollbar appears and disappears, resizing the viewport and shifting
+       the whole layout sideways as you type. */
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "ss01", "ss02";
