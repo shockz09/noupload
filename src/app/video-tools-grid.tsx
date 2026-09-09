@@ -6,6 +6,7 @@ import {
   VideoConvertIcon,
   VideoMergeIcon,
   VideoMetadataIcon,
+  VideoRotateIcon,
   VideoSpeedIcon,
   VideoToGifIcon,
   VideoTrimIcon,
@@ -60,6 +61,15 @@ export const videoTools = [
     category: "edit",
     colorClass: "tool-video-remove-audio",
     keywords: ["add audio", "replace audio", "add music", "soundtrack", "add sound", "audio over video"],
+  },
+  {
+    title: "Rotate",
+    description: "Turn a sideways video upright, without re-encoding",
+    href: "/video/rotate",
+    icon: VideoRotateIcon,
+    category: "edit",
+    colorClass: "tool-video-rotate",
+    keywords: ["rotate", "turn", "sideways", "upside down", "90", "180", "portrait", "landscape", "rotate video"],
   },
   {
     title: "Change Speed",
