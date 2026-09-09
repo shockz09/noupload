@@ -109,11 +109,20 @@
     @apply border-border;
   }
   html {
-    /* Reserve the scrollbar track at all times. Filtering a tool grid changes
-       the page height on almost every keystroke, and without this the
-       scrollbar appears and disappears, resizing the viewport and shifting
-       the whole layout sideways as you type. */
-    scrollbar-gutter: stable;
+    /* Keep the scrollbar track present at all times. Filtering a tool grid
+       changes the page height on almost every keystroke, and without this the
+       scrollbar appears and disappears, resizing the viewport and shifting the
+       whole layout sideways as you type. Measured in Chrome with classic
+       (non-overlay) scrollbars: clientWidth jumped 1417 -> 1429 between a full
+       and an empty result set.
+
+       `scrollbar-gutter: stable` is the tidier property but does nothing here:
+       it only applies to scroll containers, and the root element's overflow is
+       visible, so there is no gutter to reserve. Setting overflow-y on html
+       does not help either - the value propagates to the viewport and the
+       gutter still does not apply. Verified all three in the browser; this is
+       the one that holds the width constant. */
+    overflow-y: scroll;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
