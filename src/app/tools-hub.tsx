@@ -1,4 +1,3 @@
-
 import { memo, useCallback, useEffect, useState } from "react";
 import { ToolSearch } from "@/components/shared/ToolSearch";
 import { audioCategoryLabels, audioTools } from "./audio-tools-grid";
@@ -21,7 +20,8 @@ interface CategoryDef {
   placeholder: string;
 }
 
-const allTools = [...pdfTools, ...imageTools, ...audioTools, ...videoTools, ...qrTools];
+/** Every tool, as shown by the "All" tab. Exported so search tests cover it. */
+export const allTools = [...pdfTools, ...imageTools, ...audioTools, ...videoTools, ...qrTools];
 const allCategoryLabels: Record<string, string> = {
   ...pdfCategoryLabels,
   ...imageCategoryLabels,

@@ -3,6 +3,7 @@ import { audioTools } from "@/app/audio-tools-grid";
 import { imageTools } from "@/app/image-tools-grid";
 import { pdfTools } from "@/app/pdf-tools-grid";
 import { qrTools } from "@/app/qr-tools-grid";
+import { allTools } from "@/app/tools-hub";
 import { videoTools } from "@/app/video-tools-grid";
 import { parseConvertIntent, type SearchableTool, scoreTools } from "./tool-search";
 
@@ -260,5 +261,54 @@ describe("robustness", () => {
     expect(scoreTools([...pdfTools], "")).toHaveLength(pdfTools.length);
     expect(scoreTools([...pdfTools], "   ")).toHaveLength(pdfTools.length);
     expect(scoreTools([...pdfTools], "", 3)).toHaveLength(3);
+  });
+});
+
+/**
+ * The "All" tab searches every tool at once. Cross-suite collisions only show
+ * up here: three different tools are called "Compress", and "trim" is a Crop
+ * keyword as well as a tool name.
+ */
+describe("the combined All Tools list", () => {
+  const search = (q: string) => scoreTools([...allTools], q).map((t) => t.title);
+
+  it("covers every tool in the per-suite grids", () => {
+    expect(allTools).toHaveLength(ALL_TOOLS.length);
+  });
+
+  // Regression: `queryCoversKw` treated "the query contains a keyword" as proof
+  // of a match, so Crop (which lists "trim") won outright for "vodio trim"
+  // while Trim itself was dropped. One stray keyword outvoted every-term-hits.
+  it("does not let a single keyword outvote the rest of the query", () => {
+    expect(search("vodio trim")[0]).toBe("Trim");
+    expect(search("trim my video")).toEqual(["Trim"]);
+  });
+
+  // Regression: a leading filler verb counted as a term nothing could satisfy,
+  // so the query fell through to the fuzzy fallback and ranked by typo-distance.
+  it("ignores a leading filler verb", () => {
+    expect(search("make video smaller")).toEqual(["Compress"]);
+    expect(search("convert mp4 to mp3")[0]).toBe("Extract Audio");
+  });
+
+  it("keeps a term meaningful across suites with same-named tools", () => {
+    // Three tools are called "Compress"; the qualifier has to pick one.
+    expect(search("compress video")).toEqual(["Compress"]);
+    expect(search("compress image")).toEqual(["Compress"]);
+    expect(search("compress").filter((t) => t === "Compress").length).toBeGreaterThan(1);
+  });
+
+  it("still answers the headline conversion queries", () => {
+    expect(search("mp4 to mp3")[0]).toBe("Extract Audio");
+    expect(search("heic to jpg")[0]).toBe("HEIC → JPEG");
+  });
+
+  it("never goes empty while typing any tool title", () => {
+    for (const tool of allTools) {
+      const typed = tool.title.toLowerCase();
+      for (let i = 1; i <= typed.length; i++) {
+        expect(search(typed.slice(0, i)), `"${typed.slice(0, i)}"`).not.toHaveLength(0);
+      }
+    }
   });
 });

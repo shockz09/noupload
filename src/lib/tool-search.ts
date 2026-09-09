@@ -178,9 +178,26 @@ function escapeRe(s: string): string {
  * whole word, so typing "res" still narrows to Resize - this box filters
  * as you type and every real query passes through its own prefixes.
  */
+/**
+ * Compiled word-start patterns, keyed by term. matchesTerm runs once per
+ * (tool x term x keyword) on every keystroke, so recompiling the same handful
+ * of patterns thousands of times a second is pure overhead. The key space is
+ * bounded by what a user can type into one search box.
+ */
+const TERM_RE = new Map<string, RegExp>();
+
+function termPattern(term: string): RegExp {
+  let re = TERM_RE.get(term);
+  if (!re) {
+    re = new RegExp(`\\b${escapeRe(term)}`);
+    TERM_RE.set(term, re);
+  }
+  return re;
+}
+
 function matchesTerm(text: string, term: string): boolean {
   if (term.length > 4) return text.includes(term);
-  return new RegExp(`\\b${escapeRe(term)}`).test(text);
+  return termPattern(term).test(text);
 }
 
 /** Parse "mp4 to mp3" style queries. Returns null when not a conversion. */
@@ -255,6 +272,34 @@ function expandedTerms(terms: string[]): Map<string, string[]> {
   return map;
 }
 
+interface ToolText {
+  title: string;
+  desc: string;
+  category: string;
+  keywords: string[];
+}
+
+/**
+ * Lowercased tool text, cached per tool object. The grids are module-level
+ * constants, so this is computed once for the life of the page instead of
+ * re-lowercasing every field of every tool on every keystroke.
+ */
+const TOOL_TEXT = new WeakMap<SearchableTool, ToolText>();
+
+function toolText(tool: SearchableTool): ToolText {
+  let t = TOOL_TEXT.get(tool);
+  if (!t) {
+    t = {
+      title: tool.title.toLowerCase(),
+      desc: tool.description.toLowerCase(),
+      category: tool.category.toLowerCase(),
+      keywords: (tool.keywords ?? []).map((kw) => kw.toLowerCase()),
+    };
+    TOOL_TEXT.set(tool, t);
+  }
+  return t;
+}
+
 /**
  * Score tools for a query. Returns tools sorted best-first, or with fuzzy
  * fallback results when nothing matched. `limit` caps fuzzy output.
@@ -263,7 +308,11 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
   const q = normalize(query);
   if (!q) return limit ? tools.slice(0, limit) : tools;
 
-  const rawTerms = q.split(/\s+/);
+  // Strip a leading filler verb ("make video smaller" -> "video smaller") so
+  // it does not count as a term nothing can satisfy. The pattern only fires
+  // at the start and only when more words follow, so a search for the Convert
+  // tool by name is untouched.
+  const rawTerms = q.replace(LEADING_VERBS, "").split(/\s+/);
   // A query made entirely of stopwords ("a", "to", "my") would leave no
   // terms at all and match nothing, so the box would read "No tools found"
   // for a single typed letter. Fall back to the raw tokens in that case.
@@ -272,12 +321,9 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
   const intent = parseConvertIntent(q);
   const expansions = expandedTerms(terms);
   const scored: { tool: T; score: number }[] = [];
-  const unmatched: { tool: T; score: number }[] = [];
+  const unmatched: T[] = [];
   for (const tool of tools) {
-    const title = tool.title.toLowerCase();
-    const desc = tool.description.toLowerCase();
-    const category = tool.category.toLowerCase();
-    const kwLower = (tool.keywords ?? []).map((kw) => kw.toLowerCase());
+    const { title, desc, category, keywords: kwLower } = toolText(tool);
 
     // Very short queries skip phrase matching: "to" would otherwise
     // keyword-match "video to gif" and crown nonsense winners.
@@ -291,6 +337,10 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
     // as term matching - a raw includes() here let "word" score against
     // the "password" keyword, defeating the guard in matchesTerm.
     const kwCoversQuery = phrase && kwLower.some((kw) => kw !== q && matchesTerm(kw, q));
+    // Only ever a ranking nudge, never proof of a match: the query merely
+    // *containing* a keyword leaves the rest of the query unaccounted for.
+    // Crop lists "trim", so "vodio trim" used to return Crop and nothing
+    // else - one stray keyword outvoting the every-term-must-hit rule.
     const queryCoversKw = phrase && kwLower.some((kw) => kw !== q && matchesTerm(q, kw));
     const titleMatch = terms.some((t) => title.includes(t));
     const descMatch = terms.some((t) => desc.includes(t));
@@ -350,7 +400,7 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
       (suiteHint ? 15 : 0) +
       (synonymHit ? 10 : 0) +
       (descMatch ? 5 : 0);
-    let matched = termsMatch || kwCoversQuery || queryCoversKw || exactKw || titleExact;
+    let matched = termsMatch || kwCoversQuery || exactKw || titleExact;
 
     // Conversion intent: io declarations decide the winner.
     if (intent && tool.io) {
@@ -397,13 +447,10 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
     if (matched) {
       scored.push({ tool, score });
     } else {
-      // Keep fuzzy candidates warm instead of dropping them.
-      const sim = Math.max(
-        trigramSimilarity(q, title),
-        ...kwLower.map((kw) => trigramSimilarity(q, kw)),
-        ...terms.filter((t) => t.length > 2).map((t) => trigramSimilarity(t, title)),
-      );
-      unmatched.push({ tool, score: sim });
+      // Deferred: scoring these is only worth it if nothing matches at all,
+      // which is the rare case. Doing it here cost ~4x the whole search on
+      // every keystroke, for candidates that were then thrown away.
+      unmatched.push(tool);
     }
   }
 
@@ -412,8 +459,16 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
   }
 
   // Fuzzy fallback: surface closest titles/keywords above threshold.
-  return unmatched
-    .filter((u) => u.score >= 0.34)
+  const fuzzyTerms = terms.filter((t) => t.length > 2);
+  const near: { tool: T; score: number }[] = [];
+  for (const tool of unmatched) {
+    const { title, keywords } = toolText(tool);
+    let sim = trigramSimilarity(q, title);
+    for (const kw of keywords) sim = Math.max(sim, trigramSimilarity(q, kw));
+    for (const t of fuzzyTerms) sim = Math.max(sim, trigramSimilarity(t, title));
+    if (sim >= 0.34) near.push({ tool, score: sim });
+  }
+  return near
     .sort((a, b) => b.score - a.score)
     .slice(0, limit ?? 8)
     .map((u) => u.tool);
