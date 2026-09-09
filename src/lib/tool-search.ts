@@ -26,8 +26,17 @@ export interface SearchableTool {
   io?: ToolIO;
 }
 
-/** Query shapes that mean "convert X to Y". */
-const CONVERT_RE = /^(.+?)\s*(?:→|->|=>|to|2|into|as)\s*(.+)$/;
+/**
+ * Query shapes that mean "convert X to Y".
+ *
+ * Two alternatives, because the separators need different padding rules.
+ * Symbol arrows are unambiguous and may be written unspaced ("png->jpg").
+ * Word separators MUST be surrounded by whitespace: the lazy `(.+?)` would
+ * otherwise latch onto the first occurrence anywhere in the string, and
+ * "to"/"2"/"as" all live inside real format words - "pho|to| to pdf",
+ * "mp|2| to mp3", "r|as|ter to png".
+ */
+const CONVERT_RE = /^(.+?)\s*(?:→|->|=>)\s*(.+)$|^(.+?)\s+(?:to|2|into|as)\s+(.+)$/;
 
 /**
  * Format token -> semantic family. Tokens listed under a family are treated
@@ -128,6 +137,7 @@ const STOPWORDS = new Set([
   "four",
   "five",
   "part",
+  "parts",
 ]);
 
 /** Verbs people prefix to conversion queries ("change mp4 to mp3"). */
@@ -157,14 +167,20 @@ export interface ConvertIntent {
   toToken: string;
 }
 
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
- * Short terms ("pdf", "gif", "word") must match on word boundaries so
- * "word" does not hit "password"; longer terms keep plain substring
- * matching ("compress" inside "compressed").
+ * Short terms ("pdf", "gif", "word") must match at a word start so "word"
+ * does not hit "password"; longer terms keep plain substring matching
+ * ("compress" inside "compressed"). The match is a word *prefix*, not a
+ * whole word, so typing "res" still narrows to Resize - this box filters
+ * as you type and every real query passes through its own prefixes.
  */
 function matchesTerm(text: string, term: string): boolean {
   if (term.length > 4) return text.includes(term);
-  return new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(text);
+  return new RegExp(`\\b${escapeRe(term)}`).test(text);
 }
 
 /** Parse "mp4 to mp3" style queries. Returns null when not a conversion. */
@@ -173,9 +189,9 @@ export function parseConvertIntent(query: string): ConvertIntent | null {
   const stripped = normalize(query).replace(LEADING_VERBS, "");
   const m = CONVERT_RE.exec(stripped);
   if (!m) return null;
-  const [, rawFrom, rawTo] = m;
-  const from = rawFrom.trim();
-  const to = rawTo.trim();
+  // Group 1/2 = symbol-arrow branch, 3/4 = word-separator branch.
+  const from = (m[1] ?? m[3]).trim();
+  const to = (m[2] ?? m[4]).trim();
   if (!from || !to) return null;
   const fromFamily = familyOf(from);
   const toFamily = familyOf(to);
@@ -192,6 +208,26 @@ function ioFamilies(list: string[]): Set<string> {
     s.add(fam ?? f.toLowerCase());
   }
   return s;
+}
+
+/** The declared io formats themselves, normalized (no family widening). */
+function ioTokens(list: string[]): Set<string> {
+  const s = new Set<string>();
+  for (const f of list) s.add(f.toLowerCase().replace(/^\./, "").trim());
+  return s;
+}
+
+/**
+ * Does a declared io list cover one side of an intent?
+ *
+ * Matching on family alone is too loose in the `to` direction: every
+ * image->image converter would claim "heic to webp" even when it can only
+ * emit jpeg. So a list covers a format when it names that format outright,
+ * or when it names the whole family as an explicit wildcard - "image" in
+ * Images -> PDF's `from` really does mean any image.
+ */
+function ioCovers(tokens: Set<string>, token: string, family: string): boolean {
+  return tokens.has(token) || tokens.has(family);
 }
 
 function trigrams(s: string): Set<string> {
@@ -227,7 +263,12 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
   const q = normalize(query);
   if (!q) return limit ? tools.slice(0, limit) : tools;
 
-  const terms = q.split(/\s+/).filter((t) => !STOPWORDS.has(t));
+  const rawTerms = q.split(/\s+/);
+  // A query made entirely of stopwords ("a", "to", "my") would leave no
+  // terms at all and match nothing, so the box would read "No tools found"
+  // for a single typed letter. Fall back to the raw tokens in that case.
+  const stripped = rawTerms.filter((t) => !STOPWORDS.has(t));
+  const terms = stripped.length ? stripped : rawTerms;
   const intent = parseConvertIntent(q);
   const expansions = expandedTerms(terms);
   const scored: { tool: T; score: number }[] = [];
@@ -246,25 +287,37 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
     // signal; a keyword merely appearing inside the longer query is weak.
     // Containment checks use strict inequality: exact equality is the
     // exactKw signal, and must not triple-count through both directions.
-    const kwCoversQuery = phrase && kwLower.some((kw) => kw.includes(q) && kw !== q);
-    const queryCoversKw = phrase && kwLower.some((kw) => q.includes(kw) && kw !== q);
+    // Both go through matchesTerm so they honour the same word-start rule
+    // as term matching - a raw includes() here let "word" score against
+    // the "password" keyword, defeating the guard in matchesTerm.
+    const kwCoversQuery = phrase && kwLower.some((kw) => kw !== q && matchesTerm(kw, q));
+    const queryCoversKw = phrase && kwLower.some((kw) => kw !== q && matchesTerm(q, kw));
     const titleMatch = terms.some((t) => title.includes(t));
     const descMatch = terms.some((t) => desc.includes(t));
 
-    // Every term must hit somewhere, expansions included.
+    // Every term must hit somewhere, expansions included. We track whether
+    // any term landed *only* via a synonym, because such a hit feeds no
+    // other score component: without points of its own a synonym-only
+    // match totals 0 and the gate below drops it ("read" never reached OCR
+    // even though SYNONYMS maps read -> ocr).
     let termsMatch = terms.length > 0;
+    let synonymHit = false;
     for (const t of terms) {
       const extras = expansions.get(t) ?? [];
-      const hit =
+      const direct =
         matchesTerm(title, t) ||
         matchesTerm(desc, t) ||
         matchesTerm(category, t) ||
-        kwLower.some((kw) => matchesTerm(kw, t) || extras.some((e) => matchesTerm(kw, e) || matchesTerm(e, kw))) ||
-        extras.some((e) => matchesTerm(desc, e) || matchesTerm(title, e));
-      if (!hit) {
+        kwLower.some((kw) => matchesTerm(kw, t));
+      const viaSynonym =
+        !direct &&
+        (kwLower.some((kw) => extras.some((e) => matchesTerm(kw, e) || matchesTerm(e, kw))) ||
+          extras.some((e) => matchesTerm(desc, e) || matchesTerm(title, e)));
+      if (!direct && !viaSynonym) {
         termsMatch = false;
         break;
       }
+      if (viaSynonym) synonymHit = true;
     }
 
     const termExactKw = terms.some((t) => kwLower.includes(t));
@@ -295,37 +348,53 @@ export function scoreTools<T extends SearchableTool>(tools: T[], query: string, 
       (termExactKw ? 20 : 0) +
       (titleMatch ? 20 : 0) +
       (suiteHint ? 15 : 0) +
+      (synonymHit ? 10 : 0) +
       (descMatch ? 5 : 0);
     let matched = termsMatch || kwCoversQuery || queryCoversKw || exactKw || titleExact;
 
     // Conversion intent: io declarations decide the winner.
     if (intent && tool.io) {
-      const fromFam = ioFamilies(tool.io.from);
-      const toFam = ioFamilies(tool.io.to);
-      const fromHit = fromFam.has(intent.fromFamily);
-      const toHit = toFam.has(intent.toFamily);
+      const fromTok = ioTokens(tool.io.from);
+      const toTok = ioTokens(tool.io.to);
+      const fromHit = ioCovers(fromTok, intent.fromToken, intent.fromFamily);
+      const toHit = ioCovers(toTok, intent.toToken, intent.toFamily);
+      // Comparing tokens (not families) is what makes direction legible
+      // inside a family: "pdf to word" is reversed for DOCX -> PDF even
+      // though pdf and docx share the `document` family.
+      const reversed =
+        ioCovers(toTok, intent.fromToken, intent.fromFamily) && ioCovers(fromTok, intent.toToken, intent.toFamily);
       if (fromHit && toHit) {
         score += 120;
         matched = true;
+      } else if (reversed) {
+        // Closest converter we have, pointing the other way ("pdf to word"
+        // -> DOCX to PDF). Ranked below exact matches, but above the family
+        // guess below: both endpoints match on the token, just transposed.
+        score += 60;
+        matched = true;
+      } else if (fromHit && ioFamilies(tool.io.to).has(intent.toFamily)) {
+        // Right input and the right output *family*, but not that exact
+        // format - HEIC -> JPEG for "heic to webp". The weakest positive
+        // signal: inside a broad family it fires on coincidence (OCR emits
+        // pdf, so it looks "document-shaped" for "pdf to word").
+        score += 35;
+        matched = true;
       } else if (toHit) {
         score += 30;
-        matched = matched || termsMatch;
-      } else if (toFam.has(intent.fromFamily) && fromFam.has(intent.toFamily)) {
-        // Reversed direction: closest converter we have ("pdf to word" ->
-        // DOCX to PDF). Ranked below exact matches.
-        score += 40;
-        matched = true;
       }
     } else if (intent) {
       // No io declared: an exact "x to y" keyword phrase still counts.
-      const phrase = `${intent.fromToken} ${intent.toToken}`;
-      if (kwLower.some((kw) => kw === phrase || kw === `${intent.fromToken} to ${intent.toToken}`)) {
+      const intentPhrase = `${intent.fromToken} ${intent.toToken}`;
+      if (kwLower.some((kw) => kw === intentPhrase || kw === `${intent.fromToken} to ${intent.toToken}`)) {
         score += 100;
         matched = true;
       }
     }
 
-    if (matched && score > 0) {
+    // Gate on `matched` alone: a tool that satisfied every term is a real
+    // result even when the signals that fired award no points. Requiring
+    // score > 0 here silently rerouted such tools into the fuzzy bucket.
+    if (matched) {
       scored.push({ tool, score });
     } else {
       // Keep fuzzy candidates warm instead of dropping them.
