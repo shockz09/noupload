@@ -38,7 +38,7 @@ import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { MEDIABUNNY_VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 import { downloadBlob, downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
-import { formatFileSize } from "@/lib/utils";
+import { formatFileSize, formatSizeDelta } from "@/lib/utils";
 import { analyzeVideo, type CompressOptions, compressVideo, type VideoInfo } from "@/lib/video/compress";
 import { compressGif, type GifCompressOptions } from "@/lib/video/compress-gif";
 
@@ -313,8 +313,6 @@ function VideoCompressPage() {
     setBulkProgress({ current: 0, total: 0 });
   }, [clearError]);
 
-  const savings = result ? Math.round((1 - result.compressedSize / result.originalSize) * 100) : 0;
-
   const totalBulkSavings = useMemo(() => {
     if (successfulResults.length === 0) return 0;
     const totalOriginal = successfulResults.reduce((sum, r) => sum + r.originalSize, 0);
@@ -352,7 +350,7 @@ function VideoCompressPage() {
           <ImageResultView
             blob={result.blob}
             title="GIF Compressed!"
-            subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.compressedSize)} · ${savings}% smaller`}
+            subtitle={formatSizeDelta(result.originalSize, result.compressedSize)}
             downloadLabel="Download GIF"
             onDownload={handleDownload}
             onHoldInBuffer={handleHoldInBuffer}
@@ -363,7 +361,7 @@ function VideoCompressPage() {
           <VideoResultView
             blob={result.blob}
             title="Video Compressed!"
-            subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.compressedSize)} · ${savings}% smaller`}
+            subtitle={formatSizeDelta(result.originalSize, result.compressedSize)}
             downloadLabel="Download Video"
             onDownload={handleDownload}
             onHoldInBuffer={handleHoldInBuffer}

@@ -93,13 +93,21 @@ export async function getImageDimensions(file: File): Promise<ImageDimensions> {
   }
 }
 
-// Compress image
+export interface CompressImageResult {
+  blob: Blob;
+  /** True when the JPEG re-encode came out no smaller, so the original bytes were kept. */
+  keptOriginal: boolean;
+}
+
+// Compress image. Never returns something bigger than what came in: an input
+// that is already a low-quality JPEG (or a flat PNG that JPEG handles badly)
+// grows when re-encoded, and a compressor that inflates files is just broken.
 export async function compressImage(
   file: File,
   quality: number = 0.8,
   maxWidth?: number,
   maxHeight?: number,
-): Promise<Blob> {
+): Promise<CompressImageResult> {
   const img = await loadImage(file);
 
   try {
@@ -129,7 +137,14 @@ export async function compressImage(
     ctx.drawImage(img, 0, 0, width, height);
 
     // Use JPEG for compression (better compression than PNG)
-    return await canvasToBlob(canvas, "jpeg", quality);
+    const compressed = await canvasToBlob(canvas, "jpeg", quality);
+
+    // Scaling down changes the pixel dimensions, so the original is not a
+    // substitute for it however big the re-encode turns out.
+    const scaled = width !== img.width || height !== img.height;
+    if (scaled || compressed.size < file.size) return { blob: compressed, keptOriginal: false };
+
+    return { blob: file, keptOriginal: true };
   } finally {
     URL.revokeObjectURL(img.src);
   }

@@ -28,7 +28,7 @@ import { compressAudio } from "@/lib/audio/compress";
 import { AUDIO_EXTENSIONS } from "@/lib/constants";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
-import { formatFileSize } from "@/lib/utils";
+import { formatFileSize, formatSizeDelta } from "@/lib/utils";
 
 // ── Presets ─────────────────────────────────────────────────
 type PresetKey = "light" | "balanced" | "maximum";
@@ -133,8 +133,6 @@ function AudioCompressPage() {
     });
   }, [result, addToBuffer]);
 
-  const savings = result ? Math.round((1 - result.compressedSize / result.originalSize) * 100) : 0;
-
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
       <AudioPageHeader
@@ -162,7 +160,7 @@ function AudioCompressPage() {
             url={resultUrl}
             blobSize={result.blob.size}
             title="Audio Compressed!"
-            subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.compressedSize)} · ${savings}% smaller`}
+            subtitle={formatSizeDelta(result.originalSize, result.compressedSize)}
             downloadLabel="Download Audio"
             onDownload={handleDownload}
             onHoldInBuffer={handleHoldInBuffer}

@@ -27,13 +27,15 @@ import { useFileBuffer, useFileProcessing } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { COMPRESSION_DESCRIPTIONS, type CompressionLevel, useGhostscript } from "@/lib/ghostscript/useGhostscript";
-import { formatFileSize, getFileBaseName } from "@/lib/utils";
+import { formatCompressionResult, formatFileSize, getFileBaseName } from "@/lib/utils";
 
 interface CompressResult {
   data: Uint8Array;
   filename: string;
   originalSize: number;
   compressedSize: number;
+  /** True when Ghostscript's output was no smaller, so the original bytes were kept. */
+  keptOriginal: boolean;
 }
 
 function CompressPage() {
@@ -53,12 +55,19 @@ function CompressPage() {
       try {
         const compressed = await gsCompress(fileToProcess, level);
 
+        // A PDF with no images, or one already optimized, comes back bigger than
+        // it went in — Ghostscript rewrites every object either way. Hand back
+        // the original in that case instead of an inflated "compressed" file.
+        const keptOriginal = compressed.length >= fileToProcess.size;
+        const data = keptOriginal ? new Uint8Array(await fileToProcess.arrayBuffer()) : compressed;
+
         const baseName = getFileBaseName(fileToProcess.name);
         setResult({
-          data: compressed,
-          filename: `${baseName}_compressed.pdf`,
+          data,
+          filename: keptOriginal ? fileToProcess.name : `${baseName}_compressed.pdf`,
           originalSize: fileToProcess.size,
-          compressedSize: compressed.length,
+          compressedSize: data.length,
+          keptOriginal,
         });
       } catch (err) {
         setError(getErrorMessage(err, "Failed to compress PDF"));
@@ -123,8 +132,6 @@ function CompressPage() {
     });
   }, [result, addToBuffer]);
 
-  const savings = result ? Math.round((1 - result.compressedSize / result.originalSize) * 100) : 0;
-
   return (
     <div className="page-enter max-w-2xl mx-auto space-y-8">
       <PdfPageHeader
@@ -136,8 +143,8 @@ function CompressPage() {
 
       {result ? (
         <PdfResultView
-          title="PDF Compressed!"
-          subtitle={`${formatFileSize(result.originalSize)} → ${formatFileSize(result.compressedSize)} · ${savings}% smaller`}
+          title={result.keptOriginal ? "Already As Small As It Gets" : "PDF Compressed!"}
+          subtitle={formatCompressionResult(result.originalSize, result.compressedSize, result.keptOriginal)}
           data={result.data}
           size={result.compressedSize}
           downloadLabel="Download PDF"

@@ -184,7 +184,10 @@ async function compressPdf(id: string, inputData: Uint8Array, preset: GsCompress
 
   const args = [
     "-sDEVICE=pdfwrite",
-    "-dCompatibilityLevel=1.4",
+    // 1.5+ so pdfwrite can pack objects into compressed object/xref streams. At
+    // 1.4 the plain cross-reference table alone can make the output bigger than
+    // the input on PDFs with little image data to shave off.
+    "-dCompatibilityLevel=1.5",
     "-dNOPAUSE",
     "-dQUIET",
     "-dBATCH",

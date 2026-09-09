@@ -30,10 +30,12 @@ import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProce
 import { downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { compressImage, copyImageToClipboard, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import { formatCompressionResult, formatSizeDelta } from "@/lib/utils";
 
 interface CompressMetadata {
   originalSize: number;
   compressedSize: number;
+  keptOriginal: boolean;
 }
 
 interface FileItem {
@@ -45,6 +47,7 @@ interface CompressedItem {
   original: File;
   blob: Blob;
   filename: string;
+  keptOriginal: boolean;
 }
 
 function ImageCompressPage() {
@@ -72,11 +75,15 @@ function ImageCompressPage() {
       if (!startProcessing()) return;
       try {
         setProgress(30);
-        const compressed = await compressImage(fileToProcess, q / 100);
+        const { blob, keptOriginal } = await compressImage(fileToProcess, q / 100);
         setProgress(90);
-        setResult(compressed, getOutputFilename(fileToProcess.name, "jpeg", "_compressed"), {
+        const filename = keptOriginal
+          ? fileToProcess.name
+          : getOutputFilename(fileToProcess.name, "jpeg", "_compressed");
+        setResult(blob, filename, {
           originalSize: fileToProcess.size,
-          compressedSize: compressed.size,
+          compressedSize: blob.size,
+          keptOriginal,
         });
         setProgress(100);
       } catch (err) {
@@ -136,8 +143,9 @@ function ImageCompressPage() {
         const batch = files.slice(i, i + BATCH_SIZE);
         const batchResults = await Promise.all(
           batch.map(async ({ file: f }) => {
-            const blob = await compressImage(f, quality / 100);
-            return { original: f, blob, filename: getOutputFilename(f.name, "jpeg", "_compressed") };
+            const { blob, keptOriginal } = await compressImage(f, quality / 100);
+            const filename = keptOriginal ? f.name : getOutputFilename(f.name, "jpeg", "_compressed");
+            return { original: f, blob, filename, keptOriginal };
           }),
         );
         compressed.push(...batchResults);
@@ -199,14 +207,9 @@ function ImageCompressPage() {
     });
   }, [result, addToBuffer]);
 
-  const singleSavings = result?.metadata ? Math.round((1 - result.metadata.compressedSize / result.metadata.originalSize) * 100) : 0;
-
   const totalOriginalSize = useMemo(() => files.reduce((sum, f) => sum + f.file.size, 0), [files]);
-  const totalSavings = useMemo(() => {
-    if (bulkResults.length === 0 || totalOriginalSize === 0) return 0;
-    const totalCompressed = bulkResults.reduce((sum, r) => sum + r.blob.size, 0);
-    return Math.round((1 - totalCompressed / totalOriginalSize) * 100);
-  }, [bulkResults, totalOriginalSize]);
+  const totalCompressedSize = useMemo(() => bulkResults.reduce((sum, r) => sum + r.blob.size, 0), [bulkResults]);
+  const keptOriginalCount = useMemo(() => bulkResults.filter((r) => r.keptOriginal).length, [bulkResults]);
 
   // --- Multi results view ---
   if (bulkResults.length > 0) {
@@ -228,7 +231,10 @@ function ImageCompressPage() {
             </div>
             <div className="space-y-4 mb-6">
               <h2 className="text-3xl font-display">{bulkResults.length} Images Compressed!</h2>
-              <p className="text-sm text-muted-foreground">{totalSavings}% smaller overall</p>
+              <p className="text-sm text-muted-foreground">
+                {formatSizeDelta(totalOriginalSize, totalCompressedSize)} overall
+                {keptOriginalCount > 0 && ` · ${keptOriginalCount} already optimized`}
+              </p>
             </div>
             <button type="button" onClick={handleDownloadAll} className="btn-success w-full mb-4">
               <DownloadIcon className="w-5 h-5" />
@@ -237,26 +243,23 @@ function ImageCompressPage() {
           </div>
 
           <div className="space-y-2">
-            {bulkResults.map((item) => {
-              const savings = Math.round((1 - item.blob.size / item.original.size) * 100);
-              return (
-                <div key={item.filename} className="flex items-center justify-between p-3 border-2 border-foreground bg-background">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm truncate">{item.filename}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatFileSize(item.original.size)} → {formatFileSize(item.blob.size)} ({savings}% saved)
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadOne(item)}
-                    className="text-sm font-bold text-primary hover:underline ml-4"
-                  >
-                    Download
-                  </button>
+            {bulkResults.map((item) => (
+              <div key={item.filename} className="flex items-center justify-between p-3 border-2 border-foreground bg-background">
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm truncate">{item.filename}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatCompressionResult(item.original.size, item.blob.size, item.keptOriginal)}
+                  </p>
                 </div>
-              );
-            })}
+                <button
+                  type="button"
+                  onClick={() => handleDownloadOne(item)}
+                  className="text-sm font-bold text-primary hover:underline ml-4"
+                >
+                  Download
+                </button>
+              </div>
+            ))}
           </div>
 
           <button type="button" onClick={handleStartOver} className="btn-secondary w-full">
@@ -269,6 +272,7 @@ function ImageCompressPage() {
 
   // --- Single result view ---
   if (result) {
+    const { originalSize = 0, compressedSize = 0, keptOriginal = false } = result.metadata ?? {};
     return (
       <div className="page-enter max-w-2xl mx-auto space-y-8">
         <ImagePageHeader
@@ -279,8 +283,8 @@ function ImageCompressPage() {
         />
         <ImageResultView
           blob={result.blob}
-          title="Image Compressed!"
-          subtitle={`${formatFileSize(result.metadata?.originalSize ?? 0)} → ${formatFileSize(result.metadata?.compressedSize ?? 0)} · ${singleSavings}% smaller`}
+          title={keptOriginal ? "Already As Small As It Gets" : "Image Compressed!"}
+          subtitle={formatCompressionResult(originalSize, compressedSize, keptOriginal)}
           downloadLabel="Download Image"
           onDownload={handleSingleDownload}
           onCopy={result.blob.type === "image/png" ? () => copyImageToClipboard(result.blob) : undefined}
