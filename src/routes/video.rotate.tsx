@@ -14,15 +14,16 @@ export const Route = createFileRoute("/video/rotate")({
 });
 
 import { useCallback, useRef, useState } from "react";
-import { PauseIcon, PlayIcon, RotateLeftIcon, RotateRightIcon } from "@/components/icons/ui";
+import { RotateLeftIcon, RotateRightIcon } from "@/components/icons/ui";
 import { VideoRotateIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
+import { ErrorBox, InfoBox, PreviewPlayOverlay, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
 import { useFileBuffer, useFileProcessing, useObjectURL } from "@/hooks";
 import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
-import { analyzeForRotation, rotateVideo, type RotationAngle, type VideoRotationInfo } from "@/lib/video/rotate";
+import { analyzeForTransform, type VideoTransformInfo } from "@/lib/video/orientation";
+import { rotateVideo, type RotationAngle } from "@/lib/video/rotate";
 
 interface RotateResult {
   blob: Blob;
@@ -33,13 +34,14 @@ interface RotateResult {
 
 function RotateVideoPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [info, setInfo] = useState<VideoRotationInfo | null>(null);
+  const [info, setInfo] = useState<VideoTransformInfo | null>(null);
   const [rotation, setRotation] = useState<RotationAngle>(0);
   const [result, setResult] = useState<RotateResult | null>(null);
-  const [playing, setPlaying] = useState(false);
   const [previewFailed, setPreviewFailed] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  /** The file whose analysis is allowed to win, so a stale read can't overwrite it. */
+  const analyzing = useRef<File | null>(null);
   const { url: preview, setSource: setPreview, revoke: revokePreview } = useObjectURL();
   const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
     useFileProcessing();
@@ -50,7 +52,6 @@ function RotateVideoPage() {
     setInfo(null);
     setRotation(0);
     setResult(null);
-    setPlaying(false);
     setPreviewFailed(false);
     clearError();
   }, [revokePreview, clearError]);
@@ -65,14 +66,17 @@ function RotateVideoPage() {
       setInfo(null);
       setRotation(0);
       setResult(null);
-      setPlaying(false);
       setPreviewFailed(false);
       clearError();
 
+      // Pick another file while this one is still being read and the slower answer
+      // must not land on top of the newer one.
+      analyzing.current = selected;
       try {
-        setInfo(await analyzeForRotation(selected));
+        const info = await analyzeForTransform(selected);
+        if (analyzing.current === selected) setInfo(info);
       } catch (err) {
-        setError(getErrorMessage(err, "Could not read this video."));
+        if (analyzing.current === selected) setError(getErrorMessage(err, "Could not read this video."));
       }
     },
     [setPreview, clearError, setError],
@@ -130,13 +134,6 @@ function RotateVideoPage() {
       sourceToolLabel: "Rotate Video",
     });
   }, [result, addToBuffer]);
-
-  const togglePlay = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) video.play();
-    else video.pause();
-  }, []);
 
   // A quarter turn swaps the frame; a half turn leaves it alone.
   const quarterTurn = (result?.angle ?? rotation) % 180 !== 0;
@@ -249,8 +246,6 @@ function RotateVideoPage() {
                       loop
                       muted
                       playsInline
-                      onPlay={() => setPlaying(true)}
-                      onPause={() => setPlaying(false)}
                       onError={() => setPreviewFailed(true)}
                       style={{
                         transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
@@ -259,20 +254,7 @@ function RotateVideoPage() {
                       }}
                       className="absolute left-1/2 top-1/2 max-w-none object-contain transition-all duration-300 ease-out"
                     />
-                    <button
-                      type="button"
-                      onClick={togglePlay}
-                      aria-label={playing ? "Pause preview" : "Play preview"}
-                      className="absolute inset-0 grid place-items-center group"
-                    >
-                      <span
-                        className={`grid place-items-center w-12 h-12 rounded-full bg-background/80 border-2 border-foreground transition-opacity ${
-                          playing ? "opacity-0 group-hover:opacity-100" : "opacity-100"
-                        }`}
-                      >
-                        {playing ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}
-                      </span>
-                    </button>
+                    <PreviewPlayOverlay videoRef={videoRef} />
                   </>
                 )}
               </div>

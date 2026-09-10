@@ -322,6 +322,68 @@ export const VideoPreview = memo(function VideoPreview({ blob }: { blob: Blob })
   );
 });
 
+// ============ Preview Play Overlay ============
+
+/**
+ * Play/pause control laid over a bare `<video>` used as a live preview.
+ *
+ * The transform tools (rotate, flip) show the source video with a CSS transform on it
+ * rather than through `VideoPreview`, because the point is to watch the change apply —
+ * a full transport bar would only get in the way. They still need somewhere to click
+ * to stop the loop, which is this.
+ *
+ * It reads the playing state off the element instead of taking it as a prop, so the
+ * page above it doesn't have to keep a copy of something the DOM already knows.
+ */
+export const PreviewPlayOverlay = memo(function PreviewPlayOverlay({
+  videoRef,
+}: {
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+}) {
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Read it once on mount too: these previews autoplay, so the element is usually
+    // already running by the time this effect gets to subscribe.
+    const sync = () => setPlaying(!video.paused);
+    sync();
+
+    video.addEventListener("play", sync);
+    video.addEventListener("pause", sync);
+    return () => {
+      video.removeEventListener("play", sync);
+      video.removeEventListener("pause", sync);
+    };
+  }, [videoRef]);
+
+  const toggle = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) video.play();
+    else video.pause();
+  }, [videoRef]);
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={playing ? "Pause preview" : "Play preview"}
+      className="absolute inset-0 grid place-items-center group"
+    >
+      <span
+        className={`grid place-items-center w-12 h-12 rounded-full bg-background/80 border-2 border-foreground transition-opacity ${
+          playing ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+        }`}
+      >
+        {playing ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}
+      </span>
+    </button>
+  );
+});
+
 // ============ Video Result View ============
 // Replaces SuccessCard for video tools: player hero + compact action bar
 

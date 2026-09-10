@@ -40,6 +40,7 @@ const TOOL_ROUTES: Record<string, { label: string; href: string }[]> = {
     { label: "Crop", href: "/video/crop" },
     { label: "Resize", href: "/video/resize" },
     { label: "Rotate", href: "/video/rotate" },
+    { label: "Flip", href: "/video/flip" },
     { label: "Convert", href: "/video/convert" },
     { label: "Speed", href: "/video/speed" },
     { label: "To GIF", href: "/video/to-gif" },

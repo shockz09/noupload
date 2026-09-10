@@ -408,6 +408,7 @@
 .tool-video-trim { --tool-color: #BE123C; }
 .tool-video-convert { --tool-color: #9F1239; }
 .tool-video-rotate { --tool-color: #881337; }
+.tool-video-flip { --tool-color: #6B0F2B; }
 .tool-video-resize { --tool-color: #C2410C; }
 .tool-video-crop { --tool-color: #B91C1C; }
 .tool-video-remove-audio { --tool-color: #991B1B; }

@@ -1,53 +1,9 @@
 import { assertAudioDecodable, assertAudioNotDiscarded, audioOptionsFor } from "./audio-support";
+import { MP4_NATIVE_CODECS } from "./orientation";
 import { createInput, getBaseName } from "./utils";
 
 /** Clockwise rotation to apply on top of whatever the file already declares. */
 export type RotationAngle = 0 | 90 | 180 | 270;
-
-/**
- * Codecs that both live natively in an MP4 and decode in every mainstream player.
- *
- * A source in one of these is copied across untouched — see `rotateVideo`. Anything
- * else (VP8/VP9/AV1 out of a WebM) is re-encoded to AVC instead of copied, because an
- * .mp4 carrying VP9 plays in browsers but not in QuickTime, iOS or most editors.
- */
-const MP4_NATIVE_CODECS = ["avc", "hevc"];
-
-export interface VideoRotationInfo {
-  /** Display dimensions, with the rotation the file already declares applied. */
-  width: number;
-  height: number;
-  duration: number;
-  /**
-   * True when rotation can be written as metadata over copied packets, making it
-   * instant and pixel-identical. False when the frames have to be re-encoded.
-   */
-  canCopy: boolean;
-}
-
-/**
- * Dimensions and duration, plus whether this file can take the fast path.
- *
- * Deliberately reads only the container's headers — no packet statistics — so picking
- * a file stays instant even for a multi-gigabyte video.
- */
-export async function analyzeForRotation(file: File): Promise<VideoRotationInfo> {
-  const input = await createInput(file);
-
-  try {
-    const track = await input.getPrimaryVideoTrack();
-    if (!track) throw new Error("This file has no video track to rotate.");
-
-    return {
-      width: track.displayWidth,
-      height: track.displayHeight,
-      duration: await input.computeDuration(),
-      canCopy: MP4_NATIVE_CODECS.includes(track.codec ?? ""),
-    };
-  } finally {
-    input[Symbol.dispose]();
-  }
-}
 
 export interface RotateOptions {
   /**

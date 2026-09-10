@@ -54,6 +54,7 @@ import { Route as VideoResizeRouteImport } from './routes/video.resize'
 import { Route as VideoRemoveAudioRouteImport } from './routes/video.remove-audio'
 import { Route as VideoMetadataRouteImport } from './routes/video.metadata'
 import { Route as VideoMergeRouteImport } from './routes/video.merge'
+import { Route as VideoFlipRouteImport } from './routes/video.flip'
 import { Route as VideoExtractAudioRouteImport } from './routes/video.extract-audio'
 import { Route as VideoCropRouteImport } from './routes/video.crop'
 import { Route as VideoConvertRouteImport } from './routes/video.convert'
@@ -320,6 +321,11 @@ const VideoMetadataRoute = VideoMetadataRouteImport.update({
 const VideoMergeRoute = VideoMergeRouteImport.update({
   id: '/video/merge',
   path: '/video/merge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VideoFlipRoute = VideoFlipRouteImport.update({
+  id: '/video/flip',
+  path: '/video/flip',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VideoExtractAudioRoute = VideoExtractAudioRouteImport.update({
@@ -609,6 +615,7 @@ export interface FileRoutesByFullPath {
   '/video/convert': typeof VideoConvertRoute
   '/video/crop': typeof VideoCropRoute
   '/video/extract-audio': typeof VideoExtractAudioRoute
+  '/video/flip': typeof VideoFlipRoute
   '/video/merge': typeof VideoMergeRoute
   '/video/metadata': typeof VideoMetadataRoute
   '/video/remove-audio': typeof VideoRemoveAudioRoute
@@ -698,6 +705,7 @@ export interface FileRoutesByTo {
   '/video/convert': typeof VideoConvertRoute
   '/video/crop': typeof VideoCropRoute
   '/video/extract-audio': typeof VideoExtractAudioRoute
+  '/video/flip': typeof VideoFlipRoute
   '/video/merge': typeof VideoMergeRoute
   '/video/metadata': typeof VideoMetadataRoute
   '/video/remove-audio': typeof VideoRemoveAudioRoute
@@ -788,6 +796,7 @@ export interface FileRoutesById {
   '/video/convert': typeof VideoConvertRoute
   '/video/crop': typeof VideoCropRoute
   '/video/extract-audio': typeof VideoExtractAudioRoute
+  '/video/flip': typeof VideoFlipRoute
   '/video/merge': typeof VideoMergeRoute
   '/video/metadata': typeof VideoMetadataRoute
   '/video/remove-audio': typeof VideoRemoveAudioRoute
@@ -879,6 +888,7 @@ export interface FileRouteTypes {
     | '/video/convert'
     | '/video/crop'
     | '/video/extract-audio'
+    | '/video/flip'
     | '/video/merge'
     | '/video/metadata'
     | '/video/remove-audio'
@@ -968,6 +978,7 @@ export interface FileRouteTypes {
     | '/video/convert'
     | '/video/crop'
     | '/video/extract-audio'
+    | '/video/flip'
     | '/video/merge'
     | '/video/metadata'
     | '/video/remove-audio'
@@ -1057,6 +1068,7 @@ export interface FileRouteTypes {
     | '/video/convert'
     | '/video/crop'
     | '/video/extract-audio'
+    | '/video/flip'
     | '/video/merge'
     | '/video/metadata'
     | '/video/remove-audio'
@@ -1147,6 +1159,7 @@ export interface RootRouteChildren {
   VideoConvertRoute: typeof VideoConvertRoute
   VideoCropRoute: typeof VideoCropRoute
   VideoExtractAudioRoute: typeof VideoExtractAudioRoute
+  VideoFlipRoute: typeof VideoFlipRoute
   VideoMergeRoute: typeof VideoMergeRoute
   VideoMetadataRoute: typeof VideoMetadataRoute
   VideoRemoveAudioRoute: typeof VideoRemoveAudioRoute
@@ -1476,6 +1489,13 @@ declare module '@tanstack/react-router' {
       path: '/video/merge'
       fullPath: '/video/merge'
       preLoaderRoute: typeof VideoMergeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video/flip': {
+      id: '/video/flip'
+      path: '/video/flip'
+      fullPath: '/video/flip'
+      preLoaderRoute: typeof VideoFlipRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/video/extract-audio': {
@@ -1851,6 +1871,7 @@ const rootRouteChildren: RootRouteChildren = {
   VideoConvertRoute: VideoConvertRoute,
   VideoCropRoute: VideoCropRoute,
   VideoExtractAudioRoute: VideoExtractAudioRoute,
+  VideoFlipRoute: VideoFlipRoute,
   VideoMergeRoute: VideoMergeRoute,
   VideoMetadataRoute: VideoMetadataRoute,
   VideoRemoveAudioRoute: VideoRemoveAudioRoute,

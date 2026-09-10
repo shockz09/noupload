@@ -46,7 +46,7 @@ Compress, Resize, Convert, Crop, Rotate, Blur & Pixelate, Border, Watermark, Adj
 
 ### Video Tools
 
-Trim, Compress, Convert, Crop, Rotate, Resize, Remove Audio, Extract Audio, To GIF, View Metadata
+Trim, Compress, Convert, Crop, Rotate, Flip, Resize, Remove Audio, Extract Audio, To GIF, View Metadata
 
 ### Audio Tools
 

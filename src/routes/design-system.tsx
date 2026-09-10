@@ -144,6 +144,7 @@ const TOOL_COLORS: [string, string][] = [
   ["tool-video-trim", "#BE123C"],
   ["tool-video-convert", "#9F1239"],
   ["tool-video-rotate", "#881337"],
+  ["tool-video-flip", "#6B0F2B"],
   ["tool-video-resize", "#C2410C"],
   ["tool-video-crop", "#B91C1C"],
   ["tool-video-remove-audio", "#991B1B"],

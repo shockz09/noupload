@@ -53,6 +53,31 @@ export function mp4NoAudio(name: string, duration = 2) {
 	);
 }
 
+/**
+ * Four solid colour quadrants — red, green, blue, white clockwise from top-left —
+ * with the usual 440Hz sine over the top.
+ *
+ * Every quadrant is a different colour, so reading four pixels out of a decoded
+ * frame says exactly which way the picture was turned or reflected. A `testsrc`
+ * pattern can't do that: it looks near enough the same mirrored.
+ */
+export function mp4Quadrants(name: string, duration = 2) {
+	return cached(name, (out) =>
+		ffmpeg([
+			"-f", "lavfi", "-i", `color=c=red:s=160x120:r=15:d=${duration}`,
+			"-f", "lavfi", "-i", `color=c=lime:s=160x120:r=15:d=${duration}`,
+			"-f", "lavfi", "-i", `color=c=blue:s=160x120:r=15:d=${duration}`,
+			"-f", "lavfi", "-i", `color=c=white:s=160x120:r=15:d=${duration}`,
+			"-f", "lavfi", "-i", `sine=frequency=440:duration=${duration}`,
+			"-filter_complex", "[0][1]hstack[top];[2][3]hstack[bottom];[top][bottom]vstack[v]",
+			"-map", "[v]", "-map", "4:a",
+			"-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "12",
+			"-c:a", "aac", "-ar", "48000", "-ac", "2",
+			"-shortest", out,
+		]),
+	);
+}
+
 /** VP8 + Opus in WebM — a codec pair MP4 can't hold, so tools must re-encode it. */
 export function webmVp8(name: string, duration = 2) {
 	return cached(name, (out) =>

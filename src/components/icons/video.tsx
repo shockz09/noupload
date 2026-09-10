@@ -79,6 +79,25 @@ export function VideoRotateIcon({ className = "w-6 h-6" }: { className?: string 
   );
 }
 
+export function VideoFlipIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 2v20" strokeDasharray="3 3" />
+      <path d="M9 6 3 12l6 6z" />
+      <path d="M15 6l6 6-6 6z" />
+    </svg>
+  );
+}
+
 export function VideoResizeIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
     <svg
