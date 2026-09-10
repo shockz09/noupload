@@ -1,4 +1,5 @@
 import { HeadContent, Link, Outlet, createRootRoute } from "@tanstack/react-router";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect } from "react";
 import { Header } from "@/components/header";
 
@@ -230,7 +231,7 @@ function NotFoundPage() {
 
 // ── Error Page ──────────────────────────────────────────
 
-function ErrorPage({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorPage({ error, reset }: ErrorComponentProps) {
 	useEffect(() => {
 		console.error("Application error:", error);
 	}, [error]);
