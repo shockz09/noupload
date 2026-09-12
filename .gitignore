@@ -16,6 +16,9 @@
 # vite
 /dist
 
+# tanstack router build scratch
+/.tanstack
+
 # misc
 .DS_Store
 *.pem

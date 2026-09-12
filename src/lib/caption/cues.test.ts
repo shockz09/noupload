@@ -86,6 +86,68 @@ describe("mergeWords", () => {
   it("takes everything when there is nothing yet", () => {
     expect(mergeWords([], [say("one", 0, 0.5)])).toHaveLength(1);
   });
+
+  it("mutates the list it is given rather than returning a copy", () => {
+    // The worker relies on this: it keeps one array across every window.
+    const kept: ReturnType<typeof say>[] = [];
+    expect(mergeWords(kept, [say("one", 0, 0.5)])).toBe(kept);
+  });
+
+  /**
+   * The real thing: 90-second windows with 2 seconds of lead-in, exactly as the
+   * worker cuts them. Speech runs straight through the seams, so every window
+   * after the first re-transcribes words the previous one already delivered.
+   * Getting this wrong duplicates or drops a word every 88 seconds, which is
+   * the bug this whole function exists to prevent.
+   */
+  it("stitches overlapping windows without repeating or losing a word", () => {
+    const WINDOW = 90;
+    const OVERLAP = 2;
+    const total = 300;
+
+    // One word every 0.4 s across the whole recording, numbered so a duplicate
+    // or a gap is visible in the output rather than merely a wrong count.
+    const spoken = Array.from({ length: Math.floor(total / 0.4) }, (_, i) => say(`w${i}`, i * 0.4, i * 0.4 + 0.3));
+
+    const kept: ReturnType<typeof say>[] = [];
+    for (let from = 0; from < total - 0.05; from += WINDOW - OVERLAP) {
+      const to = Math.min(total, from + WINDOW);
+      // What the model returns for this window: every word inside it, lead-in
+      // included — the model has no idea the previous window existed.
+      mergeWords(
+        kept,
+        spoken.filter((w) => w.start >= from && w.end <= to),
+      );
+    }
+
+    expect(kept.map((w) => w.text)).toEqual(spoken.map((w) => w.text));
+  });
+
+  /**
+   * The 50 ms of slack is the whole reason the comparison is not a plain `>`.
+   * Real timings jitter: a genuinely new word often starts a hair before the
+   * previous one is marked as ending. Dropping it loses a word from the
+   * transcript, so the tolerance has to lean towards keeping.
+   */
+  it("keeps a new word that starts a hair before the last one ended", () => {
+    const kept = [say("before", 10, 10.5)];
+    mergeWords(kept, [say("after", 10.47, 10.9)]);
+    expect(kept.map((w) => w.text)).toEqual(["before", "after"]);
+  });
+
+  it("still drops a repeat that arrives well inside what we have", () => {
+    const kept = [say("one", 10, 10.5), say("two", 10.6, 11)];
+    mergeWords(kept, [say("one", 10, 10.5)]);
+    expect(kept).toHaveLength(2);
+  });
+
+  it("keeps timestamps ascending across a seam", () => {
+    const kept = [say("a", 87, 87.4), say("b", 88, 88.4)];
+    mergeWords(kept, [say("b", 88, 88.4), say("c", 89, 89.4)]);
+    for (let i = 1; i < kept.length; i++) {
+      expect(kept[i].start).toBeGreaterThanOrEqual(kept[i - 1].start);
+    }
+  });
 });
 
 describe("formatting", () => {

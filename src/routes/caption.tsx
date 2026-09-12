@@ -272,7 +272,7 @@ function CaptionPage() {
                         (waitingOnModel
                           ? modelFraction
                           : run.phase === "reading"
-                            ? 0.04
+                            ? Math.max(0.04, run.readFraction)
                             : run.duration > 0
                               ? run.secondsDone / run.duration
                               : 0),

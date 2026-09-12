@@ -30,6 +30,8 @@ export interface CaptionRun {
   phase: RunPhase;
   /** Seconds of media transcribed so far. */
   secondsDone: number;
+  /** How far the decode got, 0..1. Only the streaming decoder reports it. */
+  readFraction: number;
   duration: number;
   /** `performance.now()` when this run started, for estimating what is left. */
   startedAt: number;
@@ -95,7 +97,14 @@ export interface UseCaptioner {
   editCue: (index: number, text: string) => void;
 }
 
-const IDLE_RUN: CaptionRun = { phase: "idle", secondsDone: 0, duration: 0, startedAt: 0, tookSeconds: 0 };
+const IDLE_RUN: CaptionRun = {
+  phase: "idle",
+  secondsDone: 0,
+  readFraction: 0,
+  duration: 0,
+  startedAt: 0,
+  tookSeconds: 0,
+};
 
 export function useCaptioner(): UseCaptioner {
   const [model, setModel] = useState<ModelStatus>(modelStatus);
@@ -180,7 +189,11 @@ export function useCaptioner(): UseCaptioner {
 
     let decoded: Awaited<ReturnType<typeof decodeToMono16k>>;
     try {
-      decoded = await decodeToMono16k(file);
+      decoded = await decodeToMono16k(file, (fraction) => {
+        // Only the streaming path reports this; the native decoder returns in
+        // one call and the bar simply stays at its starting position.
+        if (runIdRef.current === runId) setRun((previous) => ({ ...previous, readFraction: fraction }));
+      });
     } catch (failure) {
       setRun(IDLE_RUN);
       setError(

@@ -16,6 +16,8 @@
  * so anything large goes straight to (2).
  */
 
+import { createYielder } from "@/lib/yield";
+
 export const TARGET_RATE = 16_000;
 
 /** Above this, reading the file into one buffer is a bad idea; stream instead. */
@@ -102,11 +104,20 @@ async function decodeWithMediabunny(file: File, onProgress?: (fraction: number) 
   const chunks: Float32Array[] = [];
   let total = 0;
 
+  // Awaiting each decoded buffer already returns to the event loop, so this
+  // does not by itself block the page — measured on a 60 s MP4, the longest
+  // frame gap was 35 ms without the yielder and 30 ms with it. What the yielder
+  // buys is a sane rate for the progress below: 982 buffers arrive for a minute
+  // of audio, and reporting on every one of them would be 982 renders of a
+  // number nobody can read.
+  const yielder = createYielder();
+
   for await (const wrapped of new AudioBufferSink(track).buffers()) {
     const resampled = toMono16k(wrapped.buffer);
     chunks.push(resampled);
     total += resampled.length;
-    if (onProgress && duration > 0) {
+    const yielded = await yielder();
+    if (yielded && onProgress && duration > 0) {
       onProgress(Math.min(1, (wrapped.timestamp + wrapped.duration) / duration));
     }
   }

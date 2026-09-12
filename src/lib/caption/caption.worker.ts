@@ -12,7 +12,7 @@
  */
 
 import { ParakeetModel } from "parakeet.js";
-import type { TimedWord } from "./cues";
+import { mergeWords, type TimedWord } from "./cues";
 import { ensureModel, MODEL_TOTAL_BYTES } from "./model";
 import type { CaptionFailure, CaptionRequest, CaptionResponse } from "./protocol";
 
@@ -195,14 +195,17 @@ async function transcribe(pcm: Float32Array, sampleRate: number, runId: number):
       }
       if (mine !== generation) return;
 
-      // Windows overlap, so the lead-in comes back a second time. Keep only
-      // what starts after everything already accepted.
-      const lastEnd = words.length > 0 ? words[words.length - 1].end : Number.NEGATIVE_INFINITY;
-      for (const word of result.words ?? []) {
-        if (word.start_time >= lastEnd - 0.05) {
-          words.push({ text: word.text, start: word.start_time, end: word.end_time });
-        }
-      }
+      // Windows overlap on purpose, so the lead-in comes back a second time.
+      // mergeWords drops the repeats; it lives in cues.ts because that is where
+      // it can be tested without a model.
+      mergeWords(
+        words,
+        (result.words ?? []).map((word) => ({
+          text: word.text,
+          start: word.start_time,
+          end: word.end_time,
+        })),
+      );
     }
 
     // Send the whole list rather than a delta: it is a few kilobytes, and it
