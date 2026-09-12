@@ -1,16 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Wait for the file input to appear, then set files on it.
- * The dropzone component renders a hidden <input type="file">.
- */
-async function uploadFile(page: Page, filePath: string) {
-	const input = page.locator('input[type="file"]');
-	await input.waitFor({ state: "attached" });
-	await input.setInputFiles(filePath);
-}
+import { expect, test } from "@playwright/test";
+import { getDropzoneAccept, uploadFiles } from "./helpers/dropzone";
 
 // ─── Video Convert: LRV support ─────────────────────────────────────────────
 
@@ -21,22 +10,23 @@ test.describe("GoPro LRV in Video Convert", () => {
 
 	test("dropzone accepts .lrv files and shows format options", async ({ page }) => {
 		// The accept attribute should include .lrv
-		const input = page.locator('input[type="file"]');
-		const accept = await input.getAttribute("accept");
+		const accept = await getDropzoneAccept(page);
 		expect(accept).toContain(".lrv");
 
 		// Subtitle should mention GoPro LRV
 		await expect(page.getByText(/GoPro LRV/i)).toBeVisible();
 
 		// Upload an LRV file
-		await uploadFile(page, "test-assets/test_clip.lrv");
+		await uploadFiles(page, "test-assets/test_clip.lrv");
 
 		// File should be accepted — format selector should appear
 		// (LRV maps to "mp4" source, so all non-mp4 formats are available: mov, webm, mkv)
+		// Match the format buttons by role — the dropzone subtitle lists the same
+		// format names as plain text, so a bare getByText is ambiguous here.
 		await expect(page.getByText("Output Format")).toBeVisible();
-		await expect(page.getByText("MOV")).toBeVisible();
-		await expect(page.getByText("WebM")).toBeVisible();
-		await expect(page.getByText("MKV")).toBeVisible();
+		await expect(page.getByRole("button", { name: /^MOV/ })).toBeVisible();
+		await expect(page.getByRole("button", { name: /^WebM/ })).toBeVisible();
+		await expect(page.getByRole("button", { name: /^MKV/ })).toBeVisible();
 
 		// MP4 should NOT appear since source is LRV→MP4 (no point converting mp4→mp4)
 		// The format selector filters out the source format
@@ -45,7 +35,7 @@ test.describe("GoPro LRV in Video Convert", () => {
 	});
 
 	test("converts LRV to WebM successfully", async ({ page }) => {
-		await uploadFile(page, "test-assets/test_clip.lrv");
+		await uploadFiles(page, "test-assets/test_clip.lrv");
 
 		// Select WebM
 		await page.getByText("WebM", { exact: true }).click();
@@ -60,7 +50,7 @@ test.describe("GoPro LRV in Video Convert", () => {
 	});
 
 	test("converts LRV to MKV successfully", async ({ page }) => {
-		await uploadFile(page, "test-assets/test_clip.lrv");
+		await uploadFiles(page, "test-assets/test_clip.lrv");
 
 		await page.getByText("MKV", { exact: true }).click();
 		await page.getByRole("button", { name: /Convert to/i }).click();
@@ -78,18 +68,17 @@ test.describe("GoPro THM in Image Convert", () => {
 	});
 
 	test("dropzone accepts .thm files", async ({ page }) => {
-		const input = page.locator('input[type="file"]');
-		const accept = await input.getAttribute("accept");
+		const accept = await getDropzoneAccept(page);
 		expect(accept).toContain(".thm");
 	});
 
 	test("loads THM file and converts to PNG", async ({ page }) => {
-		await uploadFile(page, "test-assets/test_thumb.thm");
+		await uploadFiles(page, "test-assets/test_thumb.thm");
 
 		// File should be accepted — format options should appear
 		// THM is JPEG, so the auto-selected format should be PNG
-		await expect(page.getByText("JPEG")).toBeVisible();
-		await expect(page.getByText("PNG")).toBeVisible();
+		await expect(page.getByRole("button", { name: /^JPEG/ })).toBeVisible();
+		await expect(page.getByRole("button", { name: /^PNG/ })).toBeVisible();
 
 		// Convert to PNG
 		const convertBtn = page.getByRole("button", { name: /Convert/i });
