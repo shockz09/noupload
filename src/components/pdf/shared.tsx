@@ -151,15 +151,21 @@ export const PdfPreview = memo(function PdfPreview({ data }: { data: Uint8Array 
 
       {/* Bottom control bar */}
       {!error && <div className="h-8 border-t-2 border-foreground bg-background flex items-center justify-between px-3">
-        {/* Page indicator */}
+        {/* Page indicator — held back until pdf.js has actually counted the
+            pages, otherwise a large document reads "0 PAGES" for the seconds it
+            takes to parse. */}
         <div className="flex items-center gap-2">
-          <svg aria-hidden="true" className="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <path d="M14 2v6h6" />
-          </svg>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            {totalPages === 1 ? "1 PAGE" : `${totalPages} PAGES`}
-          </span>
+          {totalPages > 0 && (
+            <>
+              <svg aria-hidden="true" className="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+              </svg>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {totalPages === 1 ? "1 PAGE" : `${totalPages} PAGES`}
+              </span>
+            </>
+          )}
         </div>
 
         {/* Navigation */}
