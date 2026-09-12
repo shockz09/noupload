@@ -253,8 +253,14 @@ async function executeOperation(message: QpdfWorkerMessage): Promise<QpdfWorkerR
     // reconstructed file, which is exactly the result we want.
     const isRewrite = operation === "rewrite";
 
+    // Exit 3 is qpdf's "succeeded with warnings" — the output is written and
+    // complete. Plenty of real-world PDFs carry something qpdf grumbles about,
+    // and throwing that result away meant reporting "nothing more to compress"
+    // on files qpdf had just made smaller. The output is still checked below.
+    const succeededWithWarnings = exitCode === 3;
+
     // Check for errors
-    if (exitCode !== 0 && !isRewrite && operation !== "check") {
+    if (exitCode !== 0 && !succeededWithWarnings && !isRewrite && operation !== "check") {
       // Exit code 2 typically means wrong password
       if (exitCode === 2) {
         return {
@@ -286,8 +292,8 @@ async function executeOperation(message: QpdfWorkerMessage): Promise<QpdfWorkerR
         };
       }
 
-      // Only a real PDF counts as a successful rewrite
-      if (isRewrite && !startsWithPdfHeader(outputData)) {
+      // Only a real PDF counts as a successful rewrite or a warned-about run
+      if ((isRewrite || succeededWithWarnings) && !startsWithPdfHeader(outputData)) {
         return {
           id,
           success: false,

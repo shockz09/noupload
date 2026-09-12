@@ -1,25 +1,25 @@
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   CompressionLevel,
-  GsCompressionPreset,
+  GsImageFormat,
   GsOperation,
   GsWorkerMessage,
   GsWorkerResponse,
   PdfALevel,
 } from "./types";
-import { COMPRESSION_PRESET_MAP } from "./types";
 
-export type { CompressionLevel, PdfALevel };
 export { COMPRESSION_DESCRIPTIONS, PDFA_DESCRIPTIONS } from "./types";
+export type { CompressionLevel, PdfALevel };
 
 export interface UseGhostscriptResult {
-  compress: (file: File, level?: CompressionLevel) => Promise<Uint8Array>;
+  compress: (file: File, level?: CompressionLevel, imageFormat?: GsImageFormat) => Promise<Uint8Array>;
   toGrayscale: (file: File) => Promise<Uint8Array>;
   toPdfA: (file: File, level?: PdfALevel) => Promise<Uint8Array>;
   isLoading: boolean;
   progress: string;
   error: string | null;
+  /** Terminates the Ghostscript worker to free its WASM heap. */
+  release: () => void;
 }
 
 export function useGhostscript(): UseGhostscriptResult {
@@ -37,11 +37,20 @@ export function useGhostscript(): UseGhostscriptResult {
     >
   >(new Map());
 
-  // Initialize worker
-  useEffect(() => {
-    workerRef.current = new Worker(new URL("./ghostscript.worker.ts", import.meta.url), { type: "module" });
+  /**
+   * Started on demand rather than on mount, and torn down again by `release()`.
+   *
+   * Ghostscript's WASM heap grows to hundreds of megabytes on a big document and
+   * Emscripten never gives that memory back — only killing the worker does. On a
+   * phone, holding that for the rest of the session is the difference between a
+   * working tab and one the browser kills.
+   */
+  const ensureWorker = useCallback((): Worker => {
+    if (workerRef.current) return workerRef.current;
 
-    workerRef.current.onmessage = (event: MessageEvent<GsWorkerResponse>) => {
+    const worker = new Worker(new URL("./ghostscript.worker.ts", import.meta.url), { type: "module" });
+
+    worker.onmessage = (event: MessageEvent<GsWorkerResponse>) => {
       const { id, success, data, error: errorMsg, progress: progressMsg } = event.data;
 
       // Handle progress updates
@@ -62,13 +71,26 @@ export function useGhostscript(): UseGhostscriptResult {
       }
     };
 
-    workerRef.current.onerror = (event) => {
+    worker.onerror = (event) => {
       console.error("[useGhostscript] Worker error:", event);
       setError("Worker error occurred");
     };
 
+    workerRef.current = worker;
+    return worker;
+  }, []);
+
+  /** Hands Ghostscript's heap back to the device. Safe to call when idle. */
+  const release = useCallback(() => {
+    if (!workerRef.current || pendingRef.current.size > 0) return;
+    workerRef.current.terminate();
+    workerRef.current = null;
+  }, []);
+
+  useEffect(() => {
     return () => {
       workerRef.current?.terminate();
+      workerRef.current = null;
     };
   }, []);
 
@@ -77,11 +99,9 @@ export function useGhostscript(): UseGhostscriptResult {
     async (
       operation: GsOperation,
       file: File,
-      options?: { preset?: GsCompressionPreset; pdfaLevel?: PdfALevel },
+      options?: { level?: CompressionLevel; pdfaLevel?: PdfALevel; imageFormat?: GsImageFormat },
     ): Promise<Uint8Array> => {
-      if (!workerRef.current) {
-        throw new Error("Worker not initialized");
-      }
+      const worker = ensureWorker();
 
       setIsLoading(true);
       setError(null);
@@ -94,7 +114,7 @@ export function useGhostscript(): UseGhostscriptResult {
         const result = await new Promise<Uint8Array>((resolve, reject) => {
           pendingRef.current.set(id, { resolve, reject });
 
-          workerRef.current!.postMessage(
+          worker.postMessage(
             {
               id,
               operation,
@@ -115,13 +135,16 @@ export function useGhostscript(): UseGhostscriptResult {
         setIsLoading(false);
       }
     },
-    [],
+    [ensureWorker],
   );
 
   const compress = useCallback(
-    async (file: File, level: CompressionLevel = "balanced"): Promise<Uint8Array> => {
-      const preset = COMPRESSION_PRESET_MAP[level];
-      return executeOperation("compress", file, { preset });
+    async (
+      file: File,
+      level: CompressionLevel = "balanced",
+      imageFormat: GsImageFormat = "jpeg",
+    ): Promise<Uint8Array> => {
+      return executeOperation("compress", file, { level, imageFormat });
     },
     [executeOperation],
   );
@@ -140,5 +163,5 @@ export function useGhostscript(): UseGhostscriptResult {
     [executeOperation],
   );
 
-  return { compress, toGrayscale, toPdfA, isLoading, progress, error };
+  return { compress, toGrayscale, toPdfA, isLoading, progress, error, release };
 }

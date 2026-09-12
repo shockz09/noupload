@@ -20,6 +20,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^4.0.1
         version: 4.2.0
+      '@jsquash/jpeg':
+        specifier: ^1.6.0
+        version: 1.6.0
       '@libpdf/core':
         specifier: 0.2.12
         version: 0.2.12
@@ -125,6 +128,9 @@ importers:
       mediabunny:
         specifier: ^1.40.1
         version: 1.40.1
+      mupdf:
+        specifier: ^1.28.1
+        version: 1.28.1
       pdf-lib:
         specifier: ^1.17.1
         version: 1.17.1
@@ -524,6 +530,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@jsquash/jpeg@1.6.0':
+    resolution: {integrity: sha512-zwN46Awh1VM6gXlIcALwb5WzqK5H2e6+Awcs1QP8AvS8ohsK/sbE4esvmH4jhlhW7+CgiUUww66vg0aTnlSIMA==}
 
   '@libpdf/core@0.2.12':
     resolution: {integrity: sha512-z22SyNEXa8YsCJarJBkgQv4SvvDn0Opw21cNQOQ0Xax9Ys1qjpAyVTSjlGExYVI8bT9b02VNy+nsOcJ79SzsQg==}
@@ -2278,6 +2287,9 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
+  mupdf@1.28.1:
+    resolution: {integrity: sha512-Gi11Ow2G1SlrXKJNZBL1eAIGFVih5+4ZKqjptamTVaj/5hnlrcVrVbyb7lHE2lfFKdxZPyv9ZtfOOq7XgjzEig==}
+
   nan@2.26.2:
     resolution: {integrity: sha512-0tTvBTYkt3tdGw22nrAy50x7gpbGCCFH3AFcyS5WiUu7Eu4vWlri1woE6qHBSfy11vksDqkiwjOnlR7WV8G1Hw==}
 
@@ -3284,6 +3296,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@jsquash/jpeg@1.6.0': {}
 
   '@libpdf/core@0.2.12':
     dependencies:
@@ -4893,6 +4907,8 @@ snapshots:
     optional: true
 
   ms@2.1.3: {}
+
+  mupdf@1.28.1: {}
 
   nan@2.26.2:
     optional: true

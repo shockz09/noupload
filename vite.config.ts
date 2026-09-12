@@ -13,6 +13,20 @@ export default defineConfig(({ command }) => ({
 		}),
 		react(),
 	],
+	optimizeDeps: {
+		// Pre-bundle what the compression workers import lazily. Without this, the
+		// first compression of a session triggers "new dependency optimized →
+		// reloading", and Vite reloads the page out from under the running job.
+		include: ["@jsquash/jpeg/encode", "pdf-lib"],
+		// mupdf ships ESM with top-level await and loads its own WASM relative to
+		// import.meta.url; prebundling it breaks that, so keep it as-is.
+		exclude: ["mupdf"],
+	},
+	worker: {
+		// mupdf's WASM loader uses top-level await, which only survives the
+		// worker bundle in ES module format (the default is IIFE).
+		format: "es",
+	},
 	server: {
 		headers: {
 			"Cross-Origin-Opener-Policy": "same-origin",
