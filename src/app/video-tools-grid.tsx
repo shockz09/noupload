@@ -1,4 +1,4 @@
-import { ExtractIcon } from "@/components/icons/audio";
+import { CaptionIcon, ExtractIcon } from "@/components/icons/audio";
 import {
   AddAudioIcon,
   RemoveAudioIcon,
@@ -151,6 +151,31 @@ export const videoTools = [
     category: "edit",
     colorClass: "tool-video-merge",
     keywords: ["combine", "join", "concatenate", "stitch", "append", "splice"],
+  },
+  {
+    title: "Subtitles",
+    description: "Turn speech into timed, editable captions",
+    href: "/caption",
+    icon: CaptionIcon,
+    category: "convert",
+    colorClass: "tool-caption",
+    keywords: [
+      "subtitles",
+      "captions",
+      "cc",
+      "srt",
+      "vtt",
+      "transcribe",
+      "transcript",
+      "speech to text",
+      "auto caption",
+      "closed captions",
+      "dictation",
+    ],
+    io: {
+      from: ["mp4", "mov", "mkv", "webm", "m4v", "mp3", "wav", "m4a", "aac", "flac", "ogg", "video", "audio"],
+      to: ["srt", "vtt", "txt", "text"],
+    },
   },
 ];
 

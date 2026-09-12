@@ -75,6 +75,7 @@
     "marked": "^17.0.1",
     "mediabunny": "^1.40.1",
     "mupdf": "^1.28.1",
+    "parakeet.js": "^1.4.4",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "5.4.624",
     "qpdf-wasm": "^0.1.0",

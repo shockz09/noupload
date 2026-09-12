@@ -275,3 +275,24 @@ export function MusicTagIcon({ className = "w-6 h-6" }: { className?: string }) 
     </svg>
   );
 }
+
+export function CaptionIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M6 14h5" />
+      <path d="M13 14h5" />
+      <path d="M6 10h3" />
+      <path d="M11 10h7" />
+    </svg>
+  );
+}
