@@ -6,6 +6,7 @@ import type { FormField } from "../hooks/useFormFields";
 import {
   attachEditorMetadata,
   createStampDataUrl,
+  EDITOR_CUSTOM_PROPERTIES,
   fabricObjectToRecord,
   loadFabricModule,
   recordToFabricObject,
@@ -20,6 +21,62 @@ import { FormFieldOverlay } from "./FormFieldOverlay";
 
 // Scale factor for PDF rendering (PDF internal coords to display coords)
 const PDF_SCALE = 1.5;
+
+/**
+ * Remove objects and anything that only exists to decorate them. An arrow's
+ * head is a separate non-selectable helper, so deleting the line on its own
+ * left the head stranded on the page.
+ */
+function removeWithHelpers(canvas: any, objects: unknown[]): void {
+  for (const obj of objects) {
+    const helper = (obj as { arrowHelper?: unknown }).arrowHelper;
+    if (helper) canvas.remove(helper);
+    canvas.remove(obj);
+  }
+}
+
+/**
+ * Where the pointer is in *scene* space — the coordinate system objects live in.
+ *
+ * Fabric 6 reports `opt.pointer` in viewport space. The two agree only while the
+ * viewport transform is the identity, which it is here; reading the scene point
+ * keeps the handlers correct if that ever stops being true.
+ */
+function scenePointer(opt: any): { x: number; y: number } {
+  return opt.scenePoint ?? opt.absolutePointer ?? opt.pointer;
+}
+
+/** Smallest drag, in canvas units, that counts as drawing a shape rather than a stray click. */
+const MIN_SHAPE_EXTENT = 2;
+
+/** A shape the user never actually dragged out. */
+function isDegenerateShape(shape: any, tool: string): boolean {
+  if (tool === "shape-line" || tool === "shape-arrow") {
+    return Math.abs(shape.x2 - shape.x1) < MIN_SHAPE_EXTENT && Math.abs(shape.y2 - shape.y1) < MIN_SHAPE_EXTENT;
+  }
+  if (tool === "shape-circle") {
+    return (shape.rx ?? 0) < MIN_SHAPE_EXTENT && (shape.ry ?? 0) < MIN_SHAPE_EXTENT;
+  }
+  return (shape.width ?? 0) < MIN_SHAPE_EXTENT && (shape.height ?? 0) < MIN_SHAPE_EXTENT;
+}
+
+/**
+ * Fabric types the formatting buttons apply to. Click-to-edit promotes page
+ * text into an IText ("i-text"), not a Textbox, so checking for "textbox" alone
+ * silently ignored every piece of text lifted out of the PDF.
+ */
+function isFormattableText(obj: unknown): boolean {
+  const type = (obj as { type?: string } | null)?.type;
+  return type === "textbox" || type === "i-text";
+}
+
+/** True when the keystroke belongs to a text entry surface rather than the canvas. */
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el || typeof el.tagName !== "string") return false;
+  const tag = el.tagName.toUpperCase();
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable === true;
+}
 
 function assetFromDataUrl(dataUrl: string): EditorAsset {
   const match = dataUrl.match(/^data:([^;,]+)[;,]/);
@@ -54,6 +111,7 @@ interface EditorCanvasProps {
     applyStrikethrough: () => void,
     currentUnderline: boolean,
     currentStrikethrough: boolean,
+    isTextSelected: boolean,
   ) => void;
 }
 
@@ -116,7 +174,7 @@ export function EditorCanvas({
 
   // Form fields state
   const [formFields, setFormFields] = useState<FormField[]>([]);
-  const [currentPageFields, setCurrentPageFields] = useState<FormField[]>([]);
+
 
   // Get current page state
   const pageState = pageStates.find((p) => p.pageNumber === currentPage);
@@ -139,11 +197,21 @@ export function EditorCanvas({
     setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
   }, []);
 
+  // A history snapshot. `toJSON()` would drop every editor property (kind,
+  // asset, arrowData, regionId, the helper flag), so undo/redo would hand back
+  // objects that no longer know what they are — a signature with no image, an
+  // arrow with no head, text that can be promoted from its region a second
+  // time. `toObject` with the explicit list keeps them.
+  const snapshotCanvas = useCallback(
+    (canvas: any): string => JSON.stringify(canvas.toObject(EDITOR_CUSTOM_PROPERTIES)),
+    [],
+  );
+
   // Save state to history
   const saveHistory = useCallback(() => {
     if (!fabricCanvas || isUndoRedoRef.current) return;
 
-    const json = JSON.stringify(fabricCanvas.toJSON());
+    const json = snapshotCanvas(fabricCanvas);
 
     // Remove any future states if we're not at the end
     if (historyIndexRef.current < historyRef.current.length - 1) {
@@ -161,7 +229,7 @@ export function EditorCanvas({
     }
 
     updateUndoRedoState();
-  }, [fabricCanvas, updateUndoRedoState]);
+  }, [fabricCanvas, updateUndoRedoState, snapshotCanvas]);
 
   // Undo
   const undo = useCallback(async () => {
@@ -260,7 +328,6 @@ export function EditorCanvas({
 
           if (!cancelled) {
             setFormFields(fields);
-            onFormFieldsChange?.(fields);
           }
         }
       } catch (err) {
@@ -275,22 +342,25 @@ export function EditorCanvas({
     };
   }, [file]);
 
-  // Update current page fields when page changes
+  // Derived during render, not mirrored into state. Held in state it lagged a
+  // render behind, and the overlay's controlled inputs kept being reset to the
+  // previous value mid-typing — every other character was dropped.
+  const currentPageFields = useMemo(
+    () => formFields.filter((f) => f.page === currentPage),
+    [formFields, currentPage],
+  );
+
+  // Hand the fields up once they have settled. Calling the parent's setState
+  // from inside our own updater ran it during render, which React rejects with
+  // "Cannot update a component while rendering a different component".
   useEffect(() => {
-    setCurrentPageFields(formFields.filter((f) => f.page === currentPage));
-  }, [formFields, currentPage]);
+    onFormFieldsChange?.(formFields);
+  }, [formFields, onFormFieldsChange]);
 
   // Form field value change handler
-  const handleFormFieldChange = useCallback(
-    (fieldId: string, value: string) => {
-      setFormFields((prev) => {
-        const updated = prev.map((f) => (f.id === fieldId ? { ...f, value } : f));
-        onFormFieldsChange?.(updated);
-        return updated;
-      });
-    },
-    [onFormFieldsChange],
-  );
+  const handleFormFieldChange = useCallback((fieldId: string, value: string) => {
+    setFormFields((prev) => prev.map((f) => (f.id === fieldId ? { ...f, value } : f)));
+  }, []);
 
   // Render current page
   useEffect(() => {
@@ -392,7 +462,7 @@ export function EditorCanvas({
 
     // Initialize history with current state
     // Note: Saved objects are loaded by the separate useEffect that watches pageObjects
-    historyRef.current = [JSON.stringify(canvas.toJSON())];
+    historyRef.current = [snapshotCanvas(canvas)];
     historyIndexRef.current = 0;
 
     fabricInstanceRef.current = canvas;
@@ -420,12 +490,12 @@ export function EditorCanvas({
         fabricCanvas.renderAll();
 
         // Update history with loaded state
-        historyRef.current = [JSON.stringify(fabricCanvas.toJSON())];
+        historyRef.current = [snapshotCanvas(fabricCanvas)];
         historyIndexRef.current = 0;
       };
       loadObjects();
     }
-  }, [fabricCanvas, pageObjects, currentPage, zoom]);
+  }, [fabricCanvas, pageObjects, currentPage, zoom, snapshotCanvas]);
 
   // Handle tool changes
   useEffect(() => {
@@ -455,11 +525,21 @@ export function EditorCanvas({
   useEffect(() => {
     if (!fabricCanvas) return;
 
+    // A region is spent once anything on the canvas was promoted from it -- the
+    // editable text itself, or the whiteout that survives after the text is
+    // deleted. Reading it off the canvas rather than from separate state keeps
+    // it correct across undo/redo, page switches and draft restores.
+    const isRegionConsumed = (regionId: string): boolean =>
+      fabricCanvas.getObjects().some((obj: any) => obj.regionId === regionId);
+
     // Helper to find text region at click position
     const findTextRegionAtPoint = (x: number, y: number): TextRegion | null => {
       for (const region of textRegions) {
         const { bbox } = region;
         if (x >= bbox.x && x <= bbox.x + bbox.width && y >= bbox.y && y <= bbox.y + bbox.height) {
+          // Extracted bboxes routinely overlap, so keep scanning rather than
+          // letting one spent region mask a live neighbour underneath it.
+          if (isRegionConsumed(region.id)) continue;
           return region;
         }
       }
@@ -467,7 +547,7 @@ export function EditorCanvas({
     };
 
     const handleMouseDown = async (opt: any) => {
-      const pointer = opt.pointer;
+      const pointer = scenePointer(opt);
 
       // Click-to-edit: Check if clicking on detected text (only in select mode, when not clicking on existing object)
       if (activeTool === "select" && !fabricCanvas.findTarget(opt.e)) {
@@ -482,6 +562,7 @@ export function EditorCanvas({
             editorKind: "whiteout",
             sourceTool: "select",
             pairId,
+            regionId: textRegion.id,
           });
 
           // Create editable text (use IText to avoid auto-wrapping)
@@ -491,6 +572,7 @@ export function EditorCanvas({
             editorKind: "editedText",
             sourceTool: "select",
             pairId,
+            regionId: textRegion.id,
           });
 
           fabricCanvas.add(whiteout);
@@ -646,7 +728,7 @@ export function EditorCanvas({
     const handleMouseMove = (opt: any) => {
       if (!isDrawingShapeRef.current || !shapeStartRef.current || !currentShapeRef.current) return;
 
-      const pointer = opt.pointer;
+      const pointer = scenePointer(opt);
       const start = shapeStartRef.current;
       const shape = currentShapeRef.current;
 
@@ -692,6 +774,17 @@ export function EditorCanvas({
       if (!isDrawingShapeRef.current) return;
 
       isDrawingShapeRef.current = false;
+
+      // A click with no drag leaves a zero-sized shape behind: invisible on the
+      // canvas, a stray dot in the exported PDF, and a wasted undo step. Drop it.
+      const drawn = currentShapeRef.current;
+      if (drawn && isDegenerateShape(drawn, activeTool)) {
+        fabricCanvas.remove(drawn);
+        shapeStartRef.current = null;
+        currentShapeRef.current = null;
+        fabricCanvas.renderAll();
+        return;
+      }
 
       if (activeTool === "shape-arrow" && currentShapeRef.current) {
         const line = currentShapeRef.current;
@@ -754,6 +847,12 @@ export function EditorCanvas({
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (!fabricCanvas) return;
 
+      // This listener is on `window`, so it also hears keys typed into the form
+      // field overlay, the page-number box and any other input on the page.
+      // Without this guard, Backspace while filling in a form field deleted the
+      // selected annotation instead of a character, and Ctrl+Z undid the canvas.
+      if (isTypingTarget(e.target)) return;
+
       const active = fabricCanvas.getActiveObject();
 
       // Undo: Ctrl+Z
@@ -774,8 +873,7 @@ export function EditorCanvas({
 
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
-        const objects = fabricCanvas.getActiveObjects();
-        objects.forEach((obj: unknown) => fabricCanvas.remove(obj));
+        removeWithHelpers(fabricCanvas, fabricCanvas.getActiveObjects());
         fabricCanvas.discardActiveObject();
         fabricCanvas.renderAll();
         saveHistory();
@@ -905,7 +1003,7 @@ export function EditorCanvas({
 
     const applyUnderline = () => {
       const activeObject = fabricCanvas.getActiveObject();
-      if (activeObject && activeObject.type === "textbox") {
+      if (isFormattableText(activeObject)) {
         const textbox = activeObject as any;
         textbox.set("underline", !textbox.underline);
         fabricCanvas.renderAll();
@@ -916,7 +1014,7 @@ export function EditorCanvas({
 
     const applyStrikethrough = () => {
       const activeObject = fabricCanvas.getActiveObject();
-      if (activeObject && activeObject.type === "textbox") {
+      if (isFormattableText(activeObject)) {
         const textbox = activeObject as any;
         textbox.set("linethrough", !textbox.linethrough);
         fabricCanvas.renderAll();
@@ -930,13 +1028,19 @@ export function EditorCanvas({
     let currentUnderline = false;
     let currentStrikethrough = false;
 
-    if (activeObject && activeObject.type === "textbox") {
+    if (isFormattableText(activeObject)) {
       const textbox = activeObject as any;
       currentUnderline = !!textbox.underline;
       currentStrikethrough = !!textbox.linethrough;
     }
 
-    onTextFormattingChange(applyUnderline, applyStrikethrough, currentUnderline, currentStrikethrough);
+    onTextFormattingChange(
+      applyUnderline,
+      applyStrikethrough,
+      currentUnderline,
+      currentStrikethrough,
+      isFormattableText(activeObject),
+    );
   }, [fabricCanvas, onTextFormattingChange, saveHistory, saveObjects]);
 
   // Update formatting state when selection changes
@@ -948,7 +1052,7 @@ export function EditorCanvas({
       let currentUnderline = false;
       let currentStrikethrough = false;
 
-      if (activeObject && activeObject.type === "textbox") {
+      if (isFormattableText(activeObject)) {
         const textbox = activeObject as any;
         currentUnderline = !!textbox.underline;
         currentStrikethrough = !!textbox.linethrough;
@@ -956,7 +1060,7 @@ export function EditorCanvas({
 
       const applyUnderline = () => {
         const obj = fabricCanvas.getActiveObject();
-        if (obj && obj.type === "textbox") {
+        if (isFormattableText(obj)) {
           (obj as any).set("underline", !(obj as any).underline);
           fabricCanvas.renderAll();
           saveHistory();
@@ -966,7 +1070,7 @@ export function EditorCanvas({
 
       const applyStrikethrough = () => {
         const obj = fabricCanvas.getActiveObject();
-        if (obj && obj.type === "textbox") {
+        if (isFormattableText(obj)) {
           (obj as any).set("linethrough", !(obj as any).linethrough);
           fabricCanvas.renderAll();
           saveHistory();
@@ -974,7 +1078,13 @@ export function EditorCanvas({
         }
       };
 
-      onTextFormattingChange(applyUnderline, applyStrikethrough, currentUnderline, currentStrikethrough);
+      onTextFormattingChange(
+        applyUnderline,
+        applyStrikethrough,
+        currentUnderline,
+        currentStrikethrough,
+        isFormattableText(activeObject),
+      );
     };
 
     fabricCanvas.on("selection:created", handleSelectionChange);
@@ -1551,14 +1661,24 @@ export function EditorCanvas({
     [dimensions.width, dimensions.height],
   );
 
+  // The editing surface stays upright whatever the page's pending rotation.
+  //
+  // It used to be rotated with a CSS transform, but Fabric derives pointer
+  // coordinates from the canvas element's bounding rect and knows nothing about
+  // that transform, so every click on a rotated page landed somewhere else and
+  // shapes were drawn off the edge of the paper. Putting the rotation in
+  // Fabric's viewportTransform instead is not an option either: fabric 6.9
+  // renders nothing at all under a quarter-turn transform (translate, scale and
+  // 180° are fine). Editing upright keeps the pointer exact and keeps every
+  // object in unrotated page space, which is what the exporter expects — the
+  // rotation is applied to the page on export, so annotations stay glued to the
+  // content they were placed on. The banner below says so.
   const containerStyle = useMemo(
     () => ({
       width: displayDimensions.width || "auto",
       height: displayDimensions.height || "auto",
-      transform: `rotate(${rotation}deg)`,
-      transition: "transform 0.3s ease",
     }),
-    [displayDimensions.width, displayDimensions.height, rotation],
+    [displayDimensions.width, displayDimensions.height],
   );
 
   return (
@@ -1572,6 +1692,12 @@ export function EditorCanvas({
         </div>
       )}
       <div className="relative bg-white shadow-2xl" style={containerStyle}>
+
+        {rotation !== 0 && !isDeleted && (
+          <div className="absolute top-0 left-0 right-0 z-40 bg-foreground/85 text-background text-xs font-semibold px-3 py-1.5 text-center pointer-events-none">
+            Editing upright — this page exports rotated {rotation}°
+          </div>
+        )}
 
         {isDeleted && (
           <div className="absolute inset-0 flex items-center justify-center bg-red-500/10 z-40">
@@ -1723,7 +1849,7 @@ export function EditorCanvas({
                 className="text-xs font-bold text-destructive hover:bg-destructive hover:text-white px-2 py-0.5 border-2 border-destructive transition-all"
                 onClick={() => {
                   if (fabricCanvas) {
-                    fabricCanvas.getActiveObjects().forEach((obj: unknown) => fabricCanvas.remove(obj));
+                    removeWithHelpers(fabricCanvas, fabricCanvas.getActiveObjects());
                     fabricCanvas.discardActiveObject();
                     fabricCanvas.renderAll();
                     saveHistory();

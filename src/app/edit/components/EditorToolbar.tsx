@@ -28,6 +28,8 @@ interface EditorToolbarProps {
   onImageSelect: (dataUrl: string) => void;
   isUnderlineActive?: boolean;
   isStrikethroughActive?: boolean;
+  /** A text object is selected on the canvas, so formatting can be applied to it. */
+  canFormatText?: boolean;
   onToggleUnderline?: () => void;
   onToggleStrikethrough?: () => void;
 }
@@ -75,6 +77,7 @@ export function EditorToolbar({
   onImageSelect,
   isUnderlineActive,
   isStrikethroughActive,
+  canFormatText = false,
   onToggleUnderline,
   onToggleStrikethrough,
 }: EditorToolbarProps) {
@@ -254,22 +257,24 @@ export function EditorToolbar({
           )}
         </div>
 
-        {/* Underline - only enabled when text tool is active */}
+        {/* Underline - available with the text tool, or whenever text is selected.
+            Text lifted out of the page is edited in select mode, so gating on the
+            text tool alone made these permanently unavailable for it. */}
         <ToolButton
           active={!!isUnderlineActive}
           onClick={() => onToggleUnderline?.()}
-          title={activeTool === "text" ? "Underline" : "Select text first"}
-          disabled={activeTool !== "text"}
+          title={activeTool === "text" || canFormatText ? "Underline" : "Select text first"}
+          disabled={activeTool !== "text" && !canFormatText}
         >
           <span className="font-bold text-sm underline">U</span>
         </ToolButton>
 
-        {/* Strikethrough - only enabled when text tool is active */}
+        {/* Strikethrough - same availability rule as underline */}
         <ToolButton
           active={!!isStrikethroughActive}
           onClick={() => onToggleStrikethrough?.()}
-          title={activeTool === "text" ? "Strikethrough" : "Select text first"}
-          disabled={activeTool !== "text"}
+          title={activeTool === "text" || canFormatText ? "Strikethrough" : "Select text first"}
+          disabled={activeTool !== "text" && !canFormatText}
         >
           <span className="font-bold text-sm line-through">S</span>
         </ToolButton>

@@ -48,6 +48,13 @@ export async function exportPdf({ file, pageStates, pageObjects, formFields }: E
       continue;
     }
 
+    // Object coordinates are in the page's own, unrotated space, and page.width
+    // and page.height start reporting the *rotated* box once setRotation has
+    // been called. Read them first, or every annotation on a rotated page gets
+    // flipped against the wrong height and lands off the paper.
+    const pageWidth = page.width;
+    const pageHeight = page.height;
+
     if (pageState?.rotation) {
       const nextRotation = (((page.rotation || 0) + pageState.rotation) % 360) as 0 | 90 | 180 | 270;
       page.setRotation(nextRotation);
@@ -57,8 +64,8 @@ export async function exportPdf({ file, pageStates, pageObjects, formFields }: E
     for (const record of records) {
       await drawRecord({
         page,
-        pageWidth: page.width,
-        pageHeight: page.height,
+        pageWidth,
+        pageHeight,
         pdf,
         record,
         rgb,
@@ -298,7 +305,11 @@ function drawTextRecord(
     maxWidth: record.width,
   });
 
-  const estimatedWidth = record.width || Math.max(record.text.length * size * 0.55, size);
+  // Underline and strike run under the glyphs, not under the box that holds
+  // them: a Textbox is created 200pt wide regardless of what is typed into it,
+  // so record.width would draw a rule several times the length of the text.
+  const measured = measureTextWidth(record.text, font, size, StandardFonts);
+  const estimatedWidth = record.width ? Math.min(measured, record.width) : measured;
   if (record.style.underline) {
     page.drawLine({
       start: { x, y: y - size * 0.08 },
@@ -317,6 +328,20 @@ function drawTextRecord(
       opacity: record.style.opacity ?? 1,
     });
   }
+}
+
+/**
+ * Width of `text` at `size`, in points. The standard-14 fonts are close enough
+ * to their metrics at these sizes for a rule; Courier is genuinely monospaced.
+ */
+function measureTextWidth(text: string, font: string, size: number, StandardFonts: Record<string, string>): number {
+  const longest = text.split("\n").reduce((best, line) => (line.length > best.length ? line : best), "");
+  const isCourier = font === StandardFonts.Courier ||
+    font === StandardFonts.CourierBold ||
+    font === StandardFonts.CourierOblique ||
+    font === StandardFonts.CourierBoldOblique;
+  const perChar = isCourier ? 0.6 : 0.5;
+  return Math.max(longest.length * size * perChar, size * 0.5);
 }
 
 async function drawOverlayRecord(

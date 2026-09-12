@@ -48,6 +48,8 @@ interface EditorObjectBase {
   sourceTool: string;
   fallbackMode: EditorFallbackMode;
   pairId?: string;
+  /** Id of the extracted text region this object was promoted from, if any. */
+  regionId?: string;
   asset?: EditorAsset;
 }
 
@@ -132,15 +134,23 @@ export type EditorObjectRecord =
 
 type FabricModule = Awaited<typeof import("fabric")>;
 
-const EDITOR_CUSTOM_PROPERTIES = [
+/**
+ * The metadata the editor hangs off each fabric object. Fabric serializes only
+ * its own known props, so this list has to be handed to every `toObject` call —
+ * including the canvas-wide one behind undo/redo, or a history round trip
+ * quietly returns objects that have forgotten what they are.
+ */
+export const EDITOR_CUSTOM_PROPERTIES = [
   "editorId",
   "editorKind",
   "sourceTool",
   "fallbackMode",
   "pairId",
+  "regionId",
   "asset",
   "stampData",
   "arrowData",
+  "editorHelper",
 ];
 
 let fabricModule: FabricModule | null = null;
@@ -151,6 +161,7 @@ interface FabricEditorMetadata {
   sourceTool?: string;
   fallbackMode?: EditorFallbackMode;
   pairId?: string;
+  regionId?: string;
   asset?: EditorAsset;
   stampData?: StampData;
   arrowData?: {
@@ -279,6 +290,7 @@ function buildBaseRecord(
     sourceTool: metadata.sourceTool || kind,
     fallbackMode: metadata.fallbackMode || (kind === "stamp" || kind === "unsupported" ? "raster" : "auto"),
     pairId: metadata.pairId,
+    regionId: metadata.regionId,
     asset: metadata.asset,
   };
 }
@@ -692,6 +704,7 @@ export function legacyFabricObjectToRecord(
     sourceTool: typeof obj.sourceTool === "string" ? obj.sourceTool : kind,
     fallbackMode: kind === "unsupported" ? ("raster" as const) : ("auto" as const),
     pairId: typeof obj.pairId === "string" ? obj.pairId : undefined,
+    regionId: typeof obj.regionId === "string" ? obj.regionId : undefined,
   };
 
   if (kind === "text" || kind === "editedText") {
@@ -799,6 +812,7 @@ function applySharedFabricProps(obj: FabricObjectLike, record: EditorObjectRecor
     sourceTool: record.sourceTool,
     fallbackMode: record.fallbackMode,
     pairId: record.pairId,
+        regionId: record.regionId,
     asset: record.asset,
     stampData: record.kind === "stamp" ? record.stamp : undefined,
   });
@@ -879,6 +893,7 @@ export async function recordToFabricObject(record: EditorObjectRecord, zoom: num
         sourceTool: record.sourceTool,
         fallbackMode: record.fallbackMode,
         pairId: record.pairId,
+        regionId: record.regionId,
       });
       return obj;
     }
@@ -918,6 +933,7 @@ export async function recordToFabricObject(record: EditorObjectRecord, zoom: num
         sourceTool: record.sourceTool,
         fallbackMode: record.fallbackMode,
         pairId: record.pairId,
+        regionId: record.regionId,
         asset: record.asset,
         arrowData: {
           x1: record.x1,
@@ -967,6 +983,7 @@ export async function recordToFabricObject(record: EditorObjectRecord, zoom: num
         sourceTool: record.sourceTool,
         fallbackMode: record.fallbackMode,
         pairId: record.pairId,
+        regionId: record.regionId,
         asset: record.asset,
         stampData: record.kind === "stamp" ? record.stamp : undefined,
       });

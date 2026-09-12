@@ -39,7 +39,7 @@
     "@ffmpeg/util": "^0.12.2",
     "@huggingface/transformers": "^4.0.1",
     "@jsquash/jpeg": "^1.6.0",
-    "@libpdf/core": "0.2.12",
+    "@libpdf/core": "0.4.2",
     "@mediabunny/aac-encoder": "^1.40.1",
     "@mediabunny/mp3-encoder": "^1.40.1",
     "@radix-ui/react-dialog": "^1.1.15",

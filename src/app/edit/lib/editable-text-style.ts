@@ -23,18 +23,28 @@ export function buildEditableTextOptions(region: EditableTextRegionInput) {
   };
 }
 
+/**
+ * The white patch that hides the original glyphs while their replacement is
+ * being edited — and that keeps hiding them for good once the replacement is
+ * deleted.
+ *
+ * It has to cover the region's full box. An earlier version inset the box
+ * vertically to avoid touching neighbouring lines, which left the bottom two or
+ * three pixels of the original text showing through as a grey smear in the
+ * export. The extracted box runs from the line's top to its baseline, so the
+ * extra room below is for descenders; it stays well inside normal leading.
+ */
 export function buildEditableWhiteoutOptions(region: EditableTextRegionInput) {
   const horizontalPadding = Math.max(Math.min(region.fontSize * 0.06, 2), 1);
-  const verticalTrim = Math.max(region.fontSize * 0.12, 1);
   const verticalPadding = Math.max(Math.min(region.fontSize * 0.02, 1), 0.5);
+  const descenderAllowance = region.fontSize * 0.22;
   const bboxHeight = region.bbox.height || region.fontSize;
-  const insetHeight = Math.max(bboxHeight - verticalTrim * 2, region.fontSize * 0.72);
 
   return {
     left: region.bbox.x - horizontalPadding,
-    top: region.bbox.y + verticalTrim - verticalPadding,
+    top: region.bbox.y - verticalPadding,
     width: (region.bbox.width || 0) + horizontalPadding * 2,
-    height: insetHeight + verticalPadding * 2,
+    height: bboxHeight + descenderAllowance + verticalPadding * 2,
     fill: "#FFFFFF",
     stroke: "transparent",
     selectable: false,

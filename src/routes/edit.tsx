@@ -106,6 +106,7 @@ function EditPdfPage() {
   // Text formatting state
   const [isUnderlineActive, setIsUnderlineActive] = useState(false);
   const [isStrikethroughActive, setIsStrikethroughActive] = useState(false);
+  const [canFormatText, setCanFormatText] = useState(false);
 
   // Refs for text formatting functions from EditorCanvas
   const applyUnderlineRef = useRef<(() => void) | null>(null);
@@ -127,22 +128,24 @@ function EditPdfPage() {
       applyStrikethrough: () => void,
       currentUnderline: boolean,
       currentStrikethrough: boolean,
+      isTextSelected: boolean,
     ) => {
       applyUnderlineRef.current = applyUnderline;
       applyStrikethroughRef.current = applyStrikethrough;
       setIsUnderlineActive(currentUnderline);
       setIsStrikethroughActive(currentStrikethrough);
+      setCanFormatText(isTextSelected);
     },
     [],
   );
 
   // Reset text formatting when switching away from text tool
   useEffect(() => {
-    if (activeTool !== "text") {
+    if (activeTool !== "text" && !canFormatText) {
       setIsUnderlineActive(false);
       setIsStrikethroughActive(false);
     }
-  }, [activeTool]);
+  }, [activeTool, canFormatText]);
 
   // Page objects (Fabric.js objects per page)
   const [pageObjects, setPageObjects] = useState<Map<number, EditorObjectRecord[]>>(new Map());
@@ -241,16 +244,6 @@ function EditPdfPage() {
     [totalPages],
   );
 
-  const handleClear = useCallback(() => {
-    setFile(null);
-    setCurrentPage(1);
-    setTotalPages(0);
-    setZoom(1);
-    setActiveTool("select");
-    setPageStates([]);
-    setPageObjects(new Map());
-  }, []);
-
   // Modal/dialog callbacks - memoized to prevent child re-renders
   const openSignatureModal = useCallback(() => setShowSignatureModal(true), []);
   const closeSignatureModal = useCallback(() => setShowSignatureModal(false), []);
@@ -267,6 +260,22 @@ function EditPdfPage() {
     currentPage,
     enabled: !!file, // Only save when file is loaded
   });
+
+  const handleClear = useCallback(() => {
+    setFile(null);
+    setCurrentPage(1);
+    setTotalPages(0);
+    setZoom(1);
+    setActiveTool("select");
+    setPageStates([]);
+    setPageObjects(new Map());
+    setFormFields([]);
+    setExportError(null);
+    // Putting the file away has to take the autosaved draft with it. Otherwise
+    // the next visit offers to restore a document the user just discarded, and
+    // a full copy of it sits in IndexedDB indefinitely.
+    void clearDraft();
+  }, [clearDraft]);
 
   // Check for existing draft on mount
   useEffect(() => {
@@ -301,6 +310,9 @@ function EditPdfPage() {
 
     setIsExporting(true);
     setShowRedactionDialog(false);
+    // A previous failure must not keep its message on screen once a later
+    // export succeeds.
+    setExportError(null);
 
     try {
       const pdfBytes = await exportPdf({
@@ -377,6 +389,7 @@ function EditPdfPage() {
             onImageSelect={handleImageSelect}
             isUnderlineActive={isUnderlineActive}
             isStrikethroughActive={isStrikethroughActive}
+            canFormatText={canFormatText}
             onToggleUnderline={handleToggleUnderline}
             onToggleStrikethrough={handleToggleStrikethrough}
           />

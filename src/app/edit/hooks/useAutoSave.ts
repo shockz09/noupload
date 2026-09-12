@@ -1,6 +1,6 @@
 
 import { del, get, set } from "idb-keyval";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { legacyFabricObjectToRecord, type EditorObjectRecord } from "../lib/editor-objects";
 import type { PageState } from "@/routes/edit";
 
@@ -72,13 +72,25 @@ export function useAutoSave({
   // Serialize pageObjects for dependency tracking
   const pageObjectsKey = JSON.stringify(Array.from(pageObjects.entries()));
 
+  // The file's bytes never change while it is open, so read them once per file
+  // instead of on every save. Re-reading meant copying the whole document —
+  // tens of megabytes for a large PDF — through IndexedDB after every edit.
+  const fileBytesRef = useRef<{ file: File; bytes: ArrayBuffer } | null>(null);
+  const readFileBytes = useCallback(async (current: File): Promise<ArrayBuffer> => {
+    const cached = fileBytesRef.current;
+    if (cached && cached.file === current) return cached.bytes;
+    const bytes = await current.arrayBuffer();
+    fileBytesRef.current = { file: current, bytes };
+    return bytes;
+  }, []);
+
   // Auto-save on changes (debounced)
   useEffect(() => {
     if (!enabled || !file) return;
 
     const saveDraft = async () => {
       try {
-        const fileData = await file.arrayBuffer();
+        const fileData = await readFileBytes(file);
         const draftData: EditorDraft = {
           version: 2,
           fileData,
@@ -99,7 +111,7 @@ export function useAutoSave({
     const timeout = setTimeout(saveDraft, SAVE_DEBOUNCE);
 
     return () => clearTimeout(timeout);
-  }, [enabled, file, pageStates, pageObjectsKey, currentPage]);
+  }, [enabled, file, pageStates, pageObjectsKey, currentPage, readFileBytes]);
 
   const clearDraft = useCallback(async () => {
     try {

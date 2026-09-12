@@ -35,7 +35,10 @@ export const FormFieldOverlay = memo(function FormFieldOverlay({
                 type="text"
                 value={field.value}
                 onChange={(e) => onFieldChange(field.id, e.target.value)}
-                maxLength={field.maxLength}
+                // pdf.js reports maxLen 0 for a field with no /MaxLen. Passed
+                // straight through, that caps the input at zero characters and
+                // the field cannot be typed into at all.
+                maxLength={field.maxLength || undefined}
                 readOnly={field.readOnly}
                 placeholder={field.name || ""}
                 style={style}
