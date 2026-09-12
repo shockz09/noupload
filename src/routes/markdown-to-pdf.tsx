@@ -19,6 +19,11 @@ import { FileIcon } from "@/components/icons/pdf";
 // Lazy load heavy dependencies (~5MB total)
 const getMarked = async () => (await import("marked")).marked;
 const getKatex = async () => (await import("katex")).default;
+
+// The stylesheet has to match the KaTeX build that renders the markup — mismatched
+// CSS/JS versions ship the wrong font metrics. Reading the version from the package
+// keeps the two in step without pulling KaTeX itself into the entry bundle.
+import { version as KATEX_VERSION } from "katex/package.json";
 const getDOMPurify = async () => (await import("dompurify")).default;
 
 import { ErrorBox, PdfPageHeader, ProgressBar } from "@/components/pdf/shared";
@@ -266,7 +271,7 @@ function getPdfStyles(theme: Theme, fontSize: number) {
   .katex { font-size: 1.1em; }
   .katex-display { margin: 1em 0; }
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@${KATEX_VERSION}/dist/katex.min.css">
 `;
 }
 
