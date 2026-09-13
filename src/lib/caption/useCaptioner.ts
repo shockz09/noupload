@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Cue, layoutLine, type TimedWord, wordsToCues } from "./cues";
 import { decodeToMono16k, NoAudioError } from "./decode";
-import { MODEL_TOTAL_BYTES } from "./model";
+import { cachedBytes, MODEL_TOTAL_BYTES } from "./model";
 import type { CaptionFailure, CaptionResponse } from "./protocol";
 
 export interface ModelStatus {
@@ -50,6 +50,32 @@ let modelStatus: ModelStatus = {
   bytesTotal: MODEL_TOTAL_BYTES,
   fromCache: false,
 };
+
+/**
+ * Whether this browser can actually run the model, not merely whether it has
+ * heard of WebGPU.
+ *
+ * `"gpu" in navigator` is the obvious check and it is not enough: a headless
+ * Chrome, a VM, and a machine whose GPU is on the driver blocklist all expose
+ * `navigator.gpu` and then hand back no adapter. Believing the property alone
+ * means downloading a quarter of a gigabyte before finding that out, and then
+ * reporting it as a model failure rather than as a browser that cannot do this.
+ * Asking for the adapter costs nothing and answers the real question.
+ */
+async function hasWebGPU(): Promise<boolean> {
+  const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
+  if (!gpu) return false;
+  try {
+    return (await gpu.requestAdapter()) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** Stop any run in flight, without bringing a worker into being to do it. */
+function cancelActiveRun(): void {
+  worker?.postMessage({ type: "cancel" });
+}
 
 function getWorker(): Worker {
   if (worker) return worker;
@@ -116,11 +142,8 @@ export function useCaptioner(): UseCaptioner {
   const runIdRef = useRef(0);
   const durationRef = useRef(0);
 
-  // Start the download the moment the tool is opened. By the time a file has
-  // been chosen the model is usually already there.
   useEffect(() => {
-    const instance = getWorker();
-    setModel(modelStatus);
+    let left = false;
 
     const onMessage = (message: CaptionResponse) => {
       setModel(modelStatus);
@@ -161,17 +184,50 @@ export function useCaptioner(): UseCaptioner {
       }
     };
 
+    // Subscribed before anything async: a file dropped while the adapter probe
+    // is still resolving reaches the worker through start(), and its first
+    // messages must not arrive with nobody listening.
     subscribers.add(onMessage);
-    // A load that failed for a transient reason (a dropped connection mid
-    // download) is worth retrying when the tool is opened again. A browser
-    // without WebGPU is not, and never becomes one.
-    if (modelStatus.phase === "idle" || (modelStatus.phase === "error" && modelStatus.failure === "model")) {
-      modelStatus = { ...modelStatus, phase: "idle", failure: undefined, detail: undefined };
-      instance.postMessage({ type: "load" });
-    }
+
+    void (async () => {
+      // Settle the "can this browser do it at all" question before spawning a
+      // worker, so an unsupported browser is told so on arrival rather than
+      // after it has waited for a file to decode.
+      const supported = await hasWebGPU();
+      if (left) return;
+
+      if (!supported) {
+        modelStatus = { ...modelStatus, phase: "error", failure: "no-webgpu" };
+        setModel(modelStatus);
+        return;
+      }
+
+      const instance = getWorker();
+      setModel(modelStatus);
+
+      // A load that failed for a transient reason (a dropped connection mid
+      // download) is worth retrying when the tool is opened again.
+      if (modelStatus.phase === "idle" || (modelStatus.phase === "error" && modelStatus.failure === "model")) {
+        // Warm up ahead of time only when the weights are already on the
+        // device, where it costs nothing and makes the first file start
+        // instantly. Pulling a quarter of a gigabyte is not something to do to
+        // someone who has merely opened a page to look at it — that waits for
+        // a real file.
+        const bytes = await cachedBytes();
+        if (left || bytes < MODEL_TOTAL_BYTES) return;
+        modelStatus = { ...modelStatus, phase: "idle", failure: undefined, detail: undefined };
+        instance.postMessage({ type: "load" });
+      }
+    })();
 
     return () => {
+      left = true;
       subscribers.delete(onMessage);
+      // Leaving the tool abandons the run: the cues live in this component's
+      // state, so a transcription still grinding away on the GPU is producing
+      // words nothing will ever read. The worker itself stays, model and all.
+      runIdRef.current += 1;
+      cancelActiveRun();
     };
   }, []);
 

@@ -7,10 +7,13 @@
  *  1. The browser's own decoder (`decodeAudioData` on a 16 kHz context), which
  *     demuxes, decodes and resamples in one native call. Fastest by a mile and
  *     the resampling is properly filtered.
- *  2. Mediabunny, streaming packets off the file. Slower, but it reads
- *     containers the Web Audio decoder refuses outright — Matroska above all —
- *     and never holds the whole file in memory, which matters at gigabyte
- *     sizes. The app already uses it for every other video tool.
+ *  2. Mediabunny, streaming packets off the file. Slower, but it never holds
+ *     the whole file in memory, which is what matters at gigabyte sizes, and it
+ *     reads containers on browsers whose Web Audio decoder will not. Chromium's
+ *     decoder is the whole media stack and handles every container mediabunny
+ *     does, Matroska included — measured, not assumed — so there this is
+ *     reached only by the size rule below. Firefox and Safari are narrower.
+ *     The app already uses mediabunny for every other video tool.
  *
  * Whole-file decoding through (1) means reading the file into an ArrayBuffer,
  * so anything large goes straight to (2).
@@ -51,7 +54,7 @@ export async function decodeToMono16k(file: File, onProgress?: (fraction: number
   }
 
   try {
-    return await decodeWithMediabunny(file, onProgress);
+    return await decodeStreaming(file, onProgress);
   } catch (error) {
     if (error instanceof NoAudioError) throw error;
     if (streamFirst) {
@@ -92,7 +95,12 @@ function downmix(buffer: AudioBuffer): Float32Array {
   return mixed;
 }
 
-async function decodeWithMediabunny(file: File, onProgress?: (fraction: number) => void): Promise<DecodedAudio> {
+/**
+ * Exported for the tests, which otherwise could not reach it: in Chromium the
+ * fast path above swallows every container this can read, so the only way in
+ * through `decodeToMono16k` is a file too large to run in a test.
+ */
+export async function decodeStreaming(file: File, onProgress?: (fraction: number) => void): Promise<DecodedAudio> {
   const { AudioBufferSink } = await import("mediabunny");
   const { createInput } = await import("@/lib/video/utils");
 
@@ -101,8 +109,24 @@ async function decodeWithMediabunny(file: File, onProgress?: (fraction: number) 
   if (!track) throw new NoAudioError();
 
   const duration = await input.computeDuration();
-  const chunks: Float32Array[] = [];
+
+  // Sized from the duration the container reports rather than grown by
+  // collecting every decoded chunk and concatenating at the end: this path
+  // exists for the files too big to hold twice, and holding the chunks *and*
+  // the joined result is exactly that. A second of slack covers a container
+  // that rounds its duration down; anything beyond that grows the buffer.
+  let pcm = new Float32Array(Math.max(TARGET_RATE, Math.ceil((duration + 1) * TARGET_RATE)));
   let total = 0;
+
+  const append = (samples: Float32Array) => {
+    if (total + samples.length > pcm.length) {
+      const grown = new Float32Array(Math.max(pcm.length * 2, total + samples.length));
+      grown.set(pcm.subarray(0, total));
+      pcm = grown;
+    }
+    pcm.set(samples, total);
+    total += samples.length;
+  };
 
   // Awaiting each decoded buffer already returns to the event loop, so this
   // does not by itself block the page — measured on a 60 s MP4, the longest
@@ -113,9 +137,7 @@ async function decodeWithMediabunny(file: File, onProgress?: (fraction: number) 
   const yielder = createYielder();
 
   for await (const wrapped of new AudioBufferSink(track).buffers()) {
-    const resampled = toMono16k(wrapped.buffer);
-    chunks.push(resampled);
-    total += resampled.length;
+    append(toMono16k(wrapped.buffer));
     const yielded = await yielder();
     if (yielded && onProgress && duration > 0) {
       onProgress(Math.min(1, (wrapped.timestamp + wrapped.duration) / duration));
@@ -123,15 +145,12 @@ async function decodeWithMediabunny(file: File, onProgress?: (fraction: number) 
   }
 
   if (total === 0) throw new NoAudioError();
+  onProgress?.(1);
 
-  const pcm = new Float32Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    pcm.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  return { pcm, sampleRate: TARGET_RATE, duration: pcm.length / TARGET_RATE };
+  // A view, not a copy: the tail of the buffer is at most the slack above, and
+  // copying to trim it would put us back to holding the audio twice.
+  const samples = total === pcm.length ? pcm : pcm.subarray(0, total);
+  return { pcm: samples, sampleRate: TARGET_RATE, duration: total / TARGET_RATE };
 }
 
 /**
@@ -155,8 +174,12 @@ function toMono16k(buffer: AudioBuffer): Float32Array {
     const from = Math.floor(i * ratio);
     const to = Math.min(buffer.length, Math.max(from + 1, Math.floor((i + 1) * ratio)));
     let sum = 0;
-    for (let s = from; s < to; s++) {
-      for (const channel of channels) sum += channel[s];
+    // Channel outside, samples inside: the inner run walks one typed array
+    // forwards, and there is no iterator allocated per sample. An hour of
+    // 48 kHz stereo is 350 million trips through here.
+    for (let c = 0; c < channels.length; c++) {
+      const data = channels[c];
+      for (let s = from; s < to; s++) sum += data[s];
     }
     out[i] = (sum * channelScale) / (to - from);
   }

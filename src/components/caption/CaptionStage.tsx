@@ -30,6 +30,13 @@ interface CaptionStageProps {
   duration: number;
   /** Loudness envelope, 0..1 per bucket. Drawn as the waveform for audio files. */
   peaks: number[];
+  /**
+   * Whether the file is expected to have a picture, from its name. The element
+   * reports the truth on `loadedmetadata`, but that is a beat too late: an
+   * audio file would show a black video frame until it arrives, and if the
+   * media never loads at all it would stay there.
+   */
+  expectVideo: boolean;
   /** Fires only when the covering cue changes, not every frame. */
   onActiveChange: (index: number) => void;
   mediaRef: React.RefObject<HTMLVideoElement | null>;
@@ -40,6 +47,7 @@ export const CaptionStage = memo(function CaptionStage({
   cues,
   duration,
   peaks,
+  expectVideo,
   onActiveChange,
   mediaRef,
 }: CaptionStageProps) {
@@ -47,11 +55,12 @@ export const CaptionStage = memo(function CaptionStage({
   const headRef = useRef<HTMLSpanElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   /** Whatever draws playback position: a bar for video, the waveform for audio. */
-  const progressRef = useRef<HTMLDivElement>(null);
-  const shownRef = useRef(-1);
+  const progressRef = useRef<HTMLSpanElement>(null);
+  /** What the overlay currently says, so a re-cut cue is not left stale on it. */
+  const shownRef = useRef({ index: -1, text: "" });
   const cuesRef = useRef(cues);
 
-  const [audioOnly, setAudioOnly] = useState(false);
+  const [audioOnly, setAudioOnly] = useState(!expectVideo);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   // Whole seconds only: the clock is the one thing here that needs to re-render,
@@ -65,17 +74,16 @@ export const CaptionStage = memo(function CaptionStage({
   useEffect(() => {
     const media = mediaRef.current;
     if (!media) return;
-    let running = true;
-    let handle = 0;
 
     // Audio-only files never produce video frames, so they fall back to the
     // animation clock — same cadence, and it keeps running with no picture.
     const byFrame = typeof media.requestVideoFrameCallback === "function" && !audioOnly;
+    let looping = false;
+    let handle = 0;
 
-    const tick = () => {
-      if (!running) return;
-
+    const sync = () => {
       const time = media.currentTime;
+
       if (duration > 0) {
         const percent = `${((time / duration) * 100).toFixed(2)}%`;
         if (headRef.current) headRef.current.style.left = percent;
@@ -84,30 +92,82 @@ export const CaptionStage = memo(function CaptionStage({
       setElapsed((previous) => (Math.floor(time) === previous ? previous : Math.floor(time)));
 
       const index = cueAt(cuesRef.current, time);
-      if (index !== shownRef.current) {
-        shownRef.current = index;
-        if (overlayRef.current) {
-          overlayRef.current.textContent = index >= 0 ? cuesRef.current[index].text : "";
-          overlayRef.current.hidden = index < 0;
-        }
-        onActiveChange(index);
+      const text = index >= 0 ? cuesRef.current[index].text : "";
+      const shown = shownRef.current;
+      // Text as well as index: while transcription is still running the words
+      // under a given index keep changing as each window re-cuts the cues, and
+      // watching the index alone would leave the last version on screen.
+      if (index === shown.index && text === shown.text) return;
+
+      shownRef.current = { index, text };
+      if (overlayRef.current) {
+        overlayRef.current.textContent = text;
+        overlayRef.current.hidden = index < 0;
       }
-
-      schedule();
+      if (index !== shown.index) onActiveChange(index);
     };
 
-    const schedule = () => {
-      if (!running) return;
-      handle = byFrame ? media.requestVideoFrameCallback(tick) : requestAnimationFrame(tick);
+    const frame = () => {
+      sync();
+      if (looping) handle = byFrame ? media.requestVideoFrameCallback(frame) : requestAnimationFrame(frame);
     };
 
-    schedule();
-    return () => {
-      running = false;
+    // Only run the clock while the media is actually moving. A paused audio
+    // file would otherwise hold an animation frame open forever, re-reading the
+    // time and writing styles sixty times a second to say nothing changed.
+    const startLoop = () => {
+      if (looping) return;
+      looping = true;
+      handle = byFrame ? media.requestVideoFrameCallback(frame) : requestAnimationFrame(frame);
+    };
+
+    const stopLoop = () => {
+      if (!looping) return;
+      looping = false;
       if (byFrame) media.cancelVideoFrameCallback(handle);
       else cancelAnimationFrame(handle);
     };
+
+    // Paused, the position still has to follow a seek or a newly loaded file.
+    const settle = () => {
+      sync();
+      if (!media.paused && !media.ended) startLoop();
+    };
+
+    media.addEventListener("play", startLoop);
+    media.addEventListener("playing", startLoop);
+    media.addEventListener("pause", stopLoop);
+    media.addEventListener("ended", stopLoop);
+    media.addEventListener("seeked", settle);
+    media.addEventListener("loadedmetadata", settle);
+    settle();
+
+    return () => {
+      stopLoop();
+      media.removeEventListener("play", startLoop);
+      media.removeEventListener("playing", startLoop);
+      media.removeEventListener("pause", stopLoop);
+      media.removeEventListener("ended", stopLoop);
+      media.removeEventListener("seeked", settle);
+      media.removeEventListener("loadedmetadata", settle);
+    };
   }, [mediaRef, duration, onActiveChange, audioOnly]);
+
+  // Cues are re-cut as each window of transcription lands. While the media is
+  // paused nothing is driving the clock, so the overlay is refreshed here
+  // instead — otherwise a line fixed in the list would not change on the video.
+  useEffect(() => {
+    const media = mediaRef.current;
+    if (!media?.paused) return;
+    const index = cueAt(cues, media.currentTime);
+    const text = index >= 0 ? cues[index].text : "";
+    if (index === shownRef.current.index && text === shownRef.current.text) return;
+    shownRef.current = { index, text };
+    if (overlayRef.current) {
+      overlayRef.current.textContent = text;
+      overlayRef.current.hidden = index < 0;
+    }
+  }, [cues, mediaRef]);
 
   // Captions should scale with the frame they sit in, not with the viewport:
   // the same clip in a narrow column and a wide one wants different type.
@@ -208,13 +268,15 @@ export const CaptionStage = memo(function CaptionStage({
                 className="relative h-4 flex-1 cursor-pointer"
               >
                 <span className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-white/25" />
-                <div
+                {/* A <span>, not a <div>: this is inside a <button>, which may
+                    only hold phrasing content. */}
+                <span
                   ref={progressRef}
-                  className="absolute inset-y-0 left-0 right-0"
+                  className="absolute inset-y-0 left-0 right-0 block"
                   style={{ clipPath: "inset(0 calc(100% - var(--played, 0%)) 0 0)" }}
                 >
                   <span className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-white" />
-                </div>
+                </span>
               </button>
 
               <button
@@ -289,13 +351,13 @@ export const CaptionStage = memo(function CaptionStage({
                 {/* The same bars again, clipped to how far playback has got.
                       Clipping one layer keeps the bars identical and needs no
                       per-frame React work — only a CSS variable moves. */}
-                <div
+                <span
                   ref={progressRef}
-                  className="absolute inset-0"
+                  className="absolute inset-0 block"
                   style={{ clipPath: "inset(0 calc(100% - var(--played, 0%)) 0 0)" }}
                 >
                   <Waveform peaks={peaks} className="text-primary" />
-                </div>
+                </span>
               </button>
 
               <div className="flex items-center gap-3 border-t-2 border-foreground px-3 py-1.5">
@@ -347,7 +409,7 @@ export const CaptionStage = memo(function CaptionStage({
 const Waveform = memo(function Waveform({ peaks, className }: { peaks: number[]; className: string }) {
   const bars = peaks.length > 0 ? peaks : new Array(120).fill(0.08);
   return (
-    <div className={`absolute inset-0 flex items-center gap-px px-1 ${className}`}>
+    <span className={`absolute inset-0 flex items-center gap-px px-1 ${className}`}>
       {bars.map((peak, index) => (
         <span
           // Bars are a fixed-length envelope, not a list of things: position
@@ -357,6 +419,6 @@ const Waveform = memo(function Waveform({ peaks, className }: { peaks: number[];
           style={{ height: `${Math.max(6, peak * 82)}%` }}
         />
       ))}
-    </div>
+    </span>
   );
 });

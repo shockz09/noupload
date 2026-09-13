@@ -50,7 +50,13 @@ function loadModel(): Promise<ParakeetModel> {
   if (modelPromise) return modelPromise;
 
   modelPromise = (async () => {
-    if (!("gpu" in navigator)) throw new WorkerError("no-webgpu");
+    // The adapter, not just the property. A headless browser, a VM, or a GPU on
+    // the driver blocklist all answer `"gpu" in navigator` with yes and then
+    // hand back nothing — and finding that out after a 240 MB download, as a
+    // model-compile failure, helps nobody. The page checks this too; the check
+    // lives here as well because this is the code that starts the download.
+    const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
+    if (!(await gpu?.requestAdapter().catch(() => null))) throw new WorkerError("no-webgpu");
     const started = performance.now();
 
     let sources: Awaited<ReturnType<typeof ensureModel>>;

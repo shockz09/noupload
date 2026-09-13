@@ -63,10 +63,14 @@ export const DownloadMenu = memo(function DownloadMenu({ onDownload }: DownloadM
     };
   }, [open, close]);
 
-  // Opening with the keyboard should land on the list, not leave focus behind.
+  // Opening with the keyboard should land on the list, not leave focus behind —
+  // and on the row that is currently chosen, so arrowing moves relative to
+  // where you already are rather than from the top of the list every time.
   useEffect(() => {
-    if (open) itemsRef.current[0]?.focus();
-  }, [open]);
+    if (!open) return;
+    const chosen = CAPTION_FORMATS.findIndex((option) => option.ext === format.ext);
+    (itemsRef.current[chosen] ?? itemsRef.current[0])?.focus();
+  }, [open, format.ext]);
 
   const pick = useCallback(
     (chosen: CaptionFormat) => {

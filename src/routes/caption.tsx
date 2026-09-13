@@ -140,12 +140,18 @@ function CaptionPage() {
     [cues, baseName],
   );
 
+  const copiedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(copiedTimer.current), []);
+
   const copyTranscript = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(toText(cues));
       setCopied(true);
-      setTimeout(() => setCopied(false), 1400);
+      clearTimeout(copiedTimer.current);
+      copiedTimer.current = setTimeout(() => setCopied(false), 1400);
     } catch {
+      // Clipboard access can be refused outright; the text still has to go
+      // somewhere, so it goes to a file.
       downloadText(toText(cues), `${baseName}.txt`);
     }
   }, [cues, baseName]);
@@ -224,12 +230,15 @@ function CaptionPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {mediaUrl && (
+          {/* Nothing to play if the file could not be read at all — showing a
+              dead player above the error only makes the error harder to read. */}
+          {mediaUrl && !(error && run.duration === 0) && (
             <CaptionStage
               src={mediaUrl}
               cues={cues}
               duration={run.duration}
               peaks={peaks}
+              expectVideo={isVideo}
               mediaRef={mediaRef}
               onActiveChange={setActiveIndex}
             />
@@ -298,7 +307,7 @@ function CaptionPage() {
             </div>
           )}
 
-          {finished && (
+          {finished && cues.length > 0 && (
             <div className="animate-fade-up space-y-3 border-t-2 border-foreground pt-4">
               <p className="text-sm">
                 <b className="font-bold">
@@ -342,9 +351,25 @@ function CaptionPage() {
             </div>
           )}
 
+          {finished && cues.length === 0 && (
+            <div className="animate-fade-up space-y-3 border-t-2 border-foreground pt-4">
+              <InfoBox title="No speech found">
+                Nothing in this file came back as words. A recording that is music only, or too quiet to make out, will
+                land here — so will one whose speech is in a language this model does not read.
+              </InfoBox>
+              <button
+                type="button"
+                onClick={startOver}
+                className="text-sm font-semibold text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+              >
+                Try another file
+              </button>
+            </div>
+          )}
+
           <CueList cues={cues} activeIndex={activeIndex} editable={finished} onSeek={seek} onEdit={editCue} />
 
-          {cues.length === 0 && run.phase !== "idle" && !error && (
+          {cues.length === 0 && (run.phase === "reading" || run.phase === "transcribing") && !error && (
             <div className="border-2 border-dashed border-foreground/30 p-6 text-sm text-muted-foreground">
               Subtitles will appear here as they are made.
             </div>
