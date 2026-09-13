@@ -1,13 +1,7 @@
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertIcon, LoaderIcon, XIcon } from "@/components/icons/ui";
 import { DocumentCropper } from "@/components/pdf/DocumentCropper";
-import { detectDocument } from "@/lib/document-scanner";
-
-interface Point {
-  x: number;
-  y: number;
-}
+import { detectDocument, enhanceDocument, type Point, rectifyDocument } from "@/lib/document-scanner";
 
 interface CameraCaptureProps {
   onCapture: (blob: Blob) => void;
@@ -25,6 +19,7 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [detectedCorners, setDetectedCorners] = useState<Point[] | undefined>(undefined);
   const [isDetecting, setIsDetecting] = useState(false);
+  const [cropError, setCropError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const remainingSlots = maxImages - currentCount;
 
@@ -88,21 +83,21 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
     const previewUrl = canvas.toDataURL("image/jpeg", 0.92);
     setCapturedImage(previewUrl);
 
-    // Auto-detect document corners
+    // Auto-detect document corners. Failing to find a page is ordinary — the
+    // cropper falls back to its default inset quad and the user drags it.
     setIsDetecting(true);
     try {
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const detected = await detectDocument(imageData);
-      
-      if (detected && detected.confidence > 0.3) {
-        // Convert absolute coordinates to relative (0-1)
-        const relativeCorners = detected.corners.map(corner => ({
-          x: corner.x / canvas.width,
-          y: corner.y / canvas.height,
-        }));
-        setDetectedCorners(relativeCorners);
+      const detected = await detectDocument(canvas);
+
+      if (detected) {
+        // The cropper works in 0-1 image space so it survives a resize.
+        setDetectedCorners(
+          detected.corners.map((corner) => ({
+            x: corner.x / canvas.width,
+            y: corner.y / canvas.height,
+          })),
+        );
       } else {
-        // No document detected, use default corners
         setDetectedCorners(undefined);
       }
     } catch (err) {
@@ -113,67 +108,43 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
     }
   }, [remainingSlots, stopCamera]);
 
-  const handleConfirmCrop = useCallback(async (corners: Point[]) => {
-    if (!canvasRef.current || !capturedImage) return;
+  const handleConfirmCrop = useCallback(
+    async (corners: Point[]) => {
+      if (!canvasRef.current || !capturedImage) return;
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+      let flattened: HTMLCanvasElement;
+      try {
+        setCropError(null);
+        flattened = await rectifyDocument(canvasRef.current, sortCorners(corners));
+      } catch (err) {
+        // Recoverable: the photo is still there, so leave the cropper up rather
+        // than falling through to the fatal camera-error screen.
+        console.error("Page extraction failed:", err);
+        setCropError("Could not flatten that page. Move the corners, or retake the photo.");
+        return;
+      }
 
-    // Create output canvas for perspective transform
-    const outputCanvas = document.createElement("canvas");
-    outputCanvas.width = 800;
-    outputCanvas.height = 1100;
-    const outputCtx = outputCanvas.getContext("2d");
-    if (!outputCtx) return;
+      const ctx = flattened.getContext("2d");
+      if (!ctx) return;
 
-    // Sort corners: top-left, top-right, bottom-right, bottom-left
-    const sorted = sortCorners(corners);
+      ctx.putImageData(enhanceDocument(ctx.getImageData(0, 0, flattened.width, flattened.height)), 0, 0);
 
-    // Calculate source dimensions
-    const srcWidth = Math.max(
-      Math.hypot(sorted[1].x - sorted[0].x, sorted[1].y - sorted[0].y),
-      Math.hypot(sorted[2].x - sorted[3].x, sorted[2].y - sorted[3].y)
-    );
-    const srcHeight = Math.max(
-      Math.hypot(sorted[3].x - sorted[0].x, sorted[3].y - sorted[0].y),
-      Math.hypot(sorted[2].x - sorted[1].x, sorted[2].y - sorted[1].y)
-    );
+      const blob = await new Promise<Blob | null>((resolve) => flattened.toBlob(resolve, "image/jpeg", 0.92));
+      if (!blob) return;
 
-    // Draw the transformed image
-    outputCtx.drawImage(
-      canvas,
-      sorted[0].x, sorted[0].y,
-      srcWidth, srcHeight,
-      0, 0,
-      outputCanvas.width, outputCanvas.height
-    );
-
-    // Apply enhancement
-    const imageData = outputCtx.getImageData(0, 0, outputCanvas.width, outputCanvas.height);
-    enhanceDocument(imageData);
-    outputCtx.putImageData(imageData, 0, 0);
-
-    // Convert to blob
-    outputCanvas.toBlob(
-      (blob) => {
-        if (blob) {
-          onCapture(blob);
-          // Reset for next capture
-          setCapturedImage(null);
-          setDetectedCorners(undefined);
-          canvasRef.current = null;
-          startCamera();
-        }
-      },
-      "image/jpeg",
-      0.92
-    );
-  }, [capturedImage, onCapture, startCamera]);
+      onCapture(blob);
+      setCapturedImage(null);
+      setDetectedCorners(undefined);
+      canvasRef.current = null;
+      startCamera();
+    },
+    [capturedImage, onCapture, startCamera],
+  );
 
   const handleRetake = useCallback(() => {
     setCapturedImage(null);
     setDetectedCorners(undefined);
+    setCropError(null);
     canvasRef.current = null;
     startCamera();
   }, [startCamera]);
@@ -220,6 +191,12 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
             <p className="font-medium">Detecting document edges...</p>
           </div>
         )}
+        {cropError && (
+          <div className="error-box">
+            <AlertIcon className="w-5 h-5" />
+            <span className="font-medium">{cropError}</span>
+          </div>
+        )}
         <DocumentCropper
           imageSrc={capturedImage}
           detectedCorners={detectedCorners}
@@ -248,7 +225,7 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
       </div>
 
       {/* Viewfinder */}
-      <div className="relative bg-black" style={{ height: '50vh', minHeight: '300px' }}>
+      <div className="relative bg-black" style={{ height: "50vh", minHeight: "300px" }}>
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
             <LoaderIcon className="w-8 h-8 animate-spin text-white" />
@@ -295,9 +272,10 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
             onClick={handleCapture}
             disabled={remainingSlots <= 0 || isLoading}
             className={`w-20 h-20 rounded-full border-4 border-foreground flex items-center justify-center transition-all
-              ${remainingSlots > 0 && !isLoading
-                ? "bg-white hover:scale-105 active:scale-95"
-                : "bg-muted cursor-not-allowed"
+              ${
+                remainingSlots > 0 && !isLoading
+                  ? "bg-white hover:scale-105 active:scale-95"
+                  : "bg-muted cursor-not-allowed"
               }
             `}
           >
@@ -309,46 +287,30 @@ export function CameraCapture({ onCapture, onClose, maxImages, currentCount }: C
         </div>
 
         {remainingSlots <= 0 && (
-          <p className="text-center text-sm font-medium text-destructive mt-4">
-            Maximum {maxImages} pages reached
-          </p>
+          <p className="text-center text-sm font-medium text-destructive mt-4">Maximum {maxImages} pages reached</p>
         )}
 
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          Position document in frame and tap to capture
-        </p>
+        <p className="text-center text-sm text-muted-foreground mt-4">Position document in frame and tap to capture</p>
       </div>
     </div>
   );
 }
 
-// Helper functions
+/**
+ * Put the four corners in top-left, top-right, bottom-right, bottom-left order.
+ *
+ * The cropper hands them back in whatever order the user last dragged them, and
+ * the warp needs to know which corner is which. Sorting by angle about the
+ * centroid gives that for any convex quad: atan2 runs from -pi on the left, so
+ * ascending order starts at the top-left and goes clockwise.
+ */
 function sortCorners(corners: Point[]): Point[] {
-  // Calculate centroid
-  const centroid = corners.reduce(
-    (acc, corner) => ({ x: acc.x + corner.x / 4, y: acc.y + corner.y / 4 }),
-    { x: 0, y: 0 }
-  );
-
-  // Sort by angle from centroid
-  return [...corners].sort((a, b) => {
-    const angleA = Math.atan2(a.y - centroid.y, a.x - centroid.x);
-    const angleB = Math.atan2(b.y - centroid.y, b.x - centroid.x);
-    return angleA - angleB;
+  const centroid = corners.reduce((acc, corner) => ({ x: acc.x + corner.x / 4, y: acc.y + corner.y / 4 }), {
+    x: 0,
+    y: 0,
   });
-}
 
-function enhanceDocument(imageData: ImageData): void {
-  const data = imageData.data;
-  const length = data.length;
-
-  // Apply adaptive contrast
-  const contrast = 1.3;
-  const intercept = 128 * (1 - contrast);
-
-  for (let i = 0; i < length; i += 4) {
-    for (let j = 0; j < 3; j++) {
-      data[i + j] = Math.max(0, Math.min(255, data[i + j] * contrast + intercept));
-    }
-  }
+  return [...corners].sort(
+    (a, b) => Math.atan2(a.y - centroid.y, a.x - centroid.x) - Math.atan2(b.y - centroid.y, b.x - centroid.x),
+  );
 }

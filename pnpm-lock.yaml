@@ -155,6 +155,9 @@ importers:
       rembg-webgpu:
         specifier: ^0.2.1
         version: 0.2.1(@huggingface/transformers@4.2.0)
+      scanic:
+        specifier: ^1.6.0
+        version: 1.6.0
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.5.0
@@ -2589,6 +2592,10 @@ packages:
   saxes@6.0.0:
     resolution: {integrity: sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA==}
     engines: {node: '>=v12.22.7'}
+
+  scanic@1.6.0:
+    resolution: {integrity: sha512-p9qYL9cITvQ/BOrafsJvhm++Y8NA8GfRnwngUASqAyKUTRHqMuJzcrCuHjveHxQg29tNuEORUBDAAcigvFigPg==}
+    engines: {node: '>=22'}
 
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
@@ -5248,6 +5255,8 @@ snapshots:
     dependencies:
       xmlchars: 2.2.0
     optional: true
+
+  scanic@1.6.0: {}
 
   scheduler@0.27.0: {}
 

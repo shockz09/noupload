@@ -83,6 +83,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "rembg-webgpu": "^0.2.1",
+    "scanic": "^1.6.0",
     "tailwind-merge": "^3.4.0",
     "tesseract.js": "^7.0.0",
     "wasm-media-encoders": "^0.7.0",
