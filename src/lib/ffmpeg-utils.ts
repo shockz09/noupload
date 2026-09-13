@@ -3,6 +3,7 @@
 
 // Type-only import doesn't add to bundle (stripped at compile time)
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
+import ffmpegWorkerUrl from "./ffmpeg-worker.ts?worker&url";
 
 let ffmpeg: FFmpeg | null = null;
 let loadPromise: Promise<FFmpeg> | null = null;
@@ -57,9 +58,10 @@ export async function getFFmpeg(_onLoadProgress?: (progress: number) => void): P
       const { FFmpeg } = await import("@ffmpeg/ffmpeg");
       ffmpeg = new FFmpeg();
 
-      const baseURL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VERSION}/dist/umd`;
+      const baseURL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VERSION}/dist/esm`;
 
       await ffmpeg.load({
+        classWorkerURL: new URL(ffmpegWorkerUrl, window.location.origin).href,
         coreURL: await cachedToBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
         wasmURL: await cachedToBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
       });

@@ -20,7 +20,7 @@ export default defineConfig(({ command }) => ({
 		include: ["@jsquash/jpeg/encode", "pdf-lib"],
 		// mupdf ships ESM with top-level await and loads its own WASM relative to
 		// import.meta.url; prebundling it breaks that, so keep it as-is.
-		exclude: ["mupdf"],
+		exclude: ["mupdf", "@ffmpeg/ffmpeg"],
 	},
 	worker: {
 		// mupdf's WASM loader uses top-level await, which only survives the

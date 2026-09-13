@@ -1,6 +1,7 @@
 import { HeadContent, Link, Outlet, createRootRoute } from "@tanstack/react-router";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect } from "react";
+import { Github as GithubIcon } from "lucide-react";
 import { Header } from "@/components/header";
 
 const VercelAnalytics = lazy(() => import("@vercel/analytics/react").then((mod) => ({ default: mod.Analytics })));
@@ -27,17 +28,30 @@ function RootComponent() {
 							<p className="text-sm text-muted-foreground font-medium">
 								Your files never leave your device. Built for privacy.
 							</p>
-							<p className="text-xs text-muted-foreground/70">
-								by{" "}
+							<div className="flex items-center gap-3">
+								<p className="text-xs text-muted-foreground/70">
+									by{" "}
+									<a
+										href="https://github.com/shockz09"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="hover:text-foreground transition-colors"
+									>
+										Rohit Mishra
+									</a>
+								</p>
+								<div className="h-3 w-px bg-muted-foreground/30" aria-hidden="true" />
 								<a
-									href="https://github.com/shockz09"
+									href="https://github.com/shockz09/noupload"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="hover:text-foreground transition-colors"
+									aria-label="View noupload on GitHub"
+									title="View noupload on GitHub"
+									className="text-muted-foreground hover:text-foreground transition-all duration-150 hover:scale-110 active:scale-95 p-1 rounded hover:bg-foreground/5 flex items-center justify-center"
 								>
-									Rohit Mishra
+									<GithubIcon className="w-4 h-4" />
 								</a>
-							</p>
+							</div>
 						</div>
 					</div>
 				</footer>
