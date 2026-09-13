@@ -1,6 +1,5 @@
 import {
   AudioMergeIcon,
-  CaptionIcon,
   DenoiseIcon,
   FadeIcon,
   MicIcon,
@@ -15,6 +14,7 @@ import {
 } from "@/components/icons/audio";
 import { ConvertIcon } from "@/components/icons/image";
 import { CompressIcon } from "@/components/icons/pdf";
+import { subtitlesTool } from "./subtitles-tool";
 
 export const audioTools = [
   {
@@ -158,31 +158,7 @@ export const audioTools = [
     colorClass: "tool-audio-metadata",
     keywords: ["id3", "tags", "artist", "album", "title", "cover art"],
   },
-  {
-    title: "Subtitles",
-    description: "Turn speech into timed, editable captions",
-    href: "/caption",
-    icon: CaptionIcon,
-    category: "convert",
-    colorClass: "tool-caption",
-    keywords: [
-      "subtitles",
-      "captions",
-      "cc",
-      "srt",
-      "vtt",
-      "transcribe",
-      "transcript",
-      "speech to text",
-      "auto caption",
-      "closed captions",
-      "dictation",
-    ],
-    io: {
-      from: ["mp4", "mov", "mkv", "webm", "m4v", "mp3", "wav", "m4a", "aac", "flac", "ogg", "video", "audio"],
-      to: ["srt", "vtt", "txt", "text"],
-    },
-  },
+  subtitlesTool,
 ];
 
 export const audioCategoryLabels: Record<string, string> = {

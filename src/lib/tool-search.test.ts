@@ -273,7 +273,19 @@ describe("the combined All Tools list", () => {
   const search = (q: string) => scoreTools([...allTools], q).map((t) => t.title);
 
   it("covers every tool in the per-suite grids", () => {
-    expect(allTools).toHaveLength(ALL_TOOLS.length);
+    expect(new Set(allTools.map((tool) => tool.href))).toEqual(new Set(ALL_TOOLS.map((tool) => tool.href)));
+  });
+
+  /**
+   * A tool may belong to two families — Subtitles is listed under both Audio
+   * and Video — so the concatenation that builds this list can hand the same
+   * tool over twice. That would show two identical cards on the "All" tab,
+   * overcount the tab's badge, and repeat a React key, since the grid is keyed
+   * by href.
+   */
+  it("lists each tool once, however many grids it belongs to", () => {
+    const hrefs = allTools.map((tool) => tool.href);
+    expect(hrefs).toHaveLength(new Set(hrefs).size);
   });
 
   // Regression: `queryCoversKw` treated "the query contains a keyword" as proof

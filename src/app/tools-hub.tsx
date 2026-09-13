@@ -20,8 +20,17 @@ interface CategoryDef {
   placeholder: string;
 }
 
-/** Every tool, as shown by the "All" tab. Exported so search tests cover it. */
-export const allTools = [...pdfTools, ...imageTools, ...audioTools, ...videoTools, ...qrTools];
+/**
+ * Every tool, as shown by the "All" tab. Exported so search tests cover it.
+ *
+ * De-duplicated by href: a tool can belong to two families — Subtitles is both
+ * an audio and a video job — and listing it under both means it arrives here
+ * twice. Two cards for one tool is wrong on the page, wrong in the count beside
+ * the tab, and a duplicate React key in the grid, which is keyed by href.
+ */
+export const allTools = [...pdfTools, ...imageTools, ...audioTools, ...videoTools, ...qrTools].filter(
+  (tool, index, tools) => tools.findIndex((other) => other.href === tool.href) === index,
+);
 const allCategoryLabels: Record<string, string> = {
   ...pdfCategoryLabels,
   ...imageCategoryLabels,
