@@ -67,6 +67,82 @@ describe("wordsToCues", () => {
     expect(cue.end).toBeLessThanOrEqual(10);
   });
 
+  /**
+   * A cue that ends before it starts is a subtitle file no player will load, so
+   * it must not be possible to build one. Two ways in, both real:
+   *
+   *  - the media duration used to be treated as a hard ceiling, and the model's
+   *    last word can carry a timestamp past the end of the audio it came from,
+   *    which turned the final cue into `12.0 --> 10.0`;
+   *  - the word timings are the model's, not ours, and one arriving backwards
+   *    should cost that cue its duration rather than the whole file.
+   */
+  it("never ends a cue before it starts, even past the end of the media", () => {
+    for (const cue of wordsToCues([say("hi", 0, 0.5), say("late", 12, 12.2)], 10)) {
+      expect(cue.end).toBeGreaterThanOrEqual(cue.start);
+    }
+  });
+
+  /**
+   * The timings are the model's, and this is the only place that can stop a bad
+   * one spreading. Everything downstream assumes cues are well-formed: `cueAt`
+   * binary-searches on it, `toSRT` writes it straight into the file, and a
+   * player given `00:00:30,000 --> 00:00:20,000` rejects the whole track.
+   *
+   * So rather than one hand-picked bad input, this runs a deterministic spread
+   * of them — words timed backwards, words out of order, zero-length words,
+   * duplicates — and asserts the invariant holds on every output.
+   */
+  it("emits well-formed cues however malformed the words are", () => {
+    // A tiny LCG: the point is a wide, *reproducible* spread of shapes.
+    let seed = 12345;
+    const random = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const words = Array.from({ length: 1 + Math.floor(random() * 12) }, (_, i) => {
+        const start = Math.round(random() * 40 * 10) / 10;
+        // Half the time a sane duration, half the time something impossible.
+        const end = random() < 0.5 ? start + Math.round(random() * 70) / 10 : Math.round(random() * 40 * 10) / 10;
+        return say(random() < 0.25 ? `w${i}.` : `w${i}`, start, end);
+      });
+
+      // Ordering is a precondition mergeWords keeps, not something this can
+      // repair — out-of-order words make out-of-order cues. Well-formedness of
+      // each individual cue is unconditional.
+      for (const cue of wordsToCues(words, 30)) {
+        expect(cue.end).toBeGreaterThanOrEqual(cue.start);
+      }
+    }
+  });
+
+  it("keeps a cue that runs past the declared duration rather than collapsing it", () => {
+    const [cue] = wordsToCues([say("late", 12, 12.4)], 10);
+    expect(cue.end - cue.start).toBeCloseTo(0.4, 5);
+  });
+
+  /** Stretching is for short cues; it must never take time off a long one. */
+  it("never shortens a cue that already has its time", () => {
+    const words = "one two three four five six seven eight".split(" ").map((w, i) => say(w, i * 0.5, i * 0.5 + 0.45));
+    const [cue] = wordsToCues(words, 100);
+    expect(cue.end - cue.start).toBeGreaterThan(3);
+  });
+
+  /**
+   * cueAt binary-searches on the assumption that cues are ordered and disjoint,
+   * and two cards on screen at once is wrong regardless. The merge tolerance
+   * lets a word overlap the previous one by up to 50 ms, so this is reachable.
+   */
+  it("never overlaps two cues", () => {
+    const words = Array.from({ length: 40 }, (_, i) => say(i % 5 === 4 ? `w${i}.` : `w${i}`, i * 0.6, i * 0.6 + 0.64));
+    const cues = wordsToCues(words, 100);
+    for (let i = 1; i < cues.length; i++) {
+      expect(cues[i].start).toBeGreaterThanOrEqual(cues[i - 1].end);
+    }
+  });
+
   it("ignores empty words", () => {
     expect(wordsToCues([say(" ", 0, 0.1), say("real", 0.2, 0.4)])[0].text).toBe("real");
   });
@@ -174,6 +250,25 @@ describe("formatting", () => {
 
   it("starts VTT with its header", () => {
     expect(toVTT([{ start: 0, end: 1, text: "hi" }]).startsWith("WEBVTT\n\n")).toBe(true);
+  });
+
+  /**
+   * WebVTT parses cue text as markup. Left alone, "<laughs>" is read as a tag
+   * and vanishes from the rendered caption, and "&" opens an entity — both are
+   * things a person editing a line will type.
+   */
+  it("escapes markup in VTT cue text", () => {
+    const vtt = toVTT([{ start: 0, end: 1, text: "R&D <laughs>" }]);
+    expect(vtt).toContain("R&amp;D &lt;laughs>");
+  });
+
+  /** "-->" in cue text would be read as the start of a new timing line. */
+  it("escapes an arrow in VTT cue text", () => {
+    expect(toVTT([{ start: 0, end: 1, text: "a --> b" }])).toContain("a --&gt; b");
+  });
+
+  it("leaves ordinary text untouched", () => {
+    expect(toVTT([{ start: 0, end: 1, text: "just words" }])).toContain("\njust words\n");
   });
 });
 

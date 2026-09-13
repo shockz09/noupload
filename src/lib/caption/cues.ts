@@ -75,18 +75,20 @@ export function layoutLine(text: string): string {
  */
 export function wordsToCues(words: TimedWord[], duration = Number.POSITIVE_INFINITY): Cue[] {
   const cues: Cue[] = [];
-  let group: TimedWord[] = [];
 
-  const textOf = (ws: TimedWord[]) => ws.map((w) => w.text.trim()).join(" ");
+  // The open card, carried as its parts rather than as a string: a two-hour
+  // recording is twenty thousand words, and re-joining the group to measure it
+  // on every one of them turns linear work into quadratic.
+  let pieces: string[] = [];
+  let chars = 0;
+  let openedAt = 0;
+  let closedAt = 0;
 
   const flush = () => {
-    if (group.length === 0) return;
-    cues.push({
-      start: group[0].start,
-      end: group[group.length - 1].end,
-      text: layoutLine(textOf(group)),
-    });
-    group = [];
+    if (pieces.length === 0) return;
+    cues.push({ start: openedAt, end: closedAt, text: layoutLine(pieces.join(" ")) });
+    pieces = [];
+    chars = 0;
   };
 
   for (let i = 0; i < words.length; i++) {
@@ -94,18 +96,21 @@ export function wordsToCues(words: TimedWord[], duration = Number.POSITIVE_INFIN
     const piece = word.text.trim();
     if (!piece) continue;
 
-    if (group.length > 0) {
-      const grown = textOf(group).length + 1 + piece.length;
-      const stretched = word.end - group[0].start > MAX_DUR;
+    if (pieces.length > 0) {
+      const grown = chars + 1 + piece.length;
+      const stretched = word.end - openedAt > MAX_DUR;
       if (grown > MAX_CHARS || stretched) flush();
     }
 
-    group.push(word);
+    if (pieces.length === 0) openedAt = word.start;
+    chars += (pieces.length > 0 ? 1 : 0) + piece.length;
+    pieces.push(piece);
+    closedAt = word.end;
 
     const next = words[i + 1];
     const gap = next ? next.start - word.end : Number.POSITIVE_INFINITY;
     const endsSentence = SENTENCE_END.test(piece);
-    const worthClosing = textOf(group).length > MAX_CHARS * SENTENCE_MIN_FILL;
+    const worthClosing = chars > MAX_CHARS * SENTENCE_MIN_FILL;
 
     if (!next || gap >= GAP_BREAK || (endsSentence && worthClosing)) flush();
   }
@@ -115,18 +120,41 @@ export function wordsToCues(words: TimedWord[], duration = Number.POSITIVE_INFIN
 }
 
 /**
- * Give short cues room to be read, without ever overlapping the next one.
+ * Make every cue one a player will accept, and give the short ones room to be
+ * read.
  *
- * A three-word answer can occupy 400ms of speech; left alone it blinks. It is
- * extended into the silence that follows it — never into the next cue, and
- * never past the end of the media.
+ * Three separate guarantees, in the order they have to hold:
+ *
+ *  - A cue never ends before it starts. Word timestamps come from the model and
+ *    can land past the end of the audio they were decoded from; a card whose
+ *    end had been clamped to the media duration then ran backwards, which is a
+ *    subtitle file no player will load.
+ *  - Cues never overlap. Two cards on screen at once is wrong on its face, and
+ *    `cueAt` binary-searches on the assumption that they do not.
+ *  - A three-word answer can occupy 400ms of speech; left alone it blinks. It
+ *    is extended into the silence that follows — never into the next cue, and
+ *    never past the end of the media. Extending only: this never shortens a
+ *    card that has earned its time.
  */
 function breathe(cues: Cue[], duration: number): Cue[] {
   for (let i = 0; i < cues.length; i++) {
     const cue = cues[i];
-    if (cue.end - cue.start >= MIN_DUR) continue;
-    const ceiling = i + 1 < cues.length ? cues[i + 1].start : duration;
-    cue.end = Math.min(cue.start + MIN_DUR, ceiling);
+    const next = i + 1 < cues.length ? cues[i + 1] : null;
+
+    if (next && cue.end > next.start && next.start >= cue.start) cue.end = next.start;
+
+    // Room to grow into. `duration` is a ceiling for stretching, not a reason
+    // to cut a card short: a last word timestamped past the end of the decoded
+    // audio is the model's rounding, not something to truncate.
+    const ceiling = next ? next.start : duration;
+    if (cue.end - cue.start < MIN_DUR && ceiling > cue.end) {
+      cue.end = Math.min(cue.start + MIN_DUR, ceiling);
+    }
+
+    // Last, so nothing above can undo it. The word timings are the model's, and
+    // one arriving backwards should cost that card its duration, not corrupt
+    // the file around it.
+    if (cue.end < cue.start) cue.end = cue.start;
   }
   return cues;
 }
@@ -176,8 +204,19 @@ export function toSRT(cues: Cue[]): string {
     .join("\n");
 }
 
+/**
+ * WebVTT reads cue text as markup: "<" opens a tag, "&" opens an entity, and
+ * "-->" is forbidden outright because it is how a timing line is recognised.
+ * A transcript that says "R&D" or a line someone edited to read "<laughs>"
+ * would otherwise come back with the text silently dropped.
+ */
+function escapeVTT(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/-->/g, "--&gt;");
+}
+
 export function toVTT(cues: Cue[]): string {
-  return `WEBVTT\n\n${cues.map((c) => `${timestamp(c.start)} --> ${timestamp(c.end)}\n${c.text}\n`).join("\n")}`;
+  const body = cues.map((c) => `${timestamp(c.start)} --> ${timestamp(c.end)}\n${escapeVTT(c.text)}\n`).join("\n");
+  return `WEBVTT\n\n${body}`;
 }
 
 /** Plain transcript: cue breaks are a display concern, so they collapse away. */
