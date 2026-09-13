@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, rgb, StandardFonts } from "pdf-lib";
 
 /**
  * Coverage for the PDF editor's fabric layer: what you draw on a page has to
@@ -597,4 +597,349 @@ test("an annotation on a page marked for rotation exports where it was drawn", a
 	expectNear(exported.bbox[1], 60, 8);
 	expectNear(exported.bbox[2], 240, 8);
 	expectNear(exported.bbox[3], 160, 8);
+});
+
+// ─── redaction has to destroy, not cover ─────────────────────────────────────
+
+// A black box drawn over text hides nothing — the glyphs stay in the content
+// stream and any viewer's select-all hands them back. These tests assert
+// absence three ways: the text cannot be extracted, the string is nowhere in
+// the file's bytes, and the area is opaque.
+
+const SECRET = "Confidential";
+const SURVIVOR = "Published";
+const LINK_URL = "https://example.invalid/leak";
+
+/**
+ * A page with one line to redact and one to keep, plus a link annotation
+ * sitting over the line to be redacted.
+ *
+ * Both lines are placed in top-left coordinates so the drag targets below read
+ * the same way as the page does.
+ */
+async function twoLinePdf(width: number, height: number): Promise<Buffer> {
+	const doc = await PDFDocument.create();
+	const page = doc.addPage([width, height]);
+	page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(1, 1, 1) });
+	const font = await doc.embedFont(StandardFonts.Helvetica);
+	// Baselines at top-left y = 60 and y = 200.
+	page.drawText(SECRET, { x: 40, y: height - 60, size: 20, font, color: rgb(0, 0, 0) });
+	page.drawText(SURVIVOR, { x: 40, y: height - 200, size: 20, font, color: rgb(0, 0, 0) });
+
+	const context = doc.context;
+	const annotation = context.obj({
+		Type: "Annot",
+		Subtype: "Link",
+		Rect: [40, height - 65, 200, height - 40],
+		Border: [0, 0, 0],
+		A: context.obj({ S: "URI", URI: PDFString.of(LINK_URL) }),
+	});
+	page.node.set(PDFName.of("Annots"), context.obj([context.register(annotation)]));
+
+	return Buffer.from(await doc.save({ useObjectStreams: false }));
+}
+
+type Exported = { bytes: Buffer; latin1: string; pageText: string[]; pages: number };
+
+/** Export, and read the result back as both raw bytes and extracted text. */
+async function exportedDocument(page: Page, opts: { confirmRedaction?: boolean } = {}): Promise<Exported> {
+	const downloaded = page.waitForEvent("download", { timeout: 30_000 });
+	await page.getByTitle("Export PDF", { exact: true }).click();
+	if (opts.confirmRedaction) {
+		await page.getByRole("button", { name: "Apply & Export" }).click();
+	}
+	const download = await downloaded;
+	const bytes = readFileSync((await download.path())!);
+
+	const read = (await page.evaluate(async (base64) => {
+		// @ts-expect-error -- dev-server module path
+		const lib: typeof import("pdfjs-dist") = await import("/node_modules/pdfjs-dist/build/pdf.mjs");
+		lib.GlobalWorkerOptions.workerSrc = "/node_modules/pdfjs-dist/build/pdf.worker.mjs";
+
+		const raw = atob(base64);
+		const data = new Uint8Array(raw.length);
+		for (let i = 0; i < raw.length; i++) data[i] = raw.charCodeAt(i);
+
+		const pdf = await lib.getDocument({ data }).promise;
+		const pageText: string[] = [];
+		for (let i = 1; i <= pdf.numPages; i++) {
+			const content = await (await pdf.getPage(i)).getTextContent();
+			pageText.push(content.items.map((item) => ("str" in item ? item.str : "")).join(""));
+		}
+		return { pageText, pages: pdf.numPages };
+	}, bytes.toString("base64"))) as { pageText: string[]; pages: number };
+
+	return { bytes, latin1: bytes.toString("latin1"), ...read };
+}
+
+/** Drag a redaction box over the given top-left rectangle. */
+async function redact(page: Page, box: { x: number; y: number }, from: [number, number], to: [number, number]) {
+	await page.getByTitle("Redact", { exact: true }).click();
+	await page.waitForTimeout(200);
+	await drag(page, box, from, to);
+}
+
+test("redacted text cannot be extracted from the export", async ({ page }) => {
+	const { box } = await openEditor(page, 400, 300, 1, await twoLinePdf(400, 300));
+	await redact(page, box, [30, 35], [230, 70]);
+
+	const exported = await exportedDocument(page, { confirmRedaction: true });
+
+	expect(exported.pageText[0]).not.toContain(SECRET);
+	// Not merely un-extractable: the string is not in the file at all.
+	expect(exported.latin1).not.toContain(SECRET);
+});
+
+test("text outside the redaction stays searchable", async ({ page }) => {
+	const { box } = await openEditor(page, 400, 300, 1, await twoLinePdf(400, 300));
+	await redact(page, box, [30, 35], [230, 70]);
+
+	const exported = await exportedDocument(page, { confirmRedaction: true });
+
+	// The fixture contains no image, so an image XObject in the output is proof
+	// the page really was rebuilt from pixels. Without it this assertion would
+	// pass on the original text, which is the thing being replaced.
+	expect(exported.latin1).toContain("/Image");
+	// So this text can only have come from the invisible layer drawn over that
+	// bitmap — which is what keeps a redacted page searchable.
+	expect(exported.pageText[0]).toContain(SURVIVOR);
+});
+
+test("an annotation over the redaction is removed with it", async ({ page }) => {
+	const { box } = await openEditor(page, 400, 300, 1, await twoLinePdf(400, 300));
+	await redact(page, box, [30, 35], [230, 70]);
+
+	const exported = await exportedDocument(page, { confirmRedaction: true });
+
+	// Annotations are not part of the content stream, so rasterising the page
+	// leaves them untouched — the link and its URL would have survived.
+	expect(exported.latin1).not.toContain(LINK_URL);
+});
+
+test("a redaction destroys the editor's own text underneath it", async ({ page }) => {
+	const { box } = await openEditor(page, 400, 300);
+	await page.getByTitle("Text (T)", { exact: true }).click();
+	await page.mouse.click(box.x + 60, box.y + 60);
+	await page.waitForTimeout(300);
+	await page.keyboard.type(SECRET);
+	await page.keyboard.press("Escape");
+	await page.waitForTimeout(400);
+
+	await redact(page, box, [40, 40], [260, 100]);
+	const exported = await exportedDocument(page, { confirmRedaction: true });
+
+	// Redaction runs over the finished document, so a text box the editor added
+	// is destroyed by a box laid over it just like original page content.
+	expect(exported.pageText[0]).not.toContain(SECRET);
+	expect(exported.latin1).not.toContain(SECRET);
+});
+
+test("a redaction lands on the right page when an earlier page is deleted", async ({ page }) => {
+	const doc = await PDFDocument.create();
+	const font = await doc.embedFont(StandardFonts.Helvetica);
+	for (const label of ["FirstPage", SECRET]) {
+		const p = doc.addPage([400, 300]);
+		p.drawRectangle({ x: 0, y: 0, width: 400, height: 300, color: rgb(1, 1, 1) });
+		p.drawText(label, { x: 40, y: 240, size: 20, font, color: rgb(0, 0, 0) });
+	}
+	const fixture = Buffer.from(await doc.save({ useObjectStreams: false }));
+
+	const { box } = await openEditor(page, 400, 300, 2, fixture);
+	// Move to page 2 and redact its line.
+	await page.getByTitle("Next page", { exact: true }).click();
+	await page.waitForTimeout(600);
+	await redact(page, box, [30, 35], [260, 75]);
+
+	// Then delete page 1, which shifts page 2 down to index 0 in the output.
+	// Each sidebar thumbnail has its own delete button, revealed on hover.
+	const firstThumb = page.locator(".group").filter({ has: page.locator('img[alt="Page 1"]') });
+	await firstThumb.hover();
+	await firstThumb.getByTitle("Delete page", { exact: true }).click();
+	await page.waitForTimeout(600);
+
+	const exported = await exportedDocument(page, { confirmRedaction: true });
+
+	expect(exported.pages).toBe(1);
+	expect(exported.pageText[0]).not.toContain(SECRET);
+	expect(exported.latin1).not.toContain(SECRET);
+});
+
+test("a redaction on a rotated page still destroys the text", async ({ page }) => {
+	const { box } = await openEditor(page, 400, 300, 1, await twoLinePdf(400, 300));
+	await page.getByTitle(/rotate/i).first().click();
+	await page.waitForTimeout(1000);
+
+	// Editing stays upright, so the drag is in the page's own unrotated space —
+	// but the page is rasterised after /Rotate has been set, and the bitmap has
+	// to be rendered and placed unrotated to line up with it.
+	await redact(page, box, [30, 35], [230, 70]);
+	const exported = await exportedDocument(page, { confirmRedaction: true });
+
+	expect(exported.pageText[0]).not.toContain(SECRET);
+	expect(exported.latin1).not.toContain(SECRET);
+	expect(exported.pageText[0]).toContain(SURVIVOR);
+});
+
+/** Export, returning the raw download only. */
+async function exportBytes(page: Page, opts: { confirmRedaction?: boolean } = {}): Promise<Buffer> {
+	const downloaded = page.waitForEvent("download", { timeout: 30_000 });
+	await page.getByTitle("Export PDF", { exact: true }).click();
+	if (opts.confirmRedaction) {
+		await page.getByRole("button", { name: "Apply & Export" }).click();
+	}
+	return readFileSync((await (await downloaded).path())!);
+}
+
+// Rebuilding the page from a bitmap is only acceptable if the page still looks
+// like itself. This renders the same document exported with and without a
+// redaction and compares every pixel outside the redacted area — a placement,
+// scale or resolution mistake in the rebuild shows up as drift here even though
+// the text assertions would all still pass.
+test("a rebuilt page looks the same outside the redacted area", async ({ page }) => {
+	const { box } = await openEditor(page, 400, 300, 1, await twoLinePdf(400, 300));
+	const before = await exportBytes(page);
+
+	await redact(page, box, [30, 35], [230, 70]);
+	const after = await exportBytes(page, { confirmRedaction: true });
+
+	const drift = (await page.evaluate(
+		async ([a, b, exclude]) => {
+			// @ts-expect-error -- dev-server module path
+			const lib: typeof import("pdfjs-dist") = await import("/node_modules/pdfjs-dist/build/pdf.mjs");
+			lib.GlobalWorkerOptions.workerSrc = "/node_modules/pdfjs-dist/build/pdf.worker.mjs";
+
+			const render = async (base64: string) => {
+				const raw = atob(base64);
+				const data = new Uint8Array(raw.length);
+				for (let i = 0; i < raw.length; i++) data[i] = raw.charCodeAt(i);
+				const pdf = await lib.getDocument({ data }).promise;
+				const p = await pdf.getPage(1);
+				const viewport = p.getViewport({ scale: 1 });
+				const canvas = document.createElement("canvas");
+				canvas.width = Math.ceil(viewport.width);
+				canvas.height = Math.ceil(viewport.height);
+				const ctx = canvas.getContext("2d")!;
+				ctx.fillStyle = "#fff";
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				await p.render({ canvasContext: ctx, viewport, canvas }).promise;
+				return ctx.getImageData(0, 0, canvas.width, canvas.height);
+			};
+
+			const one = await render(a as string);
+			const two = await render(b as string);
+			if (one.width !== two.width || one.height !== two.height) return { sized: false, mean: 999, worst: 999 };
+
+			const [ex, ey, ew, eh] = exclude as [number, number, number, number];
+			let total = 0;
+			let counted = 0;
+			let worst = 0;
+			for (let y = 0; y < one.height; y++) {
+				for (let x = 0; x < one.width; x++) {
+					// Skip the redaction and a margin around it: the box's own edge
+					// is antialiased differently by the two paths.
+					if (x >= ex - 4 && x <= ex + ew + 4 && y >= ey - 4 && y <= ey + eh + 4) continue;
+					const i = (y * one.width + x) * 4;
+					for (let c = 0; c < 3; c++) {
+						const d = Math.abs(one.data[i + c] - two.data[i + c]);
+						total += d;
+						counted++;
+						if (d > worst) worst = d;
+					}
+				}
+			}
+			return { sized: true, mean: total / counted, worst };
+		},
+		[before.toString("base64"), after.toString("base64"), [30, 35, 200, 35]] as [
+			string,
+			string,
+			[number, number, number, number],
+		],
+	)) as { sized: boolean; mean: number; worst: number };
+
+	expect(drift.sized).toBe(true);
+	// Resampling a 300dpi render down to 72dpi softens glyph edges slightly, so
+	// individual pixels move; the page as a whole must not.
+	expect(drift.mean).toBeLessThan(1);
+});
+
+/**
+ * The same two lines on a page cropped away from the origin — a print-ready
+ * layout with trim margins, which is extremely common in real documents.
+ *
+ * The viewer, and so the editor, shows only the CropBox, so editor coordinates
+ * are relative to its corner rather than the page's. Reading the box wrongly
+ * shifts the redaction off the text by exactly the crop inset.
+ */
+const CROP_INSET = 27;
+
+async function croppedTwoLinePdf(width: number, height: number): Promise<Buffer> {
+	const doc = await PDFDocument.create();
+	const page = doc.addPage([width + CROP_INSET * 2, height + CROP_INSET * 2]);
+	page.setCropBox(CROP_INSET, CROP_INSET, width, height);
+	const font = await doc.embedFont(StandardFonts.Helvetica);
+	const cropTop = CROP_INSET + height;
+	// Same top-left placement within the visible box as twoLinePdf.
+	page.drawText(SECRET, { x: CROP_INSET + 40, y: cropTop - 60, size: 20, font, color: rgb(0, 0, 0) });
+	page.drawText(SURVIVOR, { x: CROP_INSET + 40, y: cropTop - 200, size: 20, font, color: rgb(0, 0, 0) });
+	return Buffer.from(await doc.save({ useObjectStreams: false }));
+}
+
+test("a redaction lands on the text when the page is cropped away from the origin", async ({ page }) => {
+	const { box } = await openEditor(page, 400, 300, 1, await croppedTwoLinePdf(400, 300));
+	await redact(page, box, [30, 35], [230, 70]);
+
+	const exported = await exportedDocument(page, { confirmRedaction: true });
+
+	expect(exported.pageText[0]).not.toContain(SECRET);
+	expect(exported.latin1).not.toContain(SECRET);
+	// Still the right line: an over-wide redaction that swallowed the page would
+	// pass the assertions above on its own.
+	expect(exported.pageText[0]).toContain(SURVIVOR);
+});
+
+const THUMB_MARKER = "ThumbnailOfTheUnredactedPage";
+const PIECE_MARKER = "PrivateEditableArtwork";
+
+/**
+ * A page carrying the two places a copy of itself hides outside the content
+ * stream: /Thumb, a stored picture of the page as it was, and /PieceInfo,
+ * where Illustrator and InDesign keep an editable copy of the artwork.
+ *
+ * Rasterising the page does not touch either of them.
+ */
+async function pageWithSideCopiesPdf(width: number, height: number): Promise<Buffer> {
+	const doc = await PDFDocument.create();
+	const page = doc.addPage([width, height]);
+	page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(1, 1, 1) });
+	const font = await doc.embedFont(StandardFonts.Helvetica);
+	page.drawText(SECRET, { x: 40, y: height - 60, size: 20, font, color: rgb(0, 0, 0) });
+
+	const context = doc.context;
+	const thumb = context.stream(THUMB_MARKER, {
+		Type: "XObject",
+		Subtype: "Image",
+		Width: 1,
+		Height: 1,
+		ColorSpace: "DeviceGray",
+		BitsPerComponent: 8,
+	});
+	page.node.set(PDFName.of("Thumb"), context.register(thumb));
+	page.node.set(
+		PDFName.of("PieceInfo"),
+		context.obj({ ACME: context.obj({ Private: PDFString.of(PIECE_MARKER) }) }),
+	);
+
+	return Buffer.from(await doc.save({ useObjectStreams: false }));
+}
+
+test("redaction removes the copies of the page kept outside the content stream", async ({ page }) => {
+	const { box } = await openEditor(page, 400, 300, 1, await pageWithSideCopiesPdf(400, 300));
+	await redact(page, box, [30, 35], [230, 70]);
+
+	const exported = await exportedDocument(page, { confirmRedaction: true });
+
+	expect(exported.pageText[0]).not.toContain(SECRET);
+	// A stored thumbnail shows the page exactly as it was, redaction and all.
+	expect(exported.latin1).not.toContain(THUMB_MARKER);
+	expect(exported.latin1).not.toContain(PIECE_MARKER);
 });

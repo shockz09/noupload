@@ -55,6 +55,11 @@ export function RedactionConfirmDialog({ open, count, onConfirm, onCancel }: Red
                   The content cannot be recovered once the PDF is exported.
                 </p>
               </div>
+              <p className="text-xs text-muted-foreground">
+                To guarantee that, each redacted page is rebuilt from an image of itself, so the text
+                underneath is gone rather than hidden. Those pages stay searchable, but are no longer
+                vector — expect a larger file and softer detail at high zoom. Other pages are untouched.
+              </p>
             </div>
           </DialogDescription>
         </DialogHeader>

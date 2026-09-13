@@ -1,8 +1,9 @@
 
 import type { FormField } from "../hooks/useFormFields";
-import type { EditorObjectRecord, EditorTextRecord } from "./editor-objects";
+import type { EditorObjectRecord, EditorRectangleRecord, EditorTextRecord } from "./editor-objects";
 import { loadFabricModule, recordToFabricObject } from "./editor-objects";
 import { loadLibPdf } from "./libpdf";
+import { applyRedactions, type RedactionRect } from "./redact-pdf";
 import { canDrawTextNatively, pickNativePdfFont } from "./text-export-policy";
 import type { PageState } from "@/routes/edit";
 
@@ -37,6 +38,10 @@ export async function exportPdf({ file, pageStates, pageObjects, formFields }: E
 
   const pages = pdf.getPages();
   const pagesToDelete: number[] = [];
+  // Keyed by the page's index in the *saved* document, which is not its index
+  // here once deleted pages have been dropped.
+  const redactionsByOutputIndex = new Map<number, RedactionRect[]>();
+  let outputIndex = 0;
 
   for (let index = 0; index < pages.length; index++) {
     const pageNumber = index + 1;
@@ -47,6 +52,8 @@ export async function exportPdf({ file, pageStates, pageObjects, formFields }: E
       pagesToDelete.push(index);
       continue;
     }
+
+    const thisOutputIndex = outputIndex++;
 
     // Object coordinates are in the page's own, unrotated space, and page.width
     // and page.height start reporting the *rotated* box once setRotation has
@@ -61,6 +68,20 @@ export async function exportPdf({ file, pageStates, pageObjects, formFields }: E
     }
 
     const records = (pageObjects.get(pageNumber) || []).slice().sort((a, b) => a.zIndex - b.zIndex);
+
+    const redactions = records
+      .filter((record): record is EditorRectangleRecord => record.kind === "redaction")
+      .map((record) => ({
+        x: record.x,
+        y: record.y,
+        width: record.width,
+        height: record.height,
+        rotation: record.rotation,
+      }));
+    if (redactions.length > 0) {
+      redactionsByOutputIndex.set(thisOutputIndex, redactions);
+    }
+
     for (const record of records) {
       await drawRecord({
         page,
@@ -79,8 +100,19 @@ export async function exportPdf({ file, pageStates, pageObjects, formFields }: E
     pdf.removePage(pageIndex);
   }
 
-  const canSaveIncrementally = hasSignatureFields && pdf.canSaveIncrementally() === null;
-  return pdf.save({ incremental: canSaveIncrementally });
+  // An incremental save appends revisions and leaves the original objects
+  // readable earlier in the file, which would defeat the whole point of a
+  // redaction.
+  const hasRedactions = redactionsByOutputIndex.size > 0;
+  const canSaveIncrementally = !hasRedactions && hasSignatureFields && pdf.canSaveIncrementally() === null;
+  const saved = await pdf.save({ incremental: canSaveIncrementally });
+  if (!hasRedactions) return saved;
+
+  // Redaction runs over the finished document rather than alongside the drawing
+  // above, so that anything the editor itself added — a text box, a stamp, a
+  // flattened form field — is destroyed by a redaction laid over it just as
+  // page content is.
+  return applyRedactions(saved, redactionsByOutputIndex);
 }
 
 async function drawRecord({
@@ -101,10 +133,15 @@ async function drawRecord({
   StandardFonts: Record<string, string>;
 }): Promise<void> {
   switch (record.kind) {
+    case "redaction":
+      // Nothing to draw: applyRedactions paints the black onto the page's
+      // pixels. Drawing a rectangle here as well would only duplicate it, and
+      // this path does not account for a page whose box starts away from the
+      // origin, so the duplicate would land somewhere the redaction is not.
+      return;
     case "rectangle":
     case "highlight":
     case "whiteout":
-    case "redaction":
       drawRectangleRecord(page, pageHeight, record, rgb);
       return;
     case "ellipse":
