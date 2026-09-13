@@ -196,3 +196,39 @@ export function mp4HeAac(name: string, duration = 3) {
 		]),
 	);
 }
+
+/**
+ * Matroska. Used here for the containers Web Audio may refuse — Chromium reads
+ * this one natively, but Firefox and Safari are narrower, and the streaming
+ * decoder is the fallback for exactly that.
+ */
+export function mkvWithAudio(name: string, duration = 2) {
+	return cached(name, (out) =>
+		ffmpeg([
+			"-f", "lavfi", "-i", `testsrc=size=320x240:rate=15:duration=${duration}`,
+			"-f", "lavfi", "-i", `sine=frequency=440:duration=${duration}`,
+			"-c:v", "libx264", "-pix_fmt", "yuv420p",
+			"-c:a", "aac", "-ar", "48000", "-ac", "2",
+			"-shortest", "-f", "matroska", out,
+		]),
+	);
+}
+
+/**
+ * A single pure tone at 48kHz, uncompressed, in Matroska.
+ *
+ * Uncompressed and mono on purpose: these are used to compare one frequency
+ * against another, so the only difference between two of them has to be the
+ * frequency. A codec in the way would attenuate the two differently and the
+ * comparison would measure the encoder instead. Note ffmpeg's sine source is
+ * not full scale — it peaks around 0.125.
+ */
+export function mkvTone(name: string, hz: number, duration = 2) {
+	return cached(name, (out) =>
+		ffmpeg([
+			"-f", "lavfi", "-i", `sine=frequency=${hz}:duration=${duration}`,
+			"-c:a", "pcm_s16le", "-ar", "48000", "-ac", "1",
+			"-f", "matroska", out,
+		]),
+	);
+}
