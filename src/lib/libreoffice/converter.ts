@@ -23,6 +23,17 @@ interface ZetaHelperMainInstance {
 
 let instance: LibreOfficeConverter | null = null;
 
+// LibreOffice WASM engine. The upstream cdn.zetaoffice.net serves soffice.wasm
+// with a `content-encoding: br` header on a body that is not actually brotli, so
+// Chrome fails with ERR_CONTENT_DECODING_FAILED and the engine never boots.
+//
+// soffice.js ships from our own origin: Hugging Face serves .js as text/plain and
+// the pthread workers importScripts() it, which a non-JS MIME type kills. The two
+// large binaries (162MB + 100MB) stay on Hugging Face.
+const ZETA_JS_BASE = "/zetaoffice/";
+const ZETA_BIN_BASE =
+  "https://huggingface.co/shockz1/zetaoffice-wasm/resolve/main/";
+
 class LibreOfficeConverter {
   private zHM: ZetaHelperMainInstance | null = null;
   private _status: ConverterStatus = "idle";
@@ -79,13 +90,16 @@ class LibreOfficeConverter {
       )(helperUrl) as Promise<typeof mod>);
 
       await new Promise<void>((resolve, reject) => {
+        // The engine is ~260MB uncompressed from Hugging Face, so the budget has
+        // to cover a slow first download, not just startup.
         const timeout = setTimeout(() => {
-          reject(new Error("LibreOffice WASM initialization timed out (120s)"));
-        }, 120_000);
+          reject(new Error("LibreOffice WASM initialization timed out (300s)"));
+        }, 300_000);
 
         const zHM = new mod.ZetaHelperMain("/workers/libreoffice-thread.js", {
           threadJsType: "module",
-          wasmPkg: "free",
+          wasmPkg: `url:${ZETA_JS_BASE}`,
+          binBaseUrl: ZETA_BIN_BASE,
         });
 
         zHM.start(() => {

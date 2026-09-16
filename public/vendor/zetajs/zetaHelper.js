@@ -32,10 +32,20 @@ export class ZetaHelperMain {
         if (soffice_base_url === '')
             soffice_base_url = './';
         soffice_base_url = (new URL(soffice_base_url, location.href)).toString();
+        // noupload: soffice.js has to be served from an origin that sends a JS MIME
+        // type, because pthread workers pull it in with importScripts(). The .wasm and
+        // .data blobs are too big to ship with the app, so they come from binBaseUrl.
+        const bin_base_url = options.binBaseUrl
+            ? (new URL(options.binBaseUrl, location.href)).toString()
+            : soffice_base_url;
         const Module = {
             canvas,
             uno_scripts: [zetajsScript, threadWrapScript],
-            locateFile: (path, prefix) => { return (prefix || soffice_base_url) + path; },
+            locateFile: (path, prefix) => {
+                if (/\.(wasm|data)$/.test(path))
+                    return bin_base_url + path;
+                return (prefix || soffice_base_url) + path;
+            },
             modUrlDir,
         };
         Module.mainScriptUrlOrBlob = new Blob(["importScripts('" + (new URL('soffice.js', soffice_base_url)) + "');"], { type: 'text/javascript' });

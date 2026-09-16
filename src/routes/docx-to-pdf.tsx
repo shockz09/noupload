@@ -29,7 +29,7 @@ function DocxToPdfPage() {
       fileIcon={<WordIcon className="w-5 h-5" />}
       buttonLabel="Convert to PDF"
       sourceToolLabel="Word to PDF"
-      infoBoxContent="Powered by LibreOffice WASM — the same rendering engine used by desktop LibreOffice. Handles complex formatting, tables, images, headers, and footers faithfully. First use downloads ~53MB engine (cached after). Everything runs in your browser — your files never leave your device."
+      infoBoxContent="Powered by LibreOffice WASM — the same rendering engine used by desktop LibreOffice. Handles complex formatting, tables, images, headers, and footers faithfully. First use downloads a ~260MB engine (cached after). Everything runs in your browser — your files never leave your device."
     />
   );
 }

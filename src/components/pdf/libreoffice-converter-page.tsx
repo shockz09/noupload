@@ -154,7 +154,7 @@ export function LibreOfficeConverterPage({
                   isProcessing={isProcessing}
                   processingLabel="Converting..."
                   icon={buttonIcon || <PdfIcon className="w-5 h-5" />}
-                  label={isReady ? buttonLabel : "Loading engine (~53MB, cached after)..."}
+                  label={isReady ? buttonLabel : "Loading engine (~260MB, cached after)..."}
                 />
               )}
             </>

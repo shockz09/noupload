@@ -29,7 +29,7 @@ function PptxToPdfPage() {
       fileIcon={<PptxIcon className="w-5 h-5" />}
       buttonLabel="Convert to PDF"
       sourceToolLabel="PPTX to PDF"
-      infoBoxContent="Powered by LibreOffice WASM — the same rendering engine used by desktop LibreOffice. Handles charts, SmartArt, custom fonts, and complex layouts faithfully. First use downloads ~53MB engine (cached after). Everything runs in your browser — your files never leave your device."
+      infoBoxContent="Powered by LibreOffice WASM — the same rendering engine used by desktop LibreOffice. Handles charts, SmartArt, custom fonts, and complex layouts faithfully. First use downloads a ~260MB engine (cached after). Everything runs in your browser — your files never leave your device."
     />
   );
 }
