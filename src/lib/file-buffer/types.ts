@@ -1,5 +1,16 @@
 export type BufferFileType = "pdf" | "image" | "video" | "audio" | "other";
 
+export function matchesFileAccept(filename: string, mimeType: string, accept: string): boolean {
+  const name = filename.toLowerCase();
+  const mime = mimeType.toLowerCase();
+  return accept.split(",").some((part) => {
+    const token = part.trim().toLowerCase();
+    if (token.startsWith(".")) return name.endsWith(token);
+    if (token.endsWith("/*")) return mime.startsWith(token.slice(0, -1));
+    return token === mime;
+  });
+}
+
 // Derives the dock category from a MIME type. Callers may pass fileType
 // explicitly, but leaving it off keeps the category and the blob in sync.
 export function inferFileType(mimeType: string): BufferFileType {

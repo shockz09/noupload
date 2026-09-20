@@ -1,12 +1,24 @@
-import { loadBufferItems, persistBufferItems } from "./idb";
+import { applyBufferChange, loadBufferItems } from "./idb";
 import type { AddBufferItemInput, AddBufferResult, BufferItem } from "./types";
-import { inferFileType } from "./types";
+import { inferFileType, matchesFileAccept } from "./types";
 
 const MAX_ITEMS = 5;
 const MAX_TOTAL_BYTES = 200 * 1024 * 1024; // 200 MB
 const TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
-type Listener = (items: BufferItem[]) => void;
+type Listener = () => void;
+type Mutation = { type: "add"; item: BufferItem } | { type: "remove"; id: string } | { type: "clear" };
+
+function applyMutation(items: BufferItem[], mutation: Mutation): BufferItem[] {
+  if (mutation.type === "clear") return [];
+  if (mutation.type === "remove") return items.filter((item) => item.id !== mutation.id);
+
+  const next = [...items, mutation.item];
+  while (next.length > MAX_ITEMS || next.reduce((sum, item) => sum + item.size, 0) > MAX_TOTAL_BYTES) {
+    next.shift();
+  }
+  return next;
+}
 
 /**
  * Resolves after a paint, or after 200ms if none comes — rAF is throttled to a
@@ -23,22 +35,35 @@ function nextPaint(): Promise<void> {
   });
 }
 
-class FileBufferStore {
+export class FileBufferStore {
+  readonly ready: Promise<void>;
   private items: BufferItem[] = [];
+  private error: string | null = null;
+  private pendingItem: { id: string; path: string } | null = null;
+  private snapshot = { items: this.items, error: this.error, pendingItem: this.pendingItem };
   private listeners = new Set<Listener>();
-  private loaded = false;
-  private pendingItemId: string | null = null;
+  private hydrating = typeof window !== "undefined";
+  private startupMutations: Mutation[] = [];
+  private writeQueue: Promise<void> = Promise.resolve();
+  private expiryTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    // Hydrate from IndexedDB on creation (fire-and-forget)
-    if (typeof window !== "undefined") {
-      this.loadFromIDB();
-    }
+    this.ready = this.hydrating ? this.loadFromIDB() : Promise.resolve();
   }
 
   subscribe(fn: Listener): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
+  }
+
+  getSnapshot() {
+    return this.snapshot;
+  }
+
+  clearError(): void {
+    if (!this.error) return;
+    this.error = null;
+    this.notify();
   }
 
   getItems(): BufferItem[] {
@@ -48,21 +73,10 @@ class FileBufferStore {
 
   add(input: AddBufferItemInput): AddBufferResult {
     this.purgeExpired();
-
-    // Evict oldest items to make room
-    while (this.items.length >= MAX_ITEMS) {
-      const oldest = this.items.shift();
-      if (oldest?.previewUrl) URL.revokeObjectURL(oldest.previewUrl);
-    }
-
-    // Evict oldest if size limit would be exceeded
-    let totalBytes = this.items.reduce((sum, i) => sum + i.size, 0);
-    while (this.items.length > 0 && totalBytes + input.size > MAX_TOTAL_BYTES) {
-      const oldest = this.items.shift();
-      if (oldest) {
-        if (oldest.previewUrl) URL.revokeObjectURL(oldest.previewUrl);
-        totalBytes -= oldest.size;
-      }
+    if (input.blob.size > MAX_TOTAL_BYTES) {
+      const error = "This file exceeds the 200 MB buffer limit. Download it instead.";
+      this.reportError(error);
+      return { ok: false, error };
     }
 
     const fileType = input.fileType ?? inferFileType(input.mimeType);
@@ -70,15 +84,14 @@ class FileBufferStore {
 
     const item: BufferItem = {
       ...input,
+      size: input.blob.size,
       fileType,
       id: crypto.randomUUID(),
       createdAt: Date.now(),
       previewUrl: isImage ? URL.createObjectURL(input.blob) : undefined,
     };
 
-    this.items.push(item);
-    this.notify();
-    this.persistToIDB();
+    this.mutate({ type: "add", item });
 
     // Generate thumbnails async — PDFs render page 1, videos grab a frame
     if (fileType === "pdf") {
@@ -91,37 +104,30 @@ class FileBufferStore {
   }
 
   remove(id: string): void {
-    const item = this.items.find((i) => i.id === id);
-    if (item?.previewUrl) {
-      URL.revokeObjectURL(item.previewUrl);
-    }
-    this.items = this.items.filter((i) => i.id !== id);
-    this.notify();
-    this.persistToIDB();
+    this.mutate({ type: "remove", id });
   }
 
   clear(): void {
-    for (const item of this.items) {
-      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-    }
-    this.items = [];
-    this.notify();
-    this.persistToIDB();
+    this.mutate({ type: "clear" });
   }
 
   toFile(item: BufferItem): File {
     return new File([item.blob], item.filename, { type: item.mimeType });
   }
 
-  setPendingItem(id: string): void {
-    this.pendingItemId = id;
+  setPendingItem(id: string, path: string): void {
+    this.pendingItem = { id, path };
+    this.notify();
   }
 
-  consumePendingItem(): File | null {
-    if (!this.pendingItemId) return null;
-    const item = this.items.find((i) => i.id === this.pendingItemId);
-    this.pendingItemId = null;
-    return item ? this.toFile(item) : null;
+  consumePendingItem(path: string, accept: string, maxSize: number): File | null {
+    if (!this.pendingItem || this.pendingItem.path !== path) return null;
+    const item = this.items.find((i) => i.id === this.pendingItem?.id);
+    this.pendingItem = null;
+    this.notify();
+    return item && item.size <= maxSize && matchesFileAccept(item.filename, item.mimeType, accept)
+      ? this.toFile(item)
+      : null;
   }
 
   private async generatePdfThumbnail(item: BufferItem): Promise<void> {
@@ -233,6 +239,7 @@ class FileBufferStore {
     if (existing) {
       if (existing.previewUrl) URL.revokeObjectURL(existing.previewUrl);
       existing.previewUrl = url;
+      this.items = [...this.items];
       this.notify();
     } else {
       URL.revokeObjectURL(url);
@@ -240,55 +247,109 @@ class FileBufferStore {
   }
 
   private notify(): void {
-    const snapshot = this.getItems();
-    for (const fn of this.listeners) {
-      fn(snapshot);
-    }
+    this.snapshot = { items: this.items, error: this.error, pendingItem: this.pendingItem };
+    for (const fn of this.listeners) fn();
+  }
+
+  private reportError(message: string): void {
+    this.error = message;
+    this.notify();
   }
 
   private purgeExpired(): void {
     const now = Date.now();
-    const before = this.items.length;
-    this.items = this.items.filter((item) => {
-      const expired = now - item.createdAt > TTL_MS;
-      if (expired && item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-      return !expired;
-    });
-    // Only persist if something was purged
-    if (this.items.length !== before) {
-      this.persistToIDB();
+    for (const item of [...this.items]) {
+      if (now - item.createdAt >= TTL_MS) this.mutate({ type: "remove", id: item.id });
     }
   }
 
-  private persistToIDB(): void {
-    persistBufferItems(this.items).catch(() => {
-      // IDB persistence is best-effort
+  private scheduleExpiry(): void {
+    if (this.expiryTimer) clearTimeout(this.expiryTimer);
+    const next = Math.min(...this.items.map((item) => item.createdAt + TTL_MS));
+    if (Number.isFinite(next)) {
+      this.expiryTimer = setTimeout(() => this.purgeExpired(), Math.max(0, next - Date.now()));
+    }
+  }
+
+  private mutate(mutation: Mutation): void {
+    const previous = this.items;
+    const next = applyMutation(previous, mutation);
+    const kept = new Set(next.map((item) => item.id));
+    const removed = previous.filter((item) => !kept.has(item.id));
+    for (const item of removed) if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    this.items = next;
+    this.scheduleExpiry();
+    this.notify();
+
+    if (this.hydrating) {
+      this.startupMutations.push(mutation);
+      return;
+    }
+
+    const added = mutation.type === "add" ? [mutation.item] : [];
+    this.queueWrite(() =>
+      applyBufferChange(
+        added,
+        removed.map((item) => item.id),
+        mutation.type === "clear",
+      ),
+    );
+  }
+
+  private queueWrite(write: () => Promise<void>): void {
+    this.writeQueue = this.writeQueue.then(write).catch((error) => {
+      console.error("File buffer could not be saved:", error);
+      this.reportError("The file is available in this tab, but the browser could not save it for later.");
     });
   }
 
   private async loadFromIDB(): Promise<void> {
-    if (this.loaded) return;
-    this.loaded = true;
+    let loaded: BufferItem[] = [];
+    let loadSucceeded = false;
     try {
-      const items = await loadBufferItems();
-      if (items.length > 0) {
-        this.items = items;
-        this.purgeExpired();
-        this.notify();
-
-        // Regenerate thumbnails (blob URLs don't survive page reloads)
-        for (const item of this.items) {
-          if (item.previewUrl) continue;
-          if (item.fileType === "pdf") {
-            this.generatePdfThumbnail(item).catch(() => {});
-          } else if (item.fileType === "video") {
-            this.generateVideoThumbnail(item).catch(() => {});
-          }
-        }
-      }
-    } catch {
-      // IDB load failure is non-fatal
+      loaded = await loadBufferItems();
+      loadSucceeded = true;
+    } catch (error) {
+      console.error("File buffer could not be loaded:", error);
+      this.reportError("Saved files could not be loaded from this browser.");
     }
+
+    if (loadSucceeded) {
+      const now = Date.now();
+      let next = loaded.filter((item) => now - item.createdAt < TTL_MS && item.size <= MAX_TOTAL_BYTES);
+      const cleaned = next.length !== loaded.length;
+      // Existing records are ordered by their creation time, not their IDB key.
+      next.sort((a, b) => a.createdAt - b.createdAt);
+      while (next.length > MAX_ITEMS || next.reduce((sum, item) => sum + item.size, 0) > MAX_TOTAL_BYTES) {
+        next.shift();
+      }
+      for (const mutation of this.startupMutations) next = applyMutation(next, mutation);
+
+      const kept = new Set(next.map((item) => item.id));
+      for (const item of [...loaded, ...this.items]) {
+        if (!kept.has(item.id) && item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      }
+      this.items = next;
+      this.scheduleExpiry();
+      this.notify();
+
+      if (cleaned || loaded.length !== next.length || this.startupMutations.length > 0) {
+        const loadedIds = new Set(loaded.map((item) => item.id));
+        const clear = this.startupMutations.some((mutation) => mutation.type === "clear");
+        const added = clear ? next : next.filter((item) => !loadedIds.has(item.id));
+        const removedIds = loaded.filter((item) => !kept.has(item.id)).map((item) => item.id);
+        this.queueWrite(() => applyBufferChange(added, removedIds, clear));
+      }
+
+      // Object URLs do not survive page reloads.
+      for (const item of next) {
+        if (item.previewUrl) continue;
+        if (item.fileType === "pdf") this.generatePdfThumbnail(item).catch(() => {});
+        if (item.fileType === "video") this.generateVideoThumbnail(item).catch(() => {});
+      }
+    }
+    this.startupMutations = [];
+    this.hydrating = false;
   }
 }
 

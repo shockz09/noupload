@@ -1,8 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { useFileBuffer } from "@/hooks/useFileBuffer";
 import { useDock } from "@/components/shared/DockToggle";
+import { useFileBuffer } from "@/hooks/useFileBuffer";
 import type { BufferItem } from "@/lib/file-buffer";
 import { formatFileSize } from "@/lib/utils";
 
@@ -92,9 +91,7 @@ function DockItem({
           </div>
           {tools.length > 0 && (
             <div className="dock-menu-section">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-3 py-1">
-                Open in
-              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-3 py-1">Open in</p>
               {tools.map((tool) => (
                 <button
                   key={tool.href}
@@ -152,16 +149,9 @@ function DockItem({
         title={`${item.filename} — ${formatFileSize(item.size)}`}
       >
         {item.previewUrl ? (
-          <img
-            src={item.previewUrl}
-            alt=""
-            className="w-full h-full object-cover"
-            draggable={false}
-          />
+          <img src={item.previewUrl} alt="" className="w-full h-full object-cover" draggable={false} />
         ) : (
-          <span className="dock-thumb-label">
-            {FILE_TYPE_LABELS[item.fileType] || "FILE"}
-          </span>
+          <span className="dock-thumb-label">{FILE_TYPE_LABELS[item.fileType] || "FILE"}</span>
         )}
       </button>
     </div>
@@ -169,7 +159,7 @@ function DockItem({
 }
 
 export const BufferDock = memo(function BufferDock() {
-  const { items, remove, setPendingItem } = useFileBuffer();
+  const { items, error, clearError, remove, setPendingItem } = useFileBuffer();
   const { isDockEnabled } = useDock();
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
@@ -187,22 +177,45 @@ export const BufferDock = memo(function BufferDock() {
 
   const reversedItems = useMemo(() => [...items].reverse(), [items]);
 
-  const handleNavigate = useCallback((itemId: string, href: string) => {
-    setPendingItem(itemId);
-    navigate({ to: href });
-  }, [navigate, setPendingItem]);
+  const handleNavigate = useCallback(
+    (itemId: string, href: string) => {
+      setPendingItem(itemId, href);
+      navigate({ to: href });
+    },
+    [navigate, setPendingItem],
+  );
 
-  if (!isVisible) return null;
+  if (!isVisible && !error) return null;
 
   return (
-    <div className={`buffer-dock ${shouldShow ? "open" : "closed"}`}>
-      <div className={`dock-inner ${items.length === 1 ? "single" : ""}`}>
-        <div className="dock-items">
-          {reversedItems.map((item) => (
-            <DockItem key={item.id} item={item} onRemove={remove} onNavigate={handleNavigate} />
-          ))}
+    <>
+      {error && (
+        <div
+          role="alert"
+          className="fixed bottom-4 left-1/2 z-[100] -translate-x-1/2 border-2 border-foreground bg-background px-4 py-3 shadow-lg flex items-center gap-3 text-sm font-medium max-w-[calc(100vw-2rem)]"
+        >
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={clearError}
+            aria-label="Dismiss buffer error"
+            className="font-bold underline shrink-0"
+          >
+            Dismiss
+          </button>
         </div>
-      </div>
-    </div>
+      )}
+      {isVisible && (
+        <div className={`buffer-dock ${shouldShow ? "open" : "closed"}`}>
+          <div className={`dock-inner ${items.length === 1 ? "single" : ""}`}>
+            <div className="dock-items">
+              {reversedItems.map((item) => (
+                <DockItem key={item.id} item={item} onRemove={remove} onNavigate={handleNavigate} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 });

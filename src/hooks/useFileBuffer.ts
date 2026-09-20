@@ -1,17 +1,17 @@
+import { useSyncExternalStore } from "react";
+import { fileBufferStore } from "@/lib/file-buffer";
 
-import { useEffect, useState } from "react";
-
-import { fileBufferStore, type BufferItem } from "@/lib/file-buffer";
+const subscribe = (listener: () => void) => fileBufferStore.subscribe(listener);
+const getSnapshot = () => fileBufferStore.getSnapshot();
 
 export function useFileBuffer() {
-  const [items, setItems] = useState<BufferItem[]>(() => fileBufferStore.getItems());
-
-  useEffect(() => {
-    return fileBufferStore.subscribe(setItems);
-  }, []);
+  const { items, error, pendingItem } = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   return {
     items,
+    error,
+    pendingItem,
+    clearError: fileBufferStore.clearError.bind(fileBufferStore),
     add: fileBufferStore.add.bind(fileBufferStore),
     remove: fileBufferStore.remove.bind(fileBufferStore),
     clear: fileBufferStore.clear.bind(fileBufferStore),

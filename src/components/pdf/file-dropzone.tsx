@@ -1,9 +1,9 @@
-
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "@tanstack/react-router";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { BufferIcon, UploadIcon } from "@/components/icons/ui";
 import { useFileBuffer } from "@/hooks/useFileBuffer";
 import type { BufferItem } from "@/lib/file-buffer";
-import { MIME_TO_EXTENSIONS } from "@/lib/file-buffer";
+import { matchesFileAccept } from "@/lib/file-buffer";
 import { cn } from "@/lib/utils";
 
 interface FileDropzoneProps {
@@ -32,35 +32,22 @@ export const FileDropzone = memo(function FileDropzone({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Memoize accepted extensions parsing
-  const acceptedExtensions = useMemo(() => accept.split(",").map((a) => a.trim().toLowerCase()), [accept]);
-
   // Buffer integration — show compatible buffered files & auto-consume pending items
-  const { items: bufferItems, toFile, consumePendingItem } = useFileBuffer();
-  const pendingConsumed = useRef(false);
-  useEffect(() => {
-    if (pendingConsumed.current) return;
-    pendingConsumed.current = true;
-    const file = consumePendingItem();
-    if (file) onFilesSelected([file]);
-  }, [consumePendingItem, onFilesSelected]);
+  const { items: bufferItems, pendingItem, toFile, consumePendingItem } = useFileBuffer();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const compatibleBufferItems = useMemo(() => {
-    return bufferItems.filter((item: BufferItem) => {
-      const extensions = MIME_TO_EXTENSIONS[item.mimeType];
-      if (!extensions) return false;
-      return extensions.some((ext) => acceptedExtensions.includes(ext));
-    });
-  }, [bufferItems, acceptedExtensions]);
+    return bufferItems.filter(
+      (item: BufferItem) => item.size <= maxSize && matchesFileAccept(item.filename, item.mimeType, accept),
+    );
+  }, [bufferItems, accept, maxSize]);
 
   const handleFiles = useCallback(
-    (files: FileList | null) => {
-      if (!files) return;
+    (fileArray: File[]) => {
+      if (fileArray.length === 0) return;
 
       setError(null);
-      const fileArray = Array.from(files);
-
-      if (fileArray.length > maxFiles) {
-        setError(`Maximum ${maxFiles} files allowed`);
+      if (fileArray.length > (multiple ? maxFiles : 1)) {
+        setError(`Maximum ${multiple ? maxFiles : 1} files allowed`);
         return;
       }
 
@@ -70,10 +57,7 @@ export const FileDropzone = memo(function FileDropzone({
         return;
       }
 
-      const validFiles = fileArray.filter((f) => {
-        const ext = `.${f.name.split(".").pop()?.toLowerCase()}`;
-        return acceptedExtensions.some((a) => a === ext || a === f.type);
-      });
+      const validFiles = fileArray.filter((f) => matchesFileAccept(f.name, f.type, accept));
 
       if (validFiles.length !== fileArray.length) {
         setError(`Some files were skipped. Only ${accept} files are accepted.`);
@@ -83,8 +67,14 @@ export const FileDropzone = memo(function FileDropzone({
         onFilesSelected(validFiles);
       }
     },
-    [accept, acceptedExtensions, maxFiles, maxSize, onFilesSelected],
+    [accept, maxFiles, maxSize, multiple, onFilesSelected],
   );
+
+  useEffect(() => {
+    if (!pendingItem || pendingItem.path !== pathname) return;
+    const file = consumePendingItem(pathname, accept, maxSize);
+    if (file) handleFiles([file]);
+  }, [accept, consumePendingItem, handleFiles, maxSize, pathname, pendingItem]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -106,14 +96,14 @@ export const FileDropzone = memo(function FileDropzone({
       if (bufferId) {
         const item = bufferItems.find((i: BufferItem) => i.id === bufferId);
         if (item) {
-          onFilesSelected([toFile(item)]);
+          handleFiles([toFile(item)]);
           return;
         }
       }
 
-      handleFiles(e.dataTransfer.files);
+      handleFiles(Array.from(e.dataTransfer.files));
     },
-    [handleFiles, bufferItems, toFile, onFilesSelected],
+    [handleFiles, bufferItems, toFile],
   );
 
   const handleClick = useCallback(() => {
@@ -124,7 +114,7 @@ export const FileDropzone = memo(function FileDropzone({
     input.style.display = "none";
     input.onchange = (e) => {
       const target = e.target as HTMLInputElement;
-      handleFiles(target.files);
+      handleFiles(Array.from(target.files ?? []));
       input.remove();
     };
     // Safari requires the input to be in the DOM before .click() works
@@ -271,16 +261,14 @@ export const FileDropzone = memo(function FileDropzone({
         >
           <div className="flex items-center gap-2 mb-2">
             <BufferIcon className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              From Buffer
-            </span>
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">From Buffer</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {compatibleBufferItems.map((item: BufferItem) => (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => onFilesSelected([toFile(item)])}
+                onClick={() => handleFiles([toFile(item)])}
                 className="flex items-center gap-2 px-3 py-1.5 border-2 border-foreground/20 hover:border-foreground hover:bg-accent text-sm font-medium transition-colors"
                 title={`Use ${item.filename} from ${item.sourceToolLabel}`}
               >
