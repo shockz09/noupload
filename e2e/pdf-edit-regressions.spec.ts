@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
-import { PDFDocument, PDFName, PDFString, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, rgb, setTextRenderingMode, StandardFonts } from "pdf-lib";
 
 /**
  * Coverage for the PDF editor's fabric layer: what you draw on a page has to
@@ -56,6 +56,43 @@ async function textPdf(width: number, height: number): Promise<Buffer> {
 }
 
 /**
+ * A line of accented capitals. Their accents ride well above the ascent the
+ * font declares, which is what makes them the hard case for the patch that
+ * hides deleted text.
+ */
+async function accentPdf(width: number, height: number): Promise<Buffer> {
+	const doc = await PDFDocument.create();
+	const page = doc.addPage([width, height]);
+	page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(1, 1, 1) });
+	page.drawText("ÉÀÂÅÖÜ", {
+		x: TEXT_LEFT,
+		y: TEXT_BASELINE_Y,
+		size: TEXT_SIZE,
+		font: await doc.embedFont(StandardFonts.Helvetica),
+		color: rgb(0, 0, 0),
+	});
+	return Buffer.from(await doc.save({ useObjectStreams: false }));
+}
+
+async function coloredTextPdf(backgroundPng?: Buffer): Promise<Buffer> {
+	const doc = await PDFDocument.create();
+	const page = doc.addPage([400, 300]);
+	if (backgroundPng) {
+		page.drawImage(await doc.embedPng(backgroundPng), { x: 0, y: 0, width: 400, height: 300 });
+	} else {
+		page.drawRectangle({ x: 0, y: 0, width: 400, height: 300, color: rgb(0.2, 0.4, 0.6) });
+	}
+	page.drawText("Hello", {
+		x: TEXT_LEFT,
+		y: TEXT_BASELINE_Y,
+		size: TEXT_SIZE,
+		font: await doc.embedFont(StandardFonts.Helvetica),
+		color: rgb(0, 0, 0),
+	});
+	return Buffer.from(await doc.save());
+}
+
+/**
  * The same page, saved with a deliberately stale `/Length` on its first content
  * stream — the single most common way real-world PDFs are malformed. Viewers
  * recover by scanning for the `endstream` keyword; a parser that trusts
@@ -71,13 +108,14 @@ async function staleLengthPdf(width: number, height: number): Promise<Buffer> {
 }
 
 /** A page carrying one AcroForm text field, for the form-overlay tests. */
-async function formPdf(width: number, height: number): Promise<Buffer> {
+async function formPdf(width: number, height: number, initialValue = "", pages = 1): Promise<Buffer> {
 	const doc = await PDFDocument.create();
 	const page = doc.addPage([width, height]);
 	page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(1, 1, 1) });
 	const field = doc.getForm().createTextField("who");
-	field.setText("");
+	field.setText(initialValue);
 	field.addToPage(page, { x: 40, y: 220, width: 200, height: 24 });
+	for (let index = 1; index < pages; index++) doc.addPage([width, height]);
 	return Buffer.from(await doc.save({ useObjectStreams: false }));
 }
 
@@ -209,6 +247,17 @@ test("typed text exports where it was placed", async ({ page }) => {
 	expect(exported.marked).toBeGreaterThan(50);
 	expectNear(exported.bbox[0], 60, 12);
 	expectNear(exported.bbox[1], 60, 12);
+});
+
+test("Unicode text remains visible in the exported page", async ({ page }) => {
+	const { box } = await openEditor(page, 400, 300);
+	await page.getByTitle("Text (T)", { exact: true }).click();
+	await page.mouse.click(box.x + 60, box.y + 60);
+	await page.keyboard.insertText("你好");
+	await page.keyboard.press("Escape");
+	await page.waitForTimeout(400);
+	const exported = await exportedMarkBounds(page);
+	expect(exported.marked).toBeGreaterThan(30);
 });
 
 // ─── undo/redo goes through fabric's serializer ───────────────────────────────
@@ -343,6 +392,124 @@ test("clicking detected text twice promotes it once, not once per click", async 
 	expect((await exportedMarkBounds(page)).marked).toBe(0);
 });
 
+// Promoting a line to an editable object must not move it. Two separate
+// baseline assumptions used to push it down: the IText was nudged below the
+// region's box, and the export treated its `top` as sitting a full em above the
+// baseline where fabric puts it at 0.879em. The visible result was text riding
+// low in — and below — the white patch that replaced it, with a white border
+// left over the top.
+test("re-editing a line of text leaves the glyphs on the same rows", async ({ page }) => {
+	const { box, zoom } = await openEditor(page, 400, 300, 1, await textPdf(400, 300));
+
+	const original = await exportedMarkBounds(page);
+	expect(original.marked).toBeGreaterThan(50);
+
+	// Promote it and leave the text exactly as it was.
+	await clickIntoText(page, box, zoom);
+	await page.keyboard.press("Escape");
+	await page.waitForTimeout(400);
+
+	const reEdited = await exportedMarkBounds(page);
+
+	expectNear(reEdited.bbox[1], original.bbox[1], 2);
+	expectNear(reEdited.bbox[3], original.bbox[3], 2);
+});
+
+
+// The patch is sized to the ink the line actually carries. Sizing it to the
+// font's declared ascent instead (Helvetica claims 0.718 em) shaved the tips
+// off every accent and left them in the export as a row of stray marks.
+test("deleting a line of accented capitals leaves nothing behind", async ({ page }) => {
+	const { box, zoom } = await openEditor(page, 400, 300, 1, await accentPdf(400, 300));
+
+	expect((await exportedMarkBounds(page)).marked).toBeGreaterThan(50);
+
+	await clickIntoText(page, box, zoom);
+	await clearEditedText(page);
+
+	expect((await exportedMarkBounds(page)).marked).toBe(0);
+});
+
+for (const background of ["vector", "image"] as const) {
+test(`editing native text preserves the ${background} background in preview and export`, async ({ page }) => {
+	const image = background === "image" ? await page.evaluate(() => {
+		const canvas = document.createElement("canvas");
+		canvas.width = 400;
+		canvas.height = 300;
+		const context = canvas.getContext("2d")!;
+		context.fillStyle = "#336699";
+		context.fillRect(0, 0, 400, 300);
+		return canvas.toDataURL("image/png").split(",")[1];
+	}) : null;
+	const { box, zoom } = await openEditor(page, 400, 300, 1, await coloredTextPdf(image ? Buffer.from(image, "base64") : undefined));
+	await clickIntoText(page, box, zoom);
+	await clearEditedText(page);
+
+	const preview = page.locator("div.relative.bg-white.shadow-2xl > canvas").first();
+	await expect.poll(() => preview.evaluate((canvas: HTMLCanvasElement) => {
+		const pixel = canvas.getContext("2d")!.getImageData(62 * 1.5, 35 * 1.5, 1, 1).data;
+		return Array.from(pixel.slice(0, 3));
+	})).toEqual([51, 102, 153]);
+
+	const downloadPromise = page.waitForEvent("download");
+	await page.getByTitle("Export PDF", { exact: true }).click();
+	const bytes = readFileSync((await (await downloadPromise).path())!);
+	const result = await page.evaluate(async (base64) => {
+		// @ts-expect-error -- dev-server module path
+		const pdfjs: typeof import("pdfjs-dist") = await import("/node_modules/pdfjs-dist/build/pdf.mjs");
+		pdfjs.GlobalWorkerOptions.workerSrc = "/node_modules/pdfjs-dist/build/pdf.worker.mjs";
+		const pdf = await pdfjs.getDocument({ data: Uint8Array.from(atob(base64), (char) => char.charCodeAt(0)) }).promise;
+		const pdfPage = await pdf.getPage(1);
+		const canvas = document.createElement("canvas");
+		canvas.width = 400;
+		canvas.height = 300;
+		await pdfPage.render({ canvasContext: canvas.getContext("2d")!, viewport: pdfPage.getViewport({ scale: 1 }), canvas }).promise;
+		return {
+			pixel: Array.from(canvas.getContext("2d")!.getImageData(62, 35, 1, 1).data.slice(0, 3)),
+			text: (await pdfPage.getTextContent()).items.map((item) => "str" in item ? item.str : "").join(""),
+		};
+	}, bytes.toString("base64"));
+	expect(result.pixel).toEqual([51, 102, 153]);
+	expect(result.text).not.toContain("Hello");
+});
+}
+
+test("hidden OCR text still hides the letters baked into its scanned image", async ({ page }) => {
+	const image = await page.evaluate(() => {
+		const canvas = document.createElement("canvas");
+		canvas.width = 400;
+		canvas.height = 300;
+		const context = canvas.getContext("2d")!;
+		context.fillStyle = "#336699";
+		context.fillRect(0, 0, 400, 300);
+		context.fillStyle = "black";
+		context.font = "24px Arial";
+		context.fillText("Hello", 50, 50);
+		return canvas.toDataURL("image/png").split(",")[1];
+	});
+	const doc = await PDFDocument.create();
+	const pdfPage = doc.addPage([400, 300]);
+	pdfPage.drawImage(await doc.embedPng(Buffer.from(image, "base64")), { x: 0, y: 0, width: 400, height: 300 });
+	pdfPage.pushOperators(setTextRenderingMode(3));
+	pdfPage.drawText("Hello", { x: 50, y: 250, size: 24, font: await doc.embedFont(StandardFonts.Helvetica) });
+
+	const { box, zoom } = await openEditor(page, 400, 300, 1, Buffer.from(await doc.save()));
+	await clickIntoText(page, box, zoom);
+	await clearEditedText(page);
+	const screenshot = await page.locator("div.relative.bg-white.shadow-2xl").first().screenshot();
+	const pixel = await page.evaluate(async ({ screenshot, x, y }) => {
+		const image = new Image();
+		image.src = `data:image/png;base64,${screenshot}`;
+		await image.decode();
+		const canvas = document.createElement("canvas");
+		canvas.width = image.width;
+		canvas.height = image.height;
+		const context = canvas.getContext("2d")!;
+		context.drawImage(image, 0, 0);
+		return Array.from(context.getImageData(x, y, 1, 1).data.slice(0, 3));
+	}, { screenshot: screenshot.toString("base64"), x: Math.round(62 * zoom), y: Math.round(35 * zoom) });
+	expect(pixel).toEqual([255, 255, 255]);
+});
 
 // ─── malformed input must still export ───────────────────────────────────────
 
@@ -436,6 +603,43 @@ test("an AcroForm text field can be typed into", async ({ page }) => {
 	await page.waitForTimeout(400);
 
 	expect(await input.inputValue()).toBe("Hello");
+});
+
+test("clearing an AcroForm text field clears the exported value", async ({ page }) => {
+	await openEditor(page, 400, 300, 1, await formPdf(400, 300, "Alice"));
+	const input = page.locator('input[type="text"]').first();
+	await expect(input).toHaveValue("Alice");
+	await input.fill("");
+	const exported = await exportedDocument(page);
+	expect(exported.pageText[0]).not.toContain("Alice");
+});
+
+test("draft recovery restores form values, rotation and deletion", async ({ page }) => {
+	await openEditor(page, 400, 300, 2, await formPdf(400, 300, "", 2));
+	await page.locator('input[type="text"]').first().fill("Bob");
+	await page.getByTitle(/rotate/i).first().click();
+	const second = page.locator('.group').filter({ has: page.locator('img[alt="Page 2"]') });
+	await second.hover();
+	await second.getByTitle("Delete page", { exact: true }).click();
+	await expect(page.getByText("90°", { exact: true })).toBeVisible();
+	await expect.poll(() => page.evaluate(async () => {
+		const request = indexedDB.open("keyval-store");
+		const database = await new Promise<IDBDatabase>((resolve, reject) => {
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		return new Promise<boolean>((resolve) => {
+			const transaction = database.transaction("keyval", "readonly");
+			const value = transaction.objectStore("keyval").get("pdf-editor-draft");
+			value.onsuccess = () => resolve(value.result?.formFields?.some((field: { value: string }) => field.value === "Bob") && value.result?.pageStates?.[0]?.rotation === 90 && value.result?.pageStates?.[1]?.deleted === true);
+			value.onerror = () => resolve(false);
+		});
+	})).toBe(true);
+	await page.reload();
+	await page.getByRole("button", { name: "Resume Draft" }).click();
+	await expect(page.locator('input[type="text"]').first()).toHaveValue("Bob");
+	await expect(page.getByText("90°", { exact: true })).toBeVisible();
+	expect((await exportedDocument(page)).pages).toBe(1);
 });
 
 // The canvas shortcut handler listens on `window`, so it also heard keys typed
@@ -762,6 +966,62 @@ test("a redaction lands on the right page when an earlier page is deleted", asyn
 	expect(exported.pages).toBe(1);
 	expect(exported.pageText[0]).not.toContain(SECRET);
 	expect(exported.latin1).not.toContain(SECRET);
+});
+
+test("reordering thumbnails changes exported page order", async ({ page }) => {
+	const doc = await PDFDocument.create();
+	const font = await doc.embedFont(StandardFonts.Helvetica);
+	for (const label of ["ALPHA", "BETA"]) {
+		const pdfPage = doc.addPage([400, 300]);
+		pdfPage.drawText(label, { x: 40, y: 240, size: 20, font });
+	}
+	await openEditor(page, 400, 300, 2, Buffer.from(await doc.save()));
+	const first = page.locator('.group').filter({ has: page.locator('img[alt="Page 1"]') });
+	const second = page.locator('.group').filter({ has: page.locator('img[alt="Page 2"]') });
+	await first.dragTo(second);
+	const exported = await exportedDocument(page);
+	expect(exported.pageText).toEqual(["BETA", "ALPHA"]);
+});
+
+test("editing a reordered page stays with that page", async ({ page }) => {
+	const doc = await PDFDocument.create();
+	const font = await doc.embedFont(StandardFonts.Helvetica);
+	for (const label of ["ALPHA", "BETA"]) {
+		const pdfPage = doc.addPage([400, 300]);
+		pdfPage.drawText(label, { x: 40, y: 240, size: 20, font });
+	}
+	const { box } = await openEditor(page, 400, 300, 2, Buffer.from(await doc.save()));
+	const first = page.locator('.group').filter({ has: page.locator('img[alt="Page 1"]') });
+	const second = page.locator('.group').filter({ has: page.locator('img[alt="Page 2"]') });
+	await first.dragTo(second);
+	await second.click();
+	await page.getByTitle("Text (T)", { exact: true }).click();
+	await page.mouse.click(box.x + 80, box.y + 120);
+	await page.keyboard.type("MARKER");
+	await page.keyboard.press("Escape");
+	const exported = await exportedDocument(page);
+	expect(exported.pageText[0]).toContain("BETA");
+	expect(exported.pageText[0]).toContain("MARKER");
+	expect(exported.pageText[1]).toContain("ALPHA");
+	expect(exported.pageText[1]).not.toContain("MARKER");
+});
+
+test("a redaction stays with its source page after reordering", async ({ page }) => {
+	const doc = await PDFDocument.create();
+	const font = await doc.embedFont(StandardFonts.Helvetica);
+	for (const label of [SURVIVOR, SECRET]) {
+		const pdfPage = doc.addPage([400, 300]);
+		pdfPage.drawText(label, { x: 40, y: 240, size: 20, font });
+	}
+	const { box } = await openEditor(page, 400, 300, 2, Buffer.from(await doc.save()));
+	await page.getByTitle("Next page", { exact: true }).click();
+	await redact(page, box, [30, 35], [230, 75]);
+	const first = page.locator('.group').filter({ has: page.locator('img[alt="Page 1"]') });
+	const second = page.locator('.group').filter({ has: page.locator('img[alt="Page 2"]') });
+	await first.dragTo(second);
+	const exported = await exportedDocument(page, { confirmRedaction: true });
+	expect(exported.pageText[0]).not.toContain(SECRET);
+	expect(exported.pageText[1]).toContain(SURVIVOR);
 });
 
 test("a redaction on a rotated page still destroys the text", async ({ page }) => {

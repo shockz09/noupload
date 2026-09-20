@@ -66,6 +66,15 @@ export function pickNativePdfFont(record: EditorTextRecord, standardFonts: Recor
 
 export function canDrawTextNatively(record: EditorTextRecord, standardFonts: Record<string, string>): boolean {
   if (record.rotation) return false;
+  // The standard PDF fonts use WinAnsi. libpdf silently drops glyphs outside
+  // that encoding, so render those strings through Fabric's browser font.
+  if (!Array.from(record.text).every((char) => {
+    const code = char.codePointAt(0)!;
+    return char === "\n" || char === "\r" || char === "\t" ||
+      (code >= 0x20 && code <= 0x7e) ||
+      (code >= 0xa0 && code <= 0xff) ||
+      "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ".includes(char);
+  })) return false;
 
   if (record.kind === "editedText") {
     const primaryFamily = getPrimaryFontFamily(record.style.fontFamily);

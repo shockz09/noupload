@@ -14,6 +14,7 @@ import {
   type EditorObjectRecord,
 } from "../lib/editor-objects";
 import { buildEditableTextOptions, buildEditableWhiteoutOptions } from "../lib/editable-text-style";
+import { removeOriginalText, type TextRemovalRect } from "../lib/remove-original-text";
 import { type TextRegion, useTextExtraction } from "../hooks/useTextExtraction";
 import type { PageState, Tool } from "@/routes/edit";
 import type { StampData } from "./EditorToolbar";
@@ -104,6 +105,7 @@ interface EditorCanvasProps {
   onStampPlaced?: () => void;
   pendingImage?: string | null;
   onImagePlaced?: () => void;
+  formFields: FormField[];
   onFormFieldsChange?: (fields: FormField[]) => void;
   onToolChange?: (tool: Tool) => void;
   onTextFormattingChange?: (
@@ -133,6 +135,7 @@ export function EditorCanvas({
   onStampPlaced,
   pendingImage,
   onImagePlaced,
+  formFields,
   onFormFieldsChange,
   onToolChange: _onToolChange,
   onTextFormattingChange,
@@ -168,13 +171,18 @@ export function EditorCanvas({
     zoom,
   });
 
+  const nativeTextMaskKey = JSON.stringify(
+    (pageObjects?.get(currentPage) || [])
+      .filter((record) => record.kind === "whiteout" && record.sourceTool === "select-native")
+      .map((record) => ({ x: record.x, y: record.y, width: record.width, height: record.height })),
+  );
+
   // Background removal for images
   const { removeBackground, isProcessing: isRemovingBg, progress: bgProgress } = useBackgroundRemoval();
   const [removingBgObjectId, setRemovingBgObjectId] = useState<string | null>(null);
 
-  // Form fields state
-  const [formFields, setFormFields] = useState<FormField[]>([]);
-
+  const formFieldsRef = useRef(formFields);
+  formFieldsRef.current = formFields;
 
   // Get current page state
   const pageState = pageStates.find((p) => p.pageNumber === currentPage);
@@ -327,7 +335,13 @@ export function EditorCanvas({
           }
 
           if (!cancelled) {
-            setFormFields(fields);
+            const savedFields = formFieldsRef.current;
+            onFormFieldsChange?.(
+              fields.map((field) => {
+                const saved = savedFields.find((item) => item.id === field.id && item.page === field.page);
+                return saved ? { ...field, value: saved.value } : field;
+              }),
+            );
           }
         }
       } catch (err) {
@@ -350,17 +364,10 @@ export function EditorCanvas({
     [formFields, currentPage],
   );
 
-  // Hand the fields up once they have settled. Calling the parent's setState
-  // from inside our own updater ran it during render, which React rejects with
-  // "Cannot update a component while rendering a different component".
-  useEffect(() => {
-    onFormFieldsChange?.(formFields);
-  }, [formFields, onFormFieldsChange]);
-
   // Form field value change handler
   const handleFormFieldChange = useCallback((fieldId: string, value: string) => {
-    setFormFields((prev) => prev.map((f) => (f.id === fieldId ? { ...f, value } : f)));
-  }, []);
+    onFormFieldsChange?.(formFields.map((field) => (field.id === fieldId ? { ...field, value } : field)));
+  }, [formFields, onFormFieldsChange]);
 
   // Render current page
   useEffect(() => {
@@ -414,6 +421,65 @@ export function EditorCanvas({
       cancelled = true;
     };
   }, [pdfDoc, currentPage, zoom]);
+
+  // The PDF canvas is the page under Fabric. Re-render it after a native text
+  // edit so the removed glyphs reveal the original image or coloured artwork.
+  // Render offscreen first: an undo or page switch cannot leave a half-painted
+  // page behind while MuPDF and pdf.js finish asynchronously.
+  useEffect(() => {
+    if (!pdfDoc || !fabricCanvas) return;
+    let cancelled = false;
+
+    async function renderEditedBackground() {
+      let editedDoc: any = null;
+      try {
+        const masks = JSON.parse(nativeTextMaskKey) as TextRemovalRect[];
+        let page = await pdfDoc.getPage(currentPage);
+        if (masks.length > 0) {
+          const bytes = await removeOriginalText(
+            new Uint8Array(await file.arrayBuffer()),
+            new Map([[currentPage - 1, masks.map((rect) => ({
+              x: rect.x / zoom,
+              y: rect.y / zoom,
+              width: rect.width / zoom,
+              height: rect.height / zoom,
+            }))]]),
+          );
+          const pdfjsLib = await loadPdfjs();
+          editedDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
+          page = await editedDoc.getPage(currentPage);
+        }
+
+        const viewport = page.getViewport({ scale: PDF_SCALE * zoom });
+        const offscreen = document.createElement("canvas");
+        offscreen.width = viewport.width;
+        offscreen.height = viewport.height;
+        await page.render({ canvasContext: offscreen.getContext("2d")!, viewport, canvas: offscreen }).promise;
+        if (cancelled) return;
+
+        const visible = pdfCanvasRef.current;
+        if (!visible || visible.width !== offscreen.width || visible.height !== offscreen.height) return;
+        visible.getContext("2d")!.drawImage(offscreen, 0, 0);
+        for (const obj of fabricCanvas.getObjects()) {
+          if (obj.editorKind === "whiteout" && obj.sourceTool === "select-native") obj.set("fill", "transparent");
+        }
+        fabricCanvas.renderAll();
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Could not remove original PDF text from the editor preview:", error);
+          for (const obj of fabricCanvas.getObjects()) {
+            if (obj.editorKind === "whiteout" && obj.sourceTool === "select-native") obj.set("fill", "#FFFFFF");
+          }
+          fabricCanvas.renderAll();
+        }
+      } finally {
+        await editedDoc?.destroy().catch(() => {});
+      }
+    }
+
+    void renderEditedBackground();
+    return () => { cancelled = true; };
+  }, [pdfDoc, fabricCanvas, file, currentPage, zoom, nativeTextMaskKey]);
 
   // Initialize Fabric canvas
   const initFabricCanvas = async (width: number, height: number) => {
@@ -556,11 +622,12 @@ export function EditorCanvas({
           const pairId = crypto.randomUUID();
           const { Rect } = await loadFabricModule();
 
-          // Create whiteout rectangle over original text
+          // Native text uses this rectangle as a removal marker. It stays
+          // white until the corrected page is ready beneath the Fabric layer.
           const whiteout = new Rect(buildEditableWhiteoutOptions(textRegion));
           attachEditorMetadata(whiteout, {
             editorKind: "whiteout",
-            sourceTool: "select",
+            sourceTool: textRegion.source === "native" && textRegion.visibleText !== false ? "select-native" : "select",
             pairId,
             regionId: textRegion.id,
           });

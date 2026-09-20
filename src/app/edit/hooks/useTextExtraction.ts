@@ -15,6 +15,12 @@ export interface TextRegion {
   color: string;
   pageNumber: number;
   source: "native" | "ocr";
+  /** False for hidden OCR text layers whose visible letters belong to an image. */
+  visibleText?: boolean;
+  /** Font box above the baseline, in em. Native extraction only. */
+  ascent?: number;
+  /** Font box below the baseline, in em (negative). Native extraction only. */
+  descent?: number;
 }
 
 interface UseTextExtractionOptions {
@@ -36,6 +42,7 @@ export function useTextExtraction({ file, pageNumber, zoom }: UseTextExtractionO
 
   const cacheRef = useRef<Map<string, { regions: TextRegion[]; source: "native" | "ocr" }>>(new Map());
   const currentFileRef = useRef<File | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (file !== currentFileRef.current) {
@@ -46,8 +53,15 @@ export function useTextExtraction({ file, pageNumber, zoom }: UseTextExtractionO
     }
   }, [file]);
 
-  const extractText = useCallback(async () => {
-    if (!file || !pageNumber) return;
+  const extractText = useCallback(async (requestId: number) => {
+    if (!file || !pageNumber) {
+      setRegions([]);
+      setExtractionSource(null);
+      setIsExtracting(false);
+      return;
+    }
+
+    const isCurrent = () => requestIdRef.current === requestId;
 
     const cacheKey = `${pageNumber}-${zoom}`;
     const cached = cacheRef.current.get(cacheKey);
@@ -63,6 +77,7 @@ export function useTextExtraction({ file, pageNumber, zoom }: UseTextExtractionO
     try {
       const nativeRegions = await extractNativeText(file, pageNumber, zoom);
 
+      if (!isCurrent()) return;
       if (nativeRegions.length > 0) {
         cacheRef.current.set(cacheKey, { regions: nativeRegions, source: "native" });
         setRegions(nativeRegions);
@@ -72,20 +87,26 @@ export function useTextExtraction({ file, pageNumber, zoom }: UseTextExtractionO
       }
 
       const ocrRegions = await extractOCRText(file, pageNumber, zoom);
+      if (!isCurrent()) return;
       cacheRef.current.set(cacheKey, { regions: ocrRegions, source: "ocr" });
       setRegions(ocrRegions);
       setExtractionSource("ocr");
     } catch (err) {
+      if (!isCurrent()) return;
       console.error("Text extraction failed:", err);
       setRegions([]);
       setExtractionSource(null);
     } finally {
-      setIsExtracting(false);
+      if (isCurrent()) setIsExtracting(false);
     }
   }, [file, pageNumber, zoom]);
 
   useEffect(() => {
-    extractText();
+    const requestId = ++requestIdRef.current;
+    void extractText(requestId);
+    return () => {
+      requestIdRef.current++;
+    };
   }, [extractText]);
 
   return { regions, isExtracting, extractionSource };
@@ -107,14 +128,15 @@ function rgbToHex(r: number, g: number, b: number): string {
  */
 async function extractTextColors(
   page: any,
-): Promise<Map<number, string>> {
-  const colorMap = new Map<number, string>();
+): Promise<Map<number, { color: string; visible: boolean }>> {
+  const colorMap = new Map<number, { color: string; visible: boolean }>();
 
   try {
     const operatorList = await page.getOperatorList();
     const { OPS } = await import("pdfjs-dist");
 
     let currentColor = "#000000";
+    let textRenderingMode = 0;
     let textIndex = 0;
 
     for (let i = 0; i < operatorList.fnArray.length; i++) {
@@ -133,11 +155,13 @@ async function extractTextColors(
         const g = (1 - m) * (1 - k);
         const b = (1 - y) * (1 - k);
         currentColor = rgbToHex(r, g, b);
+      } else if (fn === OPS.setTextRenderingMode) {
+        textRenderingMode = args[0];
       }
 
       // When we see text operations, associate current color with text index
       if (fn === OPS.showText || fn === OPS.showSpacedText) {
-        colorMap.set(textIndex, currentColor);
+        colorMap.set(textIndex, { color: currentColor, visible: textRenderingMode !== 3 });
         textIndex++;
       }
     }
@@ -154,17 +178,21 @@ async function extractTextColors(
 async function extractNativeText(file: File, pageNumber: number, scale: number): Promise<TextRegion[]> {
   const [pdfjsLib, arrayBuffer] = await Promise.all([loadPdfjs(), file.arrayBuffer()]);
   const pdfjsDoc = await pdfjsLib.getDocument({ data: arrayBuffer, fontExtraProperties: true }).promise;
-  const pdfjsPage = await pdfjsDoc.getPage(pageNumber);
-  await pdfjsPage.getOperatorList();
-  const colorMap = await extractTextColors(pdfjsPage);
-  return extractNativeTextWithPdfjs(pdfjsPage, pageNumber, scale, colorMap);
+  try {
+    const pdfjsPage = await pdfjsDoc.getPage(pageNumber);
+    await pdfjsPage.getOperatorList();
+    const colorMap = await extractTextColors(pdfjsPage);
+    return extractNativeTextWithPdfjs(pdfjsPage, pageNumber, scale, colorMap);
+  } finally {
+    await pdfjsDoc.destroy();
+  }
 }
 
 async function extractNativeTextWithPdfjs(
   page: any,
   pageNumber: number,
   scale: number,
-  colorMap: Map<number, string>,
+  colorMap: Map<number, { color: string; visible: boolean }>,
 ): Promise<TextRegion[]> {
   const viewport = page.getViewport({ scale });
   const textContent = await page.getTextContent();
@@ -202,7 +230,8 @@ async function extractNativeTextWithPdfjs(
 
     const styleInfo = styles[textItem.fontName];
     const fontInfo = resolvePdfjsFontInfo(page, textItem.fontName, styleInfo?.fontFamily || "");
-    const color = colorMap.get(textOpIndex) || "#000000";
+    const appearance = colorMap.get(textOpIndex);
+    const color = appearance?.color || "#000000";
     textOpIndex++;
 
     regions.push({
@@ -221,6 +250,9 @@ async function extractNativeTextWithPdfjs(
       color,
       pageNumber,
       source: "native",
+      visibleText: appearance?.visible ?? true,
+      ascent: styleInfo?.ascent,
+      descent: styleInfo?.descent,
     });
   }
 
@@ -266,64 +298,57 @@ async function extractOCRText(file: File, pageNumber: number, targetScale: numbe
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const page = await pdf.getPage(pageNumber);
-
-  const ocrRenderScale = 2;
-  const viewport = page.getViewport({ scale: ocrRenderScale });
-
   const canvas = document.createElement("canvas");
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  const ctx = canvas.getContext("2d")!;
+  let worker: Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>> | null = null;
+  try {
+    const page = await pdf.getPage(pageNumber);
+    const ocrRenderScale = 2;
+    const viewport = page.getViewport({ scale: ocrRenderScale });
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext("2d")!;
 
-  await page.render({
-    canvasContext: ctx,
-    viewport,
-  } as any).promise;
+    await page.render({ canvasContext: ctx, viewport } as any).promise;
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((value: Blob | null) => value ? resolve(value) : reject(new Error("Could not render page for OCR")), "image/png");
+    });
 
-  const blob = await new Promise<Blob>((resolve) => {
-    canvas.toBlob((b) => resolve(b!), "image/png");
-  });
+    const Tesseract = await import("tesseract.js");
+    worker = await Tesseract.createWorker("eng");
+    const result = await worker.recognize(blob, {}, { blocks: true });
+    const regions: TextRegion[] = [];
+    const data = result.data as any;
+    const scaleFactor = targetScale / ocrRenderScale;
 
-  const Tesseract = await import("tesseract.js");
-  const worker = await Tesseract.createWorker("eng");
-  const result = await worker.recognize(blob, {}, { blocks: true });
-  await worker.terminate();
-
-  const regions: TextRegion[] = [];
-  const data = result.data as any;
-
-  const scaleFactor = targetScale / ocrRenderScale;
-
-  if (data.words) {
-    for (let i = 0; i < data.words.length; i++) {
-      const word = data.words[i];
-      if (!word.text.trim() || word.confidence < 60) continue;
-
-      const bbox = word.bbox;
-      const height = (bbox.y1 - bbox.y0) * scaleFactor;
-
-      regions.push({
-        id: `ocr-${pageNumber}-${i}`,
-        text: word.text,
-        bbox: {
-          x: bbox.x0 * scaleFactor,
-          y: bbox.y0 * scaleFactor,
-          width: (bbox.x1 - bbox.x0) * scaleFactor,
-          height,
-        },
-        fontSize: height * 0.85,
-        fontFamily: "Arial, Helvetica, sans-serif",
-        fontWeight: "normal",
-        fontStyle: "normal",
-        color: "#000000",
-        pageNumber,
-        source: "ocr",
-      });
+    if (data.words) {
+      for (let i = 0; i < data.words.length; i++) {
+        const word = data.words[i];
+        if (!word.text.trim() || word.confidence < 60) continue;
+        const bbox = word.bbox;
+        const height = (bbox.y1 - bbox.y0) * scaleFactor;
+        regions.push({
+          id: `ocr-${pageNumber}-${i}`,
+          text: word.text,
+          bbox: {
+            x: bbox.x0 * scaleFactor,
+            y: bbox.y0 * scaleFactor,
+            width: (bbox.x1 - bbox.x0) * scaleFactor,
+            height,
+          },
+          fontSize: height * 0.85,
+          fontFamily: "Arial, Helvetica, sans-serif",
+          fontWeight: "normal",
+          fontStyle: "normal",
+          color: "#000000",
+          pageNumber,
+          source: "ocr",
+        });
+      }
     }
+    return regions;
+  } finally {
+    await worker?.terminate();
+    cleanupCanvas(canvas);
+    await pdf.destroy();
   }
-
-  cleanupCanvas(canvas);
-
-  return regions;
 }

@@ -2,19 +2,25 @@
 import { del, get, set } from "idb-keyval";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { legacyFabricObjectToRecord, type EditorObjectRecord } from "../lib/editor-objects";
+import type { FormField } from "./useFormFields";
 import type { PageState } from "@/routes/edit";
 
 const DRAFT_KEY = "pdf-editor-draft";
 const SAVE_DEBOUNCE = 500; // Save 500ms after last change
 
 export interface EditorDraft {
-  version: 2;
+  version: 3;
   fileData: ArrayBuffer;
   fileName: string;
   pageStates: PageState[];
   pageObjects: [number, EditorObjectRecord[]][];
+  formFields: FormField[];
   currentPage: number;
   savedAt: number;
+}
+
+interface PreviousEditorDraft extends Omit<EditorDraft, "version" | "formFields"> {
+  version: 2;
 }
 
 interface LegacyEditorDraft {
@@ -30,6 +36,7 @@ interface UseAutoSaveOptions {
   file: File | null;
   pageStates: PageState[];
   pageObjects: Map<number, EditorObjectRecord[]>;
+  formFields: FormField[];
   currentPage: number;
   enabled?: boolean;
 }
@@ -45,6 +52,7 @@ export function useAutoSave({
   file,
   pageStates,
   pageObjects,
+  formFields,
   currentPage,
   enabled = true,
 }: UseAutoSaveOptions): UseAutoSaveReturn {
@@ -55,7 +63,7 @@ export function useAutoSave({
   useEffect(() => {
     const checkDraft = async () => {
       try {
-        const existingDraft = await get<EditorDraft | LegacyEditorDraft>(DRAFT_KEY);
+        const existingDraft = await get<EditorDraft | PreviousEditorDraft | LegacyEditorDraft>(DRAFT_KEY);
         if (existingDraft) {
           const migratedDraft = migrateDraft(existingDraft);
           setDraft(migratedDraft);
@@ -71,6 +79,7 @@ export function useAutoSave({
 
   // Serialize pageObjects for dependency tracking
   const pageObjectsKey = JSON.stringify(Array.from(pageObjects.entries()));
+  const formFieldsKey = JSON.stringify(formFields);
 
   // The file's bytes never change while it is open, so read them once per file
   // instead of on every save. Re-reading meant copying the whole document —
@@ -92,11 +101,12 @@ export function useAutoSave({
       try {
         const fileData = await readFileBytes(file);
         const draftData: EditorDraft = {
-          version: 2,
+          version: 3,
           fileData,
           fileName: file.name,
           pageStates,
           pageObjects: Array.from(pageObjects.entries()),
+          formFields,
           currentPage,
           savedAt: Date.now(),
         };
@@ -111,7 +121,7 @@ export function useAutoSave({
     const timeout = setTimeout(saveDraft, SAVE_DEBOUNCE);
 
     return () => clearTimeout(timeout);
-  }, [enabled, file, pageStates, pageObjectsKey, currentPage, readFileBytes]);
+  }, [enabled, file, pageStates, pageObjectsKey, formFieldsKey, currentPage, readFileBytes]);
 
   const clearDraft = useCallback(async () => {
     try {
@@ -125,7 +135,7 @@ export function useAutoSave({
 
   const loadDraft = useCallback(async (): Promise<EditorDraft | null> => {
     try {
-      const existingDraft = await get<EditorDraft | LegacyEditorDraft>(DRAFT_KEY);
+      const existingDraft = await get<EditorDraft | PreviousEditorDraft | LegacyEditorDraft>(DRAFT_KEY);
       if (!existingDraft) return null;
 
       const migratedDraft = migrateDraft(existingDraft);
@@ -145,9 +155,12 @@ export function useAutoSave({
   };
 }
 
-function migrateDraft(draft: EditorDraft | LegacyEditorDraft): EditorDraft {
-  if ("version" in draft && draft.version === 2) {
+function migrateDraft(draft: EditorDraft | PreviousEditorDraft | LegacyEditorDraft): EditorDraft {
+  if ("version" in draft && draft.version === 3) {
     return draft;
+  }
+  if ("version" in draft && draft.version === 2) {
+    return { ...draft, version: 3, formFields: [] };
   }
 
   const legacyDraft = draft as LegacyEditorDraft;
@@ -157,11 +170,12 @@ function migrateDraft(draft: EditorDraft | LegacyEditorDraft): EditorDraft {
   ]) satisfies [number, EditorObjectRecord[]][];
 
   return {
-    version: 2,
+    version: 3,
     fileData: legacyDraft.fileData,
     fileName: legacyDraft.fileName,
     pageStates: legacyDraft.pageStates,
     pageObjects: migratedPageObjects,
+    formFields: [],
     currentPage: legacyDraft.currentPage,
     savedAt: legacyDraft.savedAt,
   };

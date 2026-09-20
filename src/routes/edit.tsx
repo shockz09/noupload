@@ -217,8 +217,8 @@ function EditPdfPage() {
 
   const handleTotalPagesChange = useCallback((total: number) => {
     setTotalPages(total);
-    // Initialize page states
-    setPageStates(
+    // A recovered draft already has page rotations, deletions and order.
+    setPageStates((previous) => previous.length === total ? previous :
       Array.from({ length: total }, (_, i) => ({
         pageNumber: i + 1,
         rotation: 0,
@@ -236,13 +236,16 @@ function EditPdfPage() {
   }, []);
 
   const handlePageChange = useCallback(
-    (page: number) => {
-      if (page >= 1 && page <= totalPages) {
-        setCurrentPage(page);
+    (position: number) => {
+      const page = pageStates[position - 1];
+      if (page) {
+        setCurrentPage(page.pageNumber);
       }
     },
-    [totalPages],
+    [pageStates],
   );
+
+  const currentPagePosition = pageStates.findIndex((page) => page.pageNumber === currentPage) + 1;
 
   // Modal/dialog callbacks - memoized to prevent child re-renders
   const openSignatureModal = useCallback(() => setShowSignatureModal(true), []);
@@ -257,6 +260,7 @@ function EditPdfPage() {
     file,
     pageStates,
     pageObjects,
+    formFields,
     currentPage,
     enabled: !!file, // Only save when file is loaded
   });
@@ -295,6 +299,7 @@ function EditPdfPage() {
       setCurrentPage(draftData.currentPage);
       setPageStates(draftData.pageStates);
       setPageObjects(new Map(draftData.pageObjects));
+      setFormFields(draftData.formFields);
     }
     setShowDraftDialog(false);
   }, [loadDraft]);
@@ -401,7 +406,7 @@ function EditPdfPage() {
               file={file}
               currentPage={currentPage}
               pageStates={pageStates}
-              onPageSelect={handlePageChange}
+              onPageSelect={setCurrentPage}
               onPageStatesChange={setPageStates}
               onTotalPagesChange={handleTotalPagesChange}
             />
@@ -418,6 +423,7 @@ function EditPdfPage() {
                 strokeColor={strokeColor}
                 fillColor={fillColor}
                 pageObjects={pageObjects}
+                formFields={formFields}
                 onObjectsChange={handleObjectsChange}
                 onUndoRedoChange={handleUndoRedoChange}
                 pendingSignature={pendingSignature}
@@ -441,7 +447,7 @@ function EditPdfPage() {
               {/* Zoom controls */}
               <ZoomControls
                 zoom={zoom}
-                currentPage={currentPage}
+                currentPage={currentPagePosition || currentPage}
                 totalPages={totalPages}
                 onZoomIn={handleZoomIn}
                 onZoomOut={handleZoomOut}

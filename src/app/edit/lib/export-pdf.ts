@@ -1,8 +1,10 @@
 
 import type { FormField } from "../hooks/useFormFields";
 import type { EditorObjectRecord, EditorRectangleRecord, EditorTextRecord } from "./editor-objects";
+import { FABRIC_BASELINE_RATIO } from "./editable-text-style";
 import { loadFabricModule, recordToFabricObject } from "./editor-objects";
 import { loadLibPdf } from "./libpdf";
+import { removeOriginalText, type TextRemovalRect } from "./remove-original-text";
 import { applyRedactions, type RedactionRect } from "./redact-pdf";
 import { canDrawTextNatively, pickNativePdfFont } from "./text-export-policy";
 import type { PageState } from "@/routes/edit";
@@ -24,7 +26,15 @@ interface OverlayResult {
 
 export async function exportPdf({ file, pageStates, pageObjects, formFields }: ExportOptions): Promise<Uint8Array> {
   const [{ PDF, StandardFonts, rgb }, fileBytes] = await Promise.all([loadLibPdf(), file.arrayBuffer()]);
-  const pdf = await PDF.load(new Uint8Array(fileBytes));
+  const nativeTextEdits = new Map<number, TextRemovalRect[]>();
+  for (const [pageNumber, records] of pageObjects) {
+    const masks = records
+      .filter((record): record is EditorRectangleRecord => record.kind === "whiteout" && record.sourceTool === "select-native")
+      .map(({ x, y, width, height }) => ({ x, y, width, height }));
+    if (masks.length > 0) nativeTextEdits.set(pageNumber - 1, masks);
+  }
+  const sourceBytes = await removeOriginalText(new Uint8Array(fileBytes), nativeTextEdits);
+  const pdf = await PDF.load(sourceBytes);
   const form = pdf.getForm();
   const hasSignatureFields = !!form?.getSignatureFields().length;
 
@@ -37,11 +47,9 @@ export async function exportPdf({ file, pageStates, pageObjects, formFields }: E
   }
 
   const pages = pdf.getPages();
+  const originalPageCount = pages.length;
   const pagesToDelete: number[] = [];
-  // Keyed by the page's index in the *saved* document, which is not its index
-  // here once deleted pages have been dropped.
-  const redactionsByOutputIndex = new Map<number, RedactionRect[]>();
-  let outputIndex = 0;
+  const redactionsBySourcePage = new Map<number, RedactionRect[]>();
 
   for (let index = 0; index < pages.length; index++) {
     const pageNumber = index + 1;
@@ -52,8 +60,6 @@ export async function exportPdf({ file, pageStates, pageObjects, formFields }: E
       pagesToDelete.push(index);
       continue;
     }
-
-    const thisOutputIndex = outputIndex++;
 
     // Object coordinates are in the page's own, unrotated space, and page.width
     // and page.height start reporting the *rotated* box once setRotation has
@@ -79,7 +85,7 @@ export async function exportPdf({ file, pageStates, pageObjects, formFields }: E
         rotation: record.rotation,
       }));
     if (redactions.length > 0) {
-      redactionsByOutputIndex.set(thisOutputIndex, redactions);
+      redactionsBySourcePage.set(pageNumber, redactions);
     }
 
     for (const record of records) {
@@ -100,11 +106,28 @@ export async function exportPdf({ file, pageStates, pageObjects, formFields }: E
     pdf.removePage(pageIndex);
   }
 
+  const sourceOrder = Array.from({ length: originalPageCount }, (_, index) => index + 1)
+    .filter((pageNumber) => !pageStates.find((state) => state.pageNumber === pageNumber)?.deleted);
+  const desiredOrder = pageStates.length > 0
+    ? pageStates.filter((state) => !state.deleted).map((state) => state.pageNumber)
+    : sourceOrder;
+  for (let targetIndex = 0; targetIndex < desiredOrder.length; targetIndex++) {
+    const fromIndex = sourceOrder.indexOf(desiredOrder[targetIndex]);
+    if (fromIndex === targetIndex) continue;
+    pdf.movePage(fromIndex, targetIndex);
+    sourceOrder.splice(targetIndex, 0, sourceOrder.splice(fromIndex, 1)[0]);
+  }
+  const redactionsByOutputIndex = new Map<number, RedactionRect[]>();
+  desiredOrder.forEach((pageNumber, index) => {
+    const redactions = redactionsBySourcePage.get(pageNumber);
+    if (redactions) redactionsByOutputIndex.set(index, redactions);
+  });
+
   // An incremental save appends revisions and leaves the original objects
   // readable earlier in the file, which would defeat the whole point of a
   // redaction.
   const hasRedactions = redactionsByOutputIndex.size > 0;
-  const canSaveIncrementally = !hasRedactions && hasSignatureFields && pdf.canSaveIncrementally() === null;
+  const canSaveIncrementally = nativeTextEdits.size === 0 && !hasRedactions && hasSignatureFields && pdf.canSaveIncrementally() === null;
   const saved = await pdf.save({ incremental: canSaveIncrementally });
   if (!hasRedactions) return saved;
 
@@ -139,9 +162,12 @@ async function drawRecord({
       // this path does not account for a page whose box starts away from the
       // origin, so the duplicate would land somewhere the redaction is not.
       return;
+    case "whiteout":
+      if (record.sourceTool === "select-native") return;
+      drawRectangleRecord(page, pageHeight, record, rgb);
+      return;
     case "rectangle":
     case "highlight":
-    case "whiteout":
       drawRectangleRecord(page, pageHeight, record, rgb);
       return;
     case "ellipse":
@@ -178,7 +204,7 @@ async function drawRecord({
 function buildFormFillValues(formFields: FormField[]): Record<string, boolean | string> {
   const values: Record<string, boolean | string> = {};
   for (const field of formFields) {
-    if (!field.name || !field.value) continue;
+    if (!field.name) continue;
 
     if (field.type === "checkbox") {
       values[field.name] = field.value === "true" || field.value === "Yes";
@@ -329,7 +355,11 @@ function drawTextRecord(
   if (!font) return;
 
   const x = record.x;
-  const y = pageHeight - record.y - size;
+  // `record.y` is the fabric object's top, and fabric's baseline sits
+  // FABRIC_BASELINE_RATIO of an em below it -- not a full em. Measuring the
+  // baseline any other way exports the text a notch below where the canvas
+  // showed it.
+  const y = pageHeight - record.y - size * FABRIC_BASELINE_RATIO;
   const color = hexToRgb(record.style.fill || record.style.stroke, rgb);
 
   page.drawText(record.text, {

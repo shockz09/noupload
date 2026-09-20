@@ -197,32 +197,9 @@ export function PageSidebar({
       const [draggedItem] = newPageStates.splice(draggedIndex, 1);
       newPageStates.splice(targetIndex, 0, draggedItem);
 
-      // Update page numbers to reflect new order
-      const reorderedStates = newPageStates.map((state, index) => ({
-        ...state,
-        pageNumber: index + 1,
-      }));
-
-      // Also need to reorder thumbnails to match
-      setThumbnails((currentThumbnails) => {
-        const newThumbnails = [...currentThumbnails];
-        const thumbDraggedIndex = newThumbnails.findIndex((t) => t.pageNumber === currentDraggedPage);
-        const thumbTargetIndex = newThumbnails.findIndex((t) => t.pageNumber === targetPageNumber);
-
-        if (thumbDraggedIndex !== -1 && thumbTargetIndex !== -1) {
-          const [draggedThumb] = newThumbnails.splice(thumbDraggedIndex, 1);
-          newThumbnails.splice(thumbTargetIndex, 0, draggedThumb);
-
-          // Update thumbnail page numbers
-          return newThumbnails.map((thumb, index) => ({
-            ...thumb,
-            pageNumber: index + 1,
-          }));
-        }
-        return currentThumbnails;
-      });
-
-      onPageStatesChange(reorderedStates);
+      // Keep pageNumber as the original page ID. Canvas objects, text masks and
+      // form fields use that ID; the array order is the output order.
+      onPageStatesChange(newPageStates);
       draggedPageRef.current = null;
       setDraggedPage(null);
     },
@@ -242,7 +219,9 @@ export function PageSidebar({
         </div>
       ) : (
         <div className="p-2 space-y-2">
-          {thumbnails.map((thumb) => {
+          {pageStates.map((state, position) => {
+            const thumb = thumbnails.find((item) => item.pageNumber === state.pageNumber);
+            if (!thumb) return null;
             const pageState = getPageState(thumb.pageNumber);
             const isDeleted = pageState?.deleted || false;
             const rotation = pageState?.rotation || 0;
@@ -295,7 +274,7 @@ export function PageSidebar({
 
                   {/* Page number */}
                   <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs py-0.5 text-center font-mono">
-                    {thumb.pageNumber}
+                    {position + 1}
                   </div>
 
                   {/* Rotation indicator */}
