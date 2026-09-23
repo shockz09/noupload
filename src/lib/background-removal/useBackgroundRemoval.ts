@@ -26,16 +26,16 @@ async function configureOrtBackend(): Promise<void> {
     const ort = env.backends?.onnx as
       | {
           versions?: { web?: string };
-          wasm?: { wasmPaths?: unknown; proxy?: boolean };
+          wasm?: { wasmPaths?: unknown };
         }
       | undefined;
     if (!ort?.wasm) return;
 
-    // Run ORT's WASM execution in a worker so the main thread stays
-    // responsive during inference. transformers.js forces proxy=false at
-    // module init; flip it back on. WebGPU users are unaffected (the proxy
-    // flag only governs the WASM backend).
-    ort.wasm.proxy = true;
+    // Don't set `ort.wasm.proxy = true`. In a production build ORT's proxy
+    // worker dies on boot ("document is not defined"), and that failure takes
+    // WebGPU down with it: "no available backend found. ERR: [webgpu]
+    // [object ErrorEvent]". Dev builds hide it. The cost of leaving it off is
+    // that the WASM fallback runs on the main thread.
 
     // Safari-only: transformers.js hard-codes the non-JSEP wasm
     // (`ort-wasm-simd-threaded.{mjs,wasm}`) on Safari, which lacks
@@ -128,7 +128,7 @@ export function useBackgroundRemoval(): UseBackgroundRemovalResult {
         const inputUrl = URL.createObjectURL(image);
 
         try {
-          // Suppress benign onnxruntime warnings that trigger Next.js dev error overlay
+          // Suppress benign onnxruntime warnings that would otherwise flood the console
           const origError = console.error;
           console.error = (...args: unknown[]) => {
             if (typeof args[0] === "string" && args[0].includes("VerifyEachNodeIsAssignedToAnEp")) return;
