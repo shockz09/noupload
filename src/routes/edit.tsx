@@ -20,7 +20,7 @@ import { ErrorBox } from "@/components/shared";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { getFileBaseName } from "@/lib/utils";
-import { DraftRecoveryDialog } from "@/app/edit/components/DraftRecoveryDialog";
+import { DraftRecoveryDialog } from "@/components/shared/DraftRecoveryDialog";
 import { EditorCanvas } from "@/app/edit/components/EditorCanvas";
 import { EditorToolbar, type StampData } from "@/app/edit/components/EditorToolbar";
 import { PageSidebar } from "@/app/edit/components/PageSidebar";

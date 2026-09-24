@@ -25,6 +25,7 @@ import { fmtTime, type Gesture, TRACK_HEADER_W, Timeline } from "@/components/vi
 import {
   AlertIcon,
   ArrowLeftIcon,
+  CheckIcon,
   CopyIcon,
   DownloadIcon,
   PauseIcon,
@@ -40,6 +41,16 @@ import { ErrorBox, InfoBox, ProgressBar, VideoPageHeader, VideoResultView } from
 import { useFileBuffer } from "@/hooks";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
+import { DraftRecoveryDialog } from "@/components/shared/DraftRecoveryDialog";
+import {
+  type VideoEditorDraft,
+  clearDraft,
+  deleteMediaFile,
+  loadDraft,
+  peekDraft,
+  saveDraft,
+  saveMediaFile,
+} from "@/lib/video/editor/draft";
 import { exportProject } from "@/lib/video/editor/export";
 import { forgetMedia, importMedia, loadVideoPeaks, mediaKindOf } from "@/lib/video/editor/media";
 import {
@@ -113,6 +124,10 @@ function VideoEditorPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectRef = useRef(project);
   projectRef.current = project;
+  const mediaListRef = useRef(mediaList);
+  mediaListRef.current = mediaList;
+  const ppsRef = useRef(pps);
+  ppsRef.current = pps;
   const timeRef = useRef(time);
   timeRef.current = time;
 
@@ -192,8 +207,128 @@ function VideoEditorPage() {
   const seek = useCallback((t: number) => engineRef.current?.seek(t), []);
   const togglePlay = useCallback(() => engineRef.current?.toggle(), []);
 
-  // ── Import ─────────────────────────────────────────────────
+  // ── Autosave ───────────────────────────────────────────────
+  // Same contract as the PDF editor: the edit lives in IndexedDB until the user
+  // starts fresh, so a closed tab or a reload offers to resume it.
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [pendingDraft, setPendingDraft] = useState<VideoEditorDraft | null>(null);
+  const [draftChecked, setDraftChecked] = useState(false);
+  /** In-flight media file writes by media id; each settles without rejecting. */
+  const fileWrites = useRef(new Map<string, Promise<void>>());
+  const failedFiles = useRef(new Set<string>());
+  /** Bumped whenever the draft is cleared, so a save already underway doesn't bring it back. */
+  const saveGen = useRef(0);
   const sizedFromMedia = useRef(false);
+
+  useEffect(() => {
+    peekDraft()
+      .then((d) => {
+        if (d) setPendingDraft(d);
+        else setDraftChecked(true);
+      })
+      .catch(() => setDraftChecked(true));
+  }, []);
+
+  const storeFile = useCallback((item: MediaItem) => {
+    const write = saveMediaFile(item.id, item.file).then(
+      () => {
+        failedFiles.current.delete(item.id);
+      },
+      () => {
+        failedFiles.current.add(item.id);
+      },
+    );
+    fileWrites.current.set(item.id, write);
+  }, []);
+
+  const forgetStoredFile = useCallback((id: string) => {
+    fileWrites.current.delete(id);
+    failedFiles.current.delete(id);
+    deleteMediaFile(id).catch(() => {});
+  }, []);
+
+  const wipeDraft = useCallback(() => {
+    saveGen.current++;
+    fileWrites.current.clear();
+    failedFiles.current.clear();
+    setSaveState("idle");
+    clearDraft().catch(() => {});
+  }, []);
+
+  const persist = useCallback(async () => {
+    const gen = saveGen.current;
+    setSaveState("saving");
+    await Promise.all(fileWrites.current.values());
+    if (gen !== saveGen.current) return;
+    try {
+      await saveDraft(projectRef.current, mediaListRef.current, timeRef.current, ppsRef.current, fileWrites.current.keys());
+      if (gen === saveGen.current) setSaveState(failedFiles.current.size > 0 ? "error" : "saved");
+    } catch {
+      if (gen === saveGen.current) setSaveState("error");
+    }
+  }, []);
+
+  const resumeDraft = useCallback(async () => {
+    const loaded = await loadDraft().catch(() => null);
+    setPendingDraft(null);
+    setDraftChecked(true);
+    if (!loaded) return;
+    const { draft, media: items } = loaded;
+    const known = new Set(items.map((m) => m.id));
+    const project = {
+      ...draft.project,
+      clips: draft.project.clips.filter((c) => c.type !== "media" || known.has(c.mediaId)),
+    };
+    sizedFromMedia.current = true;
+    setMediaList(items);
+    setHist({ past: [], present: project, future: [] });
+    setPps(draft.pps);
+    setTime(draft.time);
+    timeRef.current = draft.time;
+    if (items.length < draft.media.length) {
+      setError("Some media from your last session couldn't be restored and was left out.");
+    }
+  }, []);
+
+  const discardDraft = useCallback(async () => {
+    setPendingDraft(null);
+    await clearDraft().catch(() => {});
+    setDraftChecked(true);
+  }, []);
+
+  const hasContent = mediaList.length > 0 || project.clips.length > 0;
+  const canSave = draftChecked && hasContent;
+  const canSaveRef = useRef(canSave);
+  canSaveRef.current = canSave;
+
+  useEffect(() => {
+    if (!draftChecked) return;
+    if (!hasContent) {
+      // Everything was removed: nothing left to resume.
+      wipeDraft();
+      return;
+    }
+    const timer = setTimeout(persist, 600);
+    return () => clearTimeout(timer);
+  }, [draftChecked, hasContent, project, mediaList, pps, persist, wipeDraft]);
+
+  // A closing or backgrounded tab saves straight away instead of waiting on the debounce.
+  useEffect(() => {
+    const flush = () => {
+      if (canSaveRef.current) void persist();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [persist]);
+
+  // ── Import ─────────────────────────────────────────────────
   const addFiles = useCallback(
     async (files: File[]) => {
       setError(null);
@@ -204,6 +339,7 @@ function VideoEditorPage() {
         try {
           const item = await importMedia(file);
           setMediaList((list) => [...list, item]);
+          storeFile(item);
           // First video sets the frame size, while nothing is on the timeline yet.
           if (item.kind === "video" && item.width && item.height && !sizedFromMedia.current) {
             sizedFromMedia.current = true;
@@ -225,7 +361,7 @@ function VideoEditorPage() {
         }
       }
     },
-    [],
+    [storeFile],
   );
 
   // ── Clip creation ──────────────────────────────────────────
@@ -392,8 +528,9 @@ function VideoEditorPage() {
       commit((p) => ({ ...p, clips: p.clips.filter((c) => c.type !== "media" || c.mediaId !== item.id) }));
       setMediaList((list) => list.filter((m) => m.id !== item.id));
       forgetMedia(item);
+      forgetStoredFile(item.id);
     },
-    [commit],
+    [commit, forgetStoredFile],
   );
 
   const toggleTrack = useCallback(
@@ -602,14 +739,18 @@ function VideoEditorPage() {
 
   const [showKeys, setShowKeys] = useState(false);
 
-  const leave = useCallback(
-    (e: React.MouseEvent) => {
-      if (projectRef.current.clips.length > 0 && !window.confirm("Leave the editor? Your edit isn't saved anywhere.")) {
-        e.preventDefault();
-      }
-    },
-    [],
-  );
+  const startFresh = useCallback(() => {
+    if (!window.confirm("Start a new project? This clears the current edit and its media from this device.")) return;
+    engineRef.current?.pause();
+    for (const m of mediaListRef.current) forgetMedia(m);
+    wipeDraft();
+    setMediaList([]);
+    setHist({ past: [], present: createProject(), future: [] });
+    setSelectedId(null);
+    setResult(null);
+    setTime(0);
+    sizedFromMedia.current = false;
+  }, [wipeDraft]);
 
   if (!workspace) {
     return (
@@ -631,9 +772,15 @@ function VideoEditorPage() {
           />
           {importing > 0 && <ProgressBar progress={50} label="Importing media..." />}
           {error && <ErrorBox message={error} />}
+          <DraftRecoveryDialog
+            open={!!pendingDraft}
+            savedAt={pendingDraft?.savedAt ?? 0}
+            onResume={resumeDraft}
+            onDiscard={discardDraft}
+          />
           <InfoBox>
-            Arrange clips on video, audio and text tracks, trim and split them, then export an MP4. Your files never leave
-            this device.
+            Arrange clips on video, audio and text tracks, trim and split them, then export an MP4. Your edit autosaves on
+            this device, so you can close the tab and pick up where you left off. Nothing is uploaded.
           </InfoBox>
         </div>
       </div>
@@ -653,8 +800,7 @@ function VideoEditorPage() {
       <header className="h-14 shrink-0 flex items-center gap-3 px-3 border-b-2 border-foreground bg-card">
         <Link
           to="/video"
-          onClick={leave}
-          title="Back to video tools"
+          title="Back to video tools — your edit stays saved on this device"
           className="w-9 h-9 border-2 border-foreground flex items-center justify-center hover:bg-muted transition-colors"
         >
           <ArrowLeftIcon className="w-4 h-4" />
@@ -671,9 +817,18 @@ function VideoEditorPage() {
         >
           {project.width}×{project.height} · {project.fps}fps
         </button>
+        <SaveBadge state={saveState} />
 
         <div className="flex-1" />
 
+        <button
+          type="button"
+          onClick={startFresh}
+          title="Clear this edit and start over"
+          className="hidden md:inline-flex h-9 items-center px-3 border-2 border-foreground bg-card hover:bg-muted text-xs font-bold transition-colors"
+        >
+          New project
+        </button>
         <div className="flex items-center">
           <IconButton onClick={undo} disabled={!hist.past.length} title="Undo (⌘Z)" className="border-r-0">
             <RotateLeftIcon className="w-4 h-4" />
@@ -986,6 +1141,29 @@ function IconButton({
     >
       {children}
     </button>
+  );
+}
+
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+function SaveBadge({ state }: { state: SaveState }) {
+  if (state === "idle") return null;
+  const text = state === "saving" ? "Saving…" : state === "saved" ? "Saved on this device" : "Not saved on this device";
+  return (
+    <span
+      title={
+        state === "error"
+          ? "The browser refused to store the edit, usually because disk space is low. Editing still works until you close the tab."
+          : undefined
+      }
+      className={`hidden lg:inline-flex items-center gap-1.5 text-[11px] font-bold ${
+        state === "error" ? "text-destructive" : "text-muted-foreground"
+      }`}
+    >
+      {state === "saved" && <CheckIcon className="w-3.5 h-3.5" />}
+      {state === "error" && <AlertIcon className="w-3.5 h-3.5" />}
+      {text}
+    </span>
   );
 }
 
