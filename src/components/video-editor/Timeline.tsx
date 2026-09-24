@@ -1,6 +1,8 @@
 // Multi-track timeline: ruler, track headers, clips with move/trim, playhead.
 
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { MuteIcon, VolumeIcon } from "@/components/icons/audio";
+import { EyeIcon, EyeOffIcon, XIcon } from "@/components/icons/ui";
 import {
   type Clip,
   type MediaItem,
@@ -328,21 +330,23 @@ const TrackHeader = memo(function TrackHeader({
   onToggle: (id: string, key: "muted" | "hidden") => void;
   onRemove: (id: string) => void;
 }) {
-  const btn = "w-6 h-6 text-[11px] font-bold border border-foreground/40 hover:bg-muted flex items-center justify-center";
+  const btn = "w-7 h-7 border-2 border-foreground flex items-center justify-center transition-colors";
+  const off = "bg-foreground text-background";
+  const on = "bg-card hover:bg-muted";
   return (
     <div
       className="flex items-center gap-1 px-2 border-b border-foreground/20 group"
       style={{ height: ROW_H[track.kind] }}
     >
-      <span className="flex-1 truncate text-xs font-bold">{track.name}</span>
+      <span className="flex-1 truncate text-xs font-bold uppercase tracking-wide">{track.name}</span>
       {track.kind !== "audio" && (
         <button
           type="button"
           title={track.hidden ? "Show track" : "Hide track"}
           onClick={() => onToggle(track.id, "hidden")}
-          className={`${btn} ${track.hidden ? "bg-foreground text-background" : ""}`}
+          className={`${btn} ${track.hidden ? off : on}`}
         >
-          {track.hidden ? "◌" : "◉"}
+          {track.hidden ? <EyeOffIcon className="w-3.5 h-3.5" /> : <EyeIcon className="w-3.5 h-3.5" />}
         </button>
       )}
       {track.kind !== "text" && (
@@ -350,9 +354,9 @@ const TrackHeader = memo(function TrackHeader({
           type="button"
           title={track.muted ? "Unmute track" : "Mute track"}
           onClick={() => onToggle(track.id, "muted")}
-          className={`${btn} ${track.muted ? "bg-foreground text-background" : ""}`}
+          className={`${btn} ${track.muted ? off : on}`}
         >
-          M
+          {track.muted ? <MuteIcon className="w-3.5 h-3.5" /> : <VolumeIcon className="w-3.5 h-3.5" />}
         </button>
       )}
       {empty && (
@@ -360,9 +364,9 @@ const TrackHeader = memo(function TrackHeader({
           type="button"
           title="Remove track"
           onClick={() => onRemove(track.id)}
-          className={`${btn} opacity-0 group-hover:opacity-100`}
+          className={`${btn} ${on} hidden group-hover:flex hover:!bg-destructive hover:text-white`}
         >
-          ×
+          <XIcon className="w-3.5 h-3.5" />
         </button>
       )}
     </div>

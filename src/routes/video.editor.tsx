@@ -21,7 +21,7 @@ export const Route = createFileRoute("/video/editor")({
 });
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fmtTime, type Gesture, Timeline } from "@/components/video-editor/Timeline";
+import { fmtTime, type Gesture, TRACK_HEADER_W, Timeline } from "@/components/video-editor/Timeline";
 import { PauseIcon, PlayIcon, TrashIcon } from "@/components/icons/ui";
 import { VideoEditorIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
@@ -57,6 +57,11 @@ import { AUDIO_EXTENSIONS, MEDIABUNNY_VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } fr
 const IMAGE_EXTENSIONS = ".png,.jpg,.jpeg,.webp,.gif,.avif,.bmp";
 const ACCEPT = `${MEDIABUNNY_VIDEO_EXTENSIONS},${AUDIO_EXTENSIONS},${IMAGE_EXTENSIONS}`;
 const HISTORY_LIMIT = 100;
+const MIN_PPS = 4;
+const MAX_PPS = 400;
+// The zoom slider is logarithmic so each notch feels the same at any zoom level.
+const zoomToSlider = (pps: number) => Math.log(pps / MIN_PPS) / Math.log(MAX_PPS / MIN_PPS);
+const sliderToZoom = (v: number) => MIN_PPS * (MAX_PPS / MIN_PPS) ** v;
 
 const RESOLUTIONS = [
   { label: "1080p landscape (1920×1080)", w: 1920, h: 1080 },
@@ -466,6 +471,13 @@ function VideoEditorPage() {
     });
   }, [result, addToBuffer]);
 
+  const timelineWrapRef = useRef<HTMLDivElement>(null);
+  const fitTimeline = useCallback(() => {
+    const w = (timelineWrapRef.current?.clientWidth ?? 1000) - TRACK_HEADER_W - 24;
+    const d = projectDuration(projectRef.current) || 10;
+    setPps(Math.min(MAX_PPS, Math.max(MIN_PPS, w / (d * 1.05))));
+  }, []);
+
   // ── Keyboard shortcuts ─────────────────────────────────────
   useEffect(() => {
     if (!hasMedia || result) return;
@@ -683,20 +695,46 @@ function VideoEditorPage() {
             <ToolButton onClick={() => addTrack("video")}>+ Video track</ToolButton>
             <ToolButton onClick={() => addTrack("audio")}>+ Audio track</ToolButton>
             <div className="flex-1" />
-            <label className="flex items-center gap-2 text-xs font-bold">
-              Zoom
+            <div className="flex items-center border-2 border-foreground">
+              <button
+                type="button"
+                title="Zoom out"
+                onClick={() => setPps((z) => Math.max(MIN_PPS, z / 1.5))}
+                className="w-8 h-8 text-base font-bold hover:bg-muted border-r-2 border-foreground"
+              >
+                −
+              </button>
               <input
                 type="range"
-                min={4}
-                max={400}
-                step={1}
-                value={pps}
-                onChange={(e) => setPps(Number(e.target.value))}
-                className="w-32"
+                aria-label="Timeline zoom"
+                min={0}
+                max={1}
+                step={0.001}
+                value={zoomToSlider(pps)}
+                onChange={(e) => setPps(sliderToZoom(Number(e.target.value)))}
+                className="range-brutal w-28 mx-3"
+                style={fill(zoomToSlider(pps), 0, 1)}
               />
-            </label>
+              <button
+                type="button"
+                title="Zoom in"
+                onClick={() => setPps((z) => Math.min(MAX_PPS, z * 1.5))}
+                className="w-8 h-8 text-base font-bold hover:bg-muted border-l-2 border-foreground"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                title="Fit the whole project"
+                onClick={fitTimeline}
+                className="h-8 px-3 text-xs font-bold hover:bg-muted border-l-2 border-foreground"
+              >
+                Fit
+              </button>
+            </div>
           </div>
 
+          <div ref={timelineWrapRef}>
           <Timeline
             project={project}
             media={media}
@@ -712,6 +750,7 @@ function VideoEditorPage() {
             onDropMedia={addMediaToTimeline}
             onZoom={setPps}
           />
+          </div>
           <p className="text-[11px] text-muted-foreground">
             Space play · S split · T text · ⌫ delete · ⌘D duplicate · ⌘Z undo · ←/→ frame step · ⌘+scroll zoom · drag
             clips in the preview to move them
@@ -859,11 +898,16 @@ function Slider({
         onPointerUp={onCommit}
         onKeyUp={onCommit}
         onBlur={onCommit}
-        className="w-full"
+        className="range-brutal w-full"
+        style={fill(value, min, max)}
       />
     </label>
   );
 }
+
+/** Track fill up to the thumb, for .range-brutal. */
+const fill = (v: number, min: number, max: number) =>
+  ({ "--fill": `${((v - min) / (max - min || 1)) * 100}%` }) as React.CSSProperties;
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const secs = (v: number) => `${v.toFixed(1)}s`;
@@ -984,10 +1028,10 @@ function TextInspector({
       <div className="flex items-center gap-3 flex-wrap">
         <label className="flex items-center gap-1.5 text-xs font-bold">
           Color
-          <input type="color" value={clip.color} onChange={(e) => onLive({ color: e.target.value })} onBlur={onCommit} />
+          <input type="color" className="swatch-brutal" value={clip.color} onChange={(e) => onLive({ color: e.target.value })} onBlur={onCommit} />
         </label>
         <label className="flex items-center gap-1.5 text-xs font-bold">
-          <input type="checkbox" checked={clip.bold} onChange={(e) => onPatch({ bold: e.target.checked })} />
+          <input type="checkbox" className="w-4 h-4 accent-primary" checked={clip.bold} onChange={(e) => onPatch({ bold: e.target.checked })} />
           Bold
         </label>
       </div>
@@ -995,13 +1039,14 @@ function TextInspector({
         <label className="flex items-center gap-1.5 text-xs font-bold">
           <input
             type="checkbox"
+            className="w-4 h-4 accent-primary"
             checked={!!clip.background}
             onChange={(e) => onPatch({ background: e.target.checked ? "#000000" : null })}
           />
           Background
         </label>
         {clip.background && (
-          <input type="color" value={clip.background} onChange={(e) => onLive({ background: e.target.value })} onBlur={onCommit} />
+          <input type="color" className="swatch-brutal" value={clip.background} onChange={(e) => onLive({ background: e.target.value })} onBlur={onCommit} />
         )}
       </div>
       <TransformControls clip={clip} onLive={onLive} onCommit={onCommit} onPatch={onPatch} withScale={false} />
@@ -1047,7 +1092,7 @@ function ProjectInspector({ project, onChange }: { project: Project; onChange: (
       </label>
       <label className="flex items-center gap-2 text-xs font-bold">
         Background
-        <input type="color" value={project.background} onChange={(e) => onChange({ background: e.target.value })} />
+        <input type="color" className="swatch-brutal" value={project.background} onChange={(e) => onChange({ background: e.target.value })} />
       </label>
       <p className="text-[11px] text-muted-foreground">Select a clip on the timeline or in the preview to edit it.</p>
     </>

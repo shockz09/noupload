@@ -1364,3 +1364,48 @@ input.markdown-editor:focus {
 .dock-menu-item:hover {
   background: var(--accent);
 }
+
+/* ── Brutalist range + colour swatch (video editor) ───────── */
+.range-brutal {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 10px;
+  border: 2px solid var(--foreground);
+  background: linear-gradient(to right, var(--primary) var(--fill, 0%), var(--muted) var(--fill, 0%));
+  cursor: pointer;
+}
+.range-brutal::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 20px;
+  background: var(--card);
+  border: 2px solid var(--foreground);
+  box-shadow: 2px 2px 0 var(--foreground);
+  cursor: grab;
+}
+.range-brutal::-moz-range-thumb {
+  width: 12px;
+  height: 16px;
+  border-radius: 0;
+  background: var(--card);
+  border: 2px solid var(--foreground);
+  box-shadow: 2px 2px 0 var(--foreground);
+  cursor: grab;
+}
+.range-brutal:active::-webkit-slider-thumb { cursor: grabbing; background: var(--accent); }
+.range-brutal:active::-moz-range-thumb { cursor: grabbing; background: var(--accent); }
+.range-brutal:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.swatch-brutal {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid var(--foreground);
+  background: none;
+  cursor: pointer;
+}
+.swatch-brutal::-webkit-color-swatch-wrapper { padding: 0; }
+.swatch-brutal::-webkit-color-swatch { border: none; }
+.swatch-brutal::-moz-color-swatch { border: none; }
