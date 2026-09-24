@@ -104,11 +104,28 @@ function TrimAudioPage() {
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.currentTime = startTime;
+      const from = currentTime >= startTime && currentTime < endTime - 0.05 ? currentTime : startTime;
+      audioRef.current.currentTime = from;
+      setCurrentTime(from);
       audioRef.current.play();
     }
     setIsPlaying(!isPlaying);
-  }, [isPlaying, startTime]);
+  }, [isPlaying, startTime, endTime, currentTime]);
+
+  const seekTo = useCallback(
+    (t: number) => {
+      const c = Math.max(0, Math.min(t, duration));
+      if (audioRef.current) {
+        audioRef.current.currentTime = c;
+        if (isPlaying && (c < startTime || c >= endTime)) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        }
+      }
+      setCurrentTime(c);
+    },
+    [duration, isPlaying, startTime, endTime],
+  );
 
   const handleTimeUpdate = useCallback(() => {
     if (!audioRef.current) return;
@@ -168,12 +185,26 @@ function TrimAudioPage() {
     [duration],
   );
 
+  // Region drag remembers where it was grabbed; a press that never moves is a click-to-seek
+  const dragOriginRef = useRef({ x: 0, time: 0, start: 0, moved: false });
+
   const handleMouseDown = useCallback(
     (type: "start" | "end" | "region") => (e: React.MouseEvent) => {
       e.preventDefault();
+      e.stopPropagation();
+      dragOriginRef.current = { x: e.clientX, time: getTimeFromEvent(e) ?? 0, start: startTime, moved: false };
       setDragging(type);
     },
-    [],
+    [getTimeFromEvent, startTime],
+  );
+
+  const handleWaveformMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      const t = getTimeFromEvent(e);
+      if (t !== null) seekTo(t);
+    },
+    [getTimeFromEvent, seekTo],
   );
 
   useEffect(() => {
@@ -182,20 +213,29 @@ function TrimAudioPage() {
     const handleMouseMove = (e: MouseEvent) => {
       const time = getTimeFromEvent(e);
       if (time === null) return;
+      if (Math.abs(e.clientX - dragOriginRef.current.x) > 3) dragOriginRef.current.moved = true;
 
       if (dragging === "start") {
         setStartTime(Math.max(0, Math.min(time, endTime - 0.1)));
       } else if (dragging === "end") {
         setEndTime(Math.min(duration, Math.max(time, startTime + 0.1)));
       } else if (dragging === "region") {
+        if (!dragOriginRef.current.moved) return;
         const regionDuration = endTime - startTime;
-        const newStart = Math.max(0, Math.min(time - regionDuration / 2, duration - regionDuration));
+        const shifted = dragOriginRef.current.start + (time - dragOriginRef.current.time);
+        const newStart = Math.max(0, Math.min(shifted, duration - regionDuration));
         setStartTime(newStart);
         setEndTime(() => newStart + regionDuration);
       }
     };
 
-    const handleMouseUp = () => setDragging(null);
+    const handleMouseUp = (e: MouseEvent) => {
+      if (dragging === "region" && !dragOriginRef.current.moved) {
+        const time = getTimeFromEvent(e);
+        if (time !== null) seekTo(time);
+      }
+      setDragging(null);
+    };
 
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
@@ -203,7 +243,7 @@ function TrimAudioPage() {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [dragging, startTime, endTime, duration, getTimeFromEvent]);
+  }, [dragging, startTime, endTime, duration, getTimeFromEvent, seekTo]);
 
   const startPercent = duration > 0 ? (startTime / duration) * 100 : 0;
   const endPercent = duration > 0 ? (endTime / duration) * 100 : 100;
@@ -268,14 +308,15 @@ function TrimAudioPage() {
           {/* Waveform with draggable selection */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="input-label">Drag handles to select region</span>
+              <span className="input-label">Drag handles to select, click to seek</span>
               <span className="text-sm font-mono text-muted-foreground">
                 {formatDuration(startTime)} → {formatDuration(endTime)}
               </span>
             </div>
             <div
               ref={waveformRef}
-              className={`relative border-2 border-foreground bg-muted/30 h-28 select-none ${dragging ? "cursor-grabbing" : ""}`}
+              className={`relative border-2 border-foreground bg-muted/30 h-28 select-none cursor-pointer ${dragging ? "cursor-grabbing" : ""}`}
+              onMouseDown={handleWaveformMouseDown}
             >
               {/* Waveform bars */}
               <div className="absolute inset-0 flex items-center px-1 pointer-events-none">
@@ -337,8 +378,8 @@ function TrimAudioPage() {
                 <div className="w-0.5 h-8 bg-primary-foreground/50" />
               </div>
 
-              {/* Current time indicator */}
-              {isPlaying && (
+              {/* Playhead */}
+              {duration > 0 && (
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-foreground pointer-events-none"
                   style={{ left: `${currentPercent}%` }}
