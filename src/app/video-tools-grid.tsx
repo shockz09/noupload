@@ -10,11 +10,31 @@ import {
   VideoRotateIcon,
   VideoSpeedIcon,
   VideoToGifIcon,
+  VideoEditorIcon,
   VideoTrimIcon,
 } from "@/components/icons/video";
 import { subtitlesTool } from "./subtitles-tool";
 
 export const videoTools = [
+  {
+    title: "Video Editor",
+    description: "Multi-track timeline with audio, text and images",
+    href: "/video/editor",
+    icon: VideoEditorIcon,
+    category: "edit",
+    colorClass: "tool-video-editor",
+    keywords: [
+      "video editor",
+      "edit video",
+      "timeline",
+      "multi track",
+      "add text to video",
+      "add music to video",
+      "combine clips",
+      "picture in picture",
+      "overlay",
+    ],
+  },
   {
     title: "Compress",
     description: "Reduce video or GIF file size with quality control",

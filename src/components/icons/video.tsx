@@ -261,3 +261,24 @@ export function VideoSpeedIcon({ className = "w-6 h-6" }: { className?: string }
     </svg>
   );
 }
+
+export function VideoEditorIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="3" width="20" height="11" rx="2" />
+      <polygon points="10 6 14.5 8.5 10 11 10 6" fill="currentColor" />
+      <line x1="2" y1="18" x2="22" y2="18" />
+      <line x1="2" y1="21.5" x2="13" y2="21.5" />
+      <line x1="8" y1="16" x2="8" y2="23" />
+    </svg>
+  );
+}

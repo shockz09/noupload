@@ -88,6 +88,7 @@ import { Route as VideoAddAudioRouteImport } from './routes/video.add-audio'
 import { Route as VideoCompressRouteImport } from './routes/video.compress'
 import { Route as VideoConvertRouteImport } from './routes/video.convert'
 import { Route as VideoCropRouteImport } from './routes/video.crop'
+import { Route as VideoEditorRouteImport } from './routes/video.editor'
 import { Route as VideoExtractAudioRouteImport } from './routes/video.extract-audio'
 import { Route as VideoFlipRouteImport } from './routes/video.flip'
 import { Route as VideoMergeRouteImport } from './routes/video.merge'
@@ -494,6 +495,11 @@ const VideoCropRoute = VideoCropRouteImport.update({
   path: '/video/crop',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VideoEditorRoute = VideoEditorRouteImport.update({
+  id: '/video/editor',
+  path: '/video/editor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VideoExtractAudioRoute = VideoExtractAudioRouteImport.update({
   id: '/video/extract-audio',
   path: '/video/extract-audio',
@@ -621,6 +627,7 @@ export interface FileRoutesByFullPath {
   '/video/compress': typeof VideoCompressRoute
   '/video/convert': typeof VideoConvertRoute
   '/video/crop': typeof VideoCropRoute
+  '/video/editor': typeof VideoEditorRoute
   '/video/extract-audio': typeof VideoExtractAudioRoute
   '/video/flip': typeof VideoFlipRoute
   '/video/merge': typeof VideoMergeRoute
@@ -712,6 +719,7 @@ export interface FileRoutesByTo {
   '/video/compress': typeof VideoCompressRoute
   '/video/convert': typeof VideoConvertRoute
   '/video/crop': typeof VideoCropRoute
+  '/video/editor': typeof VideoEditorRoute
   '/video/extract-audio': typeof VideoExtractAudioRoute
   '/video/flip': typeof VideoFlipRoute
   '/video/merge': typeof VideoMergeRoute
@@ -804,6 +812,7 @@ export interface FileRoutesById {
   '/video/compress': typeof VideoCompressRoute
   '/video/convert': typeof VideoConvertRoute
   '/video/crop': typeof VideoCropRoute
+  '/video/editor': typeof VideoEditorRoute
   '/video/extract-audio': typeof VideoExtractAudioRoute
   '/video/flip': typeof VideoFlipRoute
   '/video/merge': typeof VideoMergeRoute
@@ -897,6 +906,7 @@ export interface FileRouteTypes {
     | '/video/compress'
     | '/video/convert'
     | '/video/crop'
+    | '/video/editor'
     | '/video/extract-audio'
     | '/video/flip'
     | '/video/merge'
@@ -988,6 +998,7 @@ export interface FileRouteTypes {
     | '/video/compress'
     | '/video/convert'
     | '/video/crop'
+    | '/video/editor'
     | '/video/extract-audio'
     | '/video/flip'
     | '/video/merge'
@@ -1079,6 +1090,7 @@ export interface FileRouteTypes {
     | '/video/compress'
     | '/video/convert'
     | '/video/crop'
+    | '/video/editor'
     | '/video/extract-audio'
     | '/video/flip'
     | '/video/merge'
@@ -1171,6 +1183,7 @@ export interface RootRouteChildren {
   VideoCompressRoute: typeof VideoCompressRoute
   VideoConvertRoute: typeof VideoConvertRoute
   VideoCropRoute: typeof VideoCropRoute
+  VideoEditorRoute: typeof VideoEditorRoute
   VideoExtractAudioRoute: typeof VideoExtractAudioRoute
   VideoFlipRoute: typeof VideoFlipRoute
   VideoMergeRoute: typeof VideoMergeRoute
@@ -1742,6 +1755,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VideoCropRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/video/editor': {
+      id: '/video/editor'
+      path: '/video/editor'
+      fullPath: '/video/editor'
+      preLoaderRoute: typeof VideoEditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/video/extract-audio': {
       id: '/video/extract-audio'
       path: '/video/extract-audio'
@@ -1891,6 +1911,7 @@ const rootRouteChildren: RootRouteChildren = {
   VideoCompressRoute: VideoCompressRoute,
   VideoConvertRoute: VideoConvertRoute,
   VideoCropRoute: VideoCropRoute,
+  VideoEditorRoute: VideoEditorRoute,
   VideoExtractAudioRoute: VideoExtractAudioRoute,
   VideoFlipRoute: VideoFlipRoute,
   VideoMergeRoute: VideoMergeRoute,
