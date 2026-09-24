@@ -247,11 +247,11 @@ export const Timeline = memo(function Timeline({
   }, [pps, contentW, step]);
 
   return (
-    <div className="border-2 border-foreground bg-card select-none">
-      <div className="flex max-h-[420px] overflow-y-auto">
+    <div className="h-full bg-card select-none">
+      <div className="h-full flex overflow-y-auto">
         {/* Track headers */}
-        <div className="shrink-0 border-r-2 border-foreground bg-muted/40" style={{ width: TRACK_HEADER_W }}>
-          <div style={{ height: RULER_H }} className="border-b-2 border-foreground" />
+        <div className="shrink-0 border-r-2 border-foreground bg-muted self-start min-h-full" style={{ width: TRACK_HEADER_W }}>
+          <div style={{ height: RULER_H }} className="sticky top-0 z-30 border-b-2 border-foreground bg-muted" />
           {project.tracks.map((track) => (
             <TrackHeader
               key={track.id}
@@ -264,11 +264,11 @@ export const Timeline = memo(function Timeline({
         </div>
 
         {/* Lanes */}
-        <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-hidden">
-          <div ref={lanesRef} className="relative" style={{ width: contentW }}>
+        <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-visible self-start min-h-full">
+          <div ref={lanesRef} className="relative min-h-full" style={{ width: contentW }}>
             {/* Ruler */}
             <div
-              className="relative border-b-2 border-foreground bg-muted/40 cursor-pointer"
+              className="sticky top-0 z-30 border-b-2 border-foreground bg-muted cursor-pointer"
               style={{ height: RULER_H }}
               onPointerDown={onScrubDown}
             >
@@ -306,6 +306,15 @@ export const Timeline = memo(function Timeline({
                   ))}
               </div>
             ))}
+
+            {project.clips.length === 0 && (
+              <div
+                className="absolute left-4 pointer-events-none text-xs font-bold text-muted-foreground border-2 border-dashed border-foreground/30 px-3 py-2 bg-background/80"
+                style={{ top: RULER_H + 12 }}
+              >
+                Drag media from the left onto a track to start
+              </div>
+            )}
 
             {/* Playhead */}
             <div className="absolute top-0 bottom-0 pointer-events-none z-20" style={{ left: time * pps }}>

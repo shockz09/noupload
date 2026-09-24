@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/video/editor")({
   head: () => ({
@@ -22,8 +22,19 @@ export const Route = createFileRoute("/video/editor")({
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fmtTime, type Gesture, TRACK_HEADER_W, Timeline } from "@/components/video-editor/Timeline";
-import { PauseIcon, PlayIcon, TrashIcon } from "@/components/icons/ui";
-import { VideoEditorIcon } from "@/components/icons/video";
+import {
+  AlertIcon,
+  ArrowLeftIcon,
+  CopyIcon,
+  DownloadIcon,
+  PauseIcon,
+  PlayIcon,
+  RotateLeftIcon,
+  RotateRightIcon,
+  TrashIcon,
+  XIcon,
+} from "@/components/icons/ui";
+import { VideoEditorIcon, VideoTrimIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, ProgressBar, VideoPageHeader, VideoResultView } from "@/components/video/shared";
 import { useFileBuffer } from "@/hooks";
@@ -64,12 +75,12 @@ const zoomToSlider = (pps: number) => Math.log(pps / MIN_PPS) / Math.log(MAX_PPS
 const sliderToZoom = (v: number) => MIN_PPS * (MAX_PPS / MIN_PPS) ** v;
 
 const RESOLUTIONS = [
-  { label: "1080p landscape (1920×1080)", w: 1920, h: 1080 },
-  { label: "720p landscape (1280×720)", w: 1280, h: 720 },
-  { label: "4K landscape (3840×2160)", w: 3840, h: 2160 },
-  { label: "Vertical 1080×1920", w: 1080, h: 1920 },
-  { label: "Square 1080×1080", w: 1080, h: 1080 },
-  { label: "Portrait 4:5 (1080×1350)", w: 1080, h: 1350 },
+  { label: "1080p landscape (1920×1080)", short: "1080p", w: 1920, h: 1080 },
+  { label: "720p landscape (1280×720)", short: "720p", w: 1280, h: 720 },
+  { label: "4K landscape (3840×2160)", short: "4K", w: 3840, h: 2160 },
+  { label: "Vertical 1080×1920", short: "9:16", w: 1080, h: 1920 },
+  { label: "Square 1080×1080", short: "1:1", w: 1080, h: 1080 },
+  { label: "Portrait 4:5 (1080×1350)", short: "4:5", w: 1080, h: 1350 },
 ];
 
 interface History {
@@ -152,7 +163,7 @@ function VideoEditorPage() {
   // The engine lives as long as the editor view; project/media updates flow in through the effect below.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !hasMedia || result) return;
+    if (!canvas || !hasMedia) return;
     const engine = new PreviewEngine(canvas);
     engine.onTime = setTime;
     engine.onPlayingChange = setPlaying;
@@ -164,7 +175,7 @@ function VideoEditorPage() {
       engineRef.current = null;
       setPlaying(false);
     };
-  }, [hasMedia, result]);
+  }, [hasMedia]);
 
   useEffect(() => {
     engineRef.current?.setProject(project, media);
@@ -538,29 +549,77 @@ function VideoEditorPage() {
 
   const exporting = exportProgress !== null;
 
-  return (
-    <div className="page-enter space-y-6">
-      <VideoPageHeader
-        icon={<VideoEditorIcon className="w-7 h-7" />}
-        iconClass="tool-video-editor"
-        title="Video Editor"
-        description="Multi-track editing with audio, text and images — all in your browser"
-      />
+  // ── Workspace layout ───────────────────────────────────────
+  const workspace = hasMedia;
+  useEffect(() => {
+    if (!workspace) return;
+    // The editor owns the viewport; the page behind it must not scroll.
+    const root = document.documentElement;
+    const prev = root.style.overflow;
+    root.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = prev;
+    };
+  }, [workspace]);
 
-      {result ? (
-        <div className="max-w-3xl mx-auto">
-          <VideoResultView
-            blob={result}
-            title="Video Exported!"
-            subtitle={`${project.width}×${project.height} · ${fmtTime(duration)}`}
-            downloadLabel="Download Video"
-            onDownload={download}
-            onHoldInBuffer={holdInBuffer}
-            onStartOver={() => setResult(null)}
-            startOverLabel="Back to Editor"
-          />
-        </div>
-      ) : !hasMedia ? (
+  const [timelineH, setTimelineH] = useState(300);
+  useEffect(() => {
+    setTimelineH(Math.round(Math.min(420, Math.max(220, window.innerHeight * 0.36))));
+  }, []);
+  const onSplitterDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      const y0 = e.clientY;
+      const h0 = timelineH;
+      const move = (ev: PointerEvent) =>
+        setTimelineH(Math.round(Math.min(window.innerHeight - 320, Math.max(160, h0 - (ev.clientY - y0)))));
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    },
+    [timelineH],
+  );
+
+  // Fit the canvas inside the stage at the project's aspect ratio.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stage, setStage] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const r = entry.contentRect;
+      setStage({ w: r.width, h: r.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [workspace]);
+  const aspect = project.width / project.height;
+  const canvasW = Math.max(0, Math.floor(Math.min(stage.w, stage.h * aspect)));
+  const canvasH = Math.max(0, Math.floor(canvasW / aspect));
+
+  const [showKeys, setShowKeys] = useState(false);
+
+  const leave = useCallback(
+    (e: React.MouseEvent) => {
+      if (projectRef.current.clips.length > 0 && !window.confirm("Leave the editor? Your edit isn't saved anywhere.")) {
+        e.preventDefault();
+      }
+    },
+    [],
+  );
+
+  if (!workspace) {
+    return (
+      <div className="page-enter space-y-8">
+        <VideoPageHeader
+          icon={<VideoEditorIcon className="w-7 h-7" />}
+          iconClass="tool-video-editor"
+          title="Video Editor"
+          description="Multi-track editing with audio, text and images — all in your browser"
+        />
         <div className="max-w-2xl mx-auto space-y-6">
           <FileDropzone
             accept={ACCEPT}
@@ -577,164 +636,265 @@ function VideoEditorPage() {
             this device.
           </InfoBox>
         </div>
-      ) : (
-        <div className="space-y-4" onDragOver={(e) => e.preventDefault()} onDrop={onEditorDrop}>
-          <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_260px]">
-            {/* Media bin */}
-            <div className="border-2 border-foreground bg-card flex flex-col min-h-0 lg:max-h-[520px]">
-              <div className="flex items-center justify-between px-3 py-2 border-b-2 border-foreground">
-                <span className="text-sm font-bold">Media</span>
-                <button
-                  type="button"
-                  className="text-xs font-bold border-2 border-foreground px-2 py-0.5 hover:bg-muted"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  + Import
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={ACCEPT}
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) addFiles(Array.from(e.target.files));
-                    e.target.value = "";
-                  }}
-                />
-              </div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                {mediaList.map((item) => (
-                  <MediaCard key={item.id} item={item} onAdd={addMediaToTimeline} onRemove={removeMedia} />
-                ))}
-                {importing > 0 && (
-                  <div className="text-xs text-muted-foreground text-center py-2">Importing {importing}…</div>
-                )}
-                <p className="text-[11px] text-muted-foreground px-1">Drag onto a track, or press + to add at the playhead.</p>
-              </div>
-            </div>
+      </div>
+    );
+  }
 
-            {/* Preview */}
-            <div className="space-y-2 min-w-0">
-              <div className="border-2 border-foreground bg-black flex items-center justify-center">
-                <canvas
-                  ref={canvasRef}
-                  onPointerDown={onCanvasDown}
-                  className="max-w-full max-h-[440px] w-auto h-auto block"
-                  style={{ aspectRatio: `${project.width} / ${project.height}` }}
-                />
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={togglePlay}
-                  title="Play/Pause (Space)"
-                  className="w-10 h-10 border-2 border-foreground flex items-center justify-center hover:bg-muted"
-                >
-                  {playing ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5 ml-0.5" />}
-                </button>
-                <span className="font-mono text-sm tabular-nums">
-                  {fmtTime(time, project.fps)} / {fmtTime(duration, project.fps)}
-                </span>
-                <div className="flex-1" />
-                <ToolButton onClick={undo} disabled={!hist.past.length} title="Undo (⌘Z)">
-                  Undo
-                </ToolButton>
-                <ToolButton onClick={redo} disabled={!hist.future.length} title="Redo (⇧⌘Z)">
-                  Redo
-                </ToolButton>
-              </div>
-            </div>
+  const panelTitle = "h-10 shrink-0 flex items-center justify-between gap-2 px-3 border-b-2 border-foreground bg-muted";
+  const kicker = "text-[11px] font-bold uppercase tracking-[0.14em]";
 
-            {/* Inspector */}
-            <div className="border-2 border-foreground bg-card lg:max-h-[520px] overflow-y-auto">
-              <div className="px-3 py-2 border-b-2 border-foreground text-sm font-bold">
-                {selected ? (selected.type === "text" ? "Text" : "Clip") : "Project"}
-              </div>
-              <div className="p-3 space-y-4">
-                {selected?.type === "media" ? (
-                  <MediaInspector
-                    clip={selected}
-                    item={media.get(selected.mediaId)}
-                    onTrackKind={project.tracks.find((t) => t.id === selected.trackId)?.kind ?? "video"}
-                    onLive={livePatch}
-                    onCommit={gesture.end}
-                    onPatch={patchSelected}
-                    onDetach={detachAudio}
-                  />
-                ) : selected?.type === "text" ? (
-                  <TextInspector clip={selected} onLive={livePatch} onCommit={gesture.end} onPatch={patchSelected} />
-                ) : (
-                  <ProjectInspector project={project} onChange={(patch) => commit((p) => ({ ...p, ...patch }))} />
-                )}
-                {selected && (
-                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-foreground/20">
-                    <ToolButton onClick={splitAtPlayhead} title="Split at playhead (S)">
-                      Split
-                    </ToolButton>
-                    <ToolButton onClick={duplicateSelected} title="Duplicate (⌘D)">
-                      Copy
-                    </ToolButton>
-                    <ToolButton onClick={deleteSelected} title="Delete (⌫)" danger>
-                      Delete
-                    </ToolButton>
-                  </div>
-                )}
-              </div>
-            </div>
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-background text-foreground select-none"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={onEditorDrop}
+    >
+      {/* ── Top bar ── */}
+      <header className="h-14 shrink-0 flex items-center gap-3 px-3 border-b-2 border-foreground bg-card">
+        <Link
+          to="/video"
+          onClick={leave}
+          title="Back to video tools"
+          className="w-9 h-9 border-2 border-foreground flex items-center justify-center hover:bg-muted transition-colors"
+        >
+          <ArrowLeftIcon className="w-4 h-4" />
+        </Link>
+        <div className="tool-video-editor w-9 h-9 border-2 border-foreground flex items-center justify-center text-white bg-[var(--tool-color)]">
+          <VideoEditorIcon className="w-5 h-5" />
+        </div>
+        <h1 className="font-display text-2xl leading-none">Video Editor</h1>
+        <button
+          type="button"
+          onClick={() => setSelectedId(null)}
+          title="Project settings"
+          className="hidden md:inline-flex items-center gap-2 ml-2 h-8 px-3 border-2 border-foreground bg-background hover:bg-accent text-xs font-bold font-mono transition-colors"
+        >
+          {project.width}×{project.height} · {project.fps}fps
+        </button>
+
+        <div className="flex-1" />
+
+        <div className="flex items-center">
+          <IconButton onClick={undo} disabled={!hist.past.length} title="Undo (⌘Z)" className="border-r-0">
+            <RotateLeftIcon className="w-4 h-4" />
+          </IconButton>
+          <IconButton onClick={redo} disabled={!hist.future.length} title="Redo (⇧⌘Z)">
+            <RotateRightIcon className="w-4 h-4" />
+          </IconButton>
+        </div>
+        <div className="relative">
+          <IconButton onClick={() => setShowKeys((v) => !v)} title="Keyboard shortcuts" active={showKeys}>
+            <span className="text-sm font-bold">?</span>
+          </IconButton>
+          {showKeys && <ShortcutsCard onClose={() => setShowKeys(false)} />}
+        </div>
+        <button
+          type="button"
+          onClick={runExport}
+          disabled={duration <= 0 || exporting}
+          className="h-9 px-4 inline-flex items-center gap-2 border-2 border-foreground bg-primary text-primary-foreground text-sm font-bold shadow-[3px_3px_0_0_var(--foreground)] hover:-translate-x-px hover:-translate-y-px hover:shadow-[4px_4px_0_0_var(--foreground)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0"
+        >
+          <DownloadIcon className="w-4 h-4" />
+          Export
+        </button>
+      </header>
+
+      {/* ── Work area ── */}
+      <div className="flex-1 min-h-0 flex">
+        {/* Media bin */}
+        <aside className="w-52 xl:w-64 shrink-0 flex flex-col border-r-2 border-foreground bg-card">
+          <div className={panelTitle}>
+            <span className={kicker}>Media</span>
+            <span className="text-[11px] font-mono text-muted-foreground">{mediaList.length}</span>
           </div>
-
-          {/* Timeline toolbar */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <ToolButton onClick={splitAtPlayhead} title="Split at playhead (S)">
-              ✂ Split
-            </ToolButton>
-            <ToolButton onClick={addText} title="Add text (T)">
-              + Text
-            </ToolButton>
-            <ToolButton onClick={() => addTrack("video")}>+ Video track</ToolButton>
-            <ToolButton onClick={() => addTrack("audio")}>+ Audio track</ToolButton>
-            <div className="flex-1" />
-            <div className="flex items-center border-2 border-foreground">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3">
+            <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                title="Zoom out"
-                onClick={() => setPps((z) => Math.max(MIN_PPS, z / 1.5))}
-                className="w-8 h-8 text-base font-bold hover:bg-muted border-r-2 border-foreground"
+                onClick={() => fileInputRef.current?.click()}
+                className="aspect-video border-2 border-dashed border-foreground/50 hover:border-foreground hover:bg-accent flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
               >
-                −
+                <span className="text-lg font-bold leading-none">+</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider">Import</span>
               </button>
-              <input
-                type="range"
-                aria-label="Timeline zoom"
-                min={0}
-                max={1}
-                step={0.001}
-                value={zoomToSlider(pps)}
-                onChange={(e) => setPps(sliderToZoom(Number(e.target.value)))}
-                className="range-brutal w-28 mx-3"
-                style={fill(zoomToSlider(pps), 0, 1)}
+              {mediaList.map((item) => (
+                <MediaCard key={item.id} item={item} onAdd={addMediaToTimeline} onRemove={removeMedia} />
+              ))}
+              {Array.from({ length: importing }, (_, i) => (
+                <div key={`loading-${i}`} className="aspect-video border-2 border-foreground/30 bg-muted animate-pulse" />
+              ))}
+            </div>
+            <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
+              Drag onto a track, or hit + to drop it at the playhead. You can also drop files anywhere.
+            </p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPT}
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files) addFiles(Array.from(e.target.files));
+              e.target.value = "";
+            }}
+          />
+        </aside>
+
+        {/* Preview */}
+        <main className="flex-1 min-w-0 flex flex-col">
+          <div
+            className="flex-1 min-h-0 p-5 bg-muted"
+            style={{
+              backgroundImage: "radial-gradient(color-mix(in srgb, var(--foreground) 14%, transparent) 1px, transparent 1px)",
+              backgroundSize: "18px 18px",
+            }}
+          >
+            <div ref={stageRef} className="w-full h-full flex items-center justify-center">
+              <canvas
+                ref={canvasRef}
+                onPointerDown={onCanvasDown}
+                className="block border-2 border-foreground bg-black shadow-[6px_6px_0_0_var(--foreground)]"
+                style={{ width: canvasW, height: canvasH }}
               />
-              <button
-                type="button"
-                title="Zoom in"
-                onClick={() => setPps((z) => Math.min(MAX_PPS, z * 1.5))}
-                className="w-8 h-8 text-base font-bold hover:bg-muted border-l-2 border-foreground"
-              >
-                +
-              </button>
-              <button
-                type="button"
-                title="Fit the whole project"
-                onClick={fitTimeline}
-                className="h-8 px-3 text-xs font-bold hover:bg-muted border-l-2 border-foreground"
-              >
-                Fit
-              </button>
             </div>
           </div>
+          <div className="h-14 shrink-0 flex items-center gap-2 px-3 border-t-2 border-foreground bg-card">
+            <IconButton onClick={() => seek(0)} title="Go to start (Home)">
+              <SkipIcon className="w-4 h-4 rotate-180" />
+            </IconButton>
+            <button
+              type="button"
+              onClick={togglePlay}
+              title="Play/Pause (Space)"
+              className="w-11 h-11 border-2 border-foreground bg-primary text-primary-foreground flex items-center justify-center shadow-[3px_3px_0_0_var(--foreground)] hover:-translate-x-px hover:-translate-y-px active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
+            >
+              {playing ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5 ml-0.5" />}
+            </button>
+            <IconButton onClick={() => seek(duration)} title="Go to end (End)">
+              <SkipIcon className="w-4 h-4" />
+            </IconButton>
+            <div className="ml-2 font-mono text-sm tabular-nums">
+              <span className="font-bold">{fmtTime(time, project.fps)}</span>
+              <span className="text-muted-foreground"> / {fmtTime(duration, project.fps)}</span>
+            </div>
+          </div>
+        </main>
 
-          <div ref={timelineWrapRef}>
+        {/* Inspector */}
+        <aside className="w-64 xl:w-72 shrink-0 flex flex-col border-l-2 border-foreground bg-card">
+          <div className={panelTitle}>
+            <span className={kicker}>{selected ? (selected.type === "text" ? "Text" : "Clip") : "Project"}</span>
+            {selected && (
+              <div className="flex items-center gap-1">
+                <MiniButton onClick={splitAtPlayhead} title="Split at playhead (S)">
+                  <VideoTrimIcon className="w-3.5 h-3.5" />
+                </MiniButton>
+                <MiniButton onClick={duplicateSelected} title="Duplicate (⌘D)">
+                  <CopyIcon className="w-3.5 h-3.5" />
+                </MiniButton>
+                <MiniButton onClick={deleteSelected} title="Delete (⌫)" danger>
+                  <TrashIcon className="w-3.5 h-3.5" />
+                </MiniButton>
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto select-text">
+            {selected?.type === "media" ? (
+              <MediaInspector
+                clip={selected}
+                item={media.get(selected.mediaId)}
+                onTrackKind={project.tracks.find((t) => t.id === selected.trackId)?.kind ?? "video"}
+                onLive={livePatch}
+                onCommit={gesture.end}
+                onPatch={patchSelected}
+                onDetach={detachAudio}
+              />
+            ) : selected?.type === "text" ? (
+              <TextInspector clip={selected} onLive={livePatch} onCommit={gesture.end} onPatch={patchSelected} />
+            ) : (
+              <ProjectInspector project={project} onChange={(patch) => commit((p) => ({ ...p, ...patch }))} />
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {/* ── Splitter ── */}
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize timeline"
+        aria-valuenow={timelineH}
+        aria-valuemin={160}
+        aria-valuemax={1200}
+        tabIndex={0}
+        onPointerDown={onSplitterDown}
+        onKeyDown={(e) => {
+          if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+          e.preventDefault();
+          e.stopPropagation();
+          setTimelineH((h) => Math.min(window.innerHeight - 320, Math.max(160, h + (e.key === "ArrowUp" ? 24 : -24))));
+        }}
+        className="h-2.5 shrink-0 border-y-2 border-foreground bg-muted cursor-row-resize flex items-center justify-center hover:bg-accent group"
+      >
+        <div className="w-10 h-0.5 bg-foreground/40 group-hover:bg-foreground" />
+      </div>
+
+      {/* ── Timeline ── */}
+      <section ref={timelineWrapRef} className="shrink-0 flex flex-col bg-card" style={{ height: timelineH }}>
+        <div className="h-11 shrink-0 flex items-center gap-2 px-3 border-b-2 border-foreground">
+          <ToolButton onClick={splitAtPlayhead} title="Split at playhead (S)">
+            <VideoTrimIcon className="w-3.5 h-3.5" /> Split
+          </ToolButton>
+          <ToolButton onClick={addText} title="Add text (T)">
+            <span className="font-display text-base leading-none">T</span> Text
+          </ToolButton>
+          <ToolButton onClick={deleteSelected} disabled={!selectedId} title="Delete selected (⌫)" danger>
+            <TrashIcon className="w-3.5 h-3.5" /> Delete
+          </ToolButton>
+          <div className="w-px h-6 bg-foreground/20 mx-1" />
+          <ToolButton onClick={() => addTrack("video")}>+ Video track</ToolButton>
+          <ToolButton onClick={() => addTrack("audio")}>+ Audio track</ToolButton>
+          <div className="flex-1" />
+          <div className="flex items-center h-8 border-2 border-foreground bg-background">
+            <button
+              type="button"
+              title="Zoom out"
+              onClick={() => setPps((z) => Math.max(MIN_PPS, z / 1.5))}
+              className="w-7 h-full font-bold hover:bg-muted border-r-2 border-foreground"
+            >
+              −
+            </button>
+            <input
+              type="range"
+              aria-label="Timeline zoom"
+              min={0}
+              max={1}
+              step={0.001}
+              value={zoomToSlider(pps)}
+              onChange={(e) => setPps(sliderToZoom(Number(e.target.value)))}
+              className="range-brutal w-24 mx-2.5"
+              style={fill(zoomToSlider(pps), 0, 1)}
+            />
+            <button
+              type="button"
+              title="Zoom in"
+              onClick={() => setPps((z) => Math.min(MAX_PPS, z * 1.5))}
+              className="w-7 h-full font-bold hover:bg-muted border-l-2 border-foreground"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              title="Fit the whole project"
+              onClick={fitTimeline}
+              className="h-full px-2.5 text-[11px] font-bold uppercase tracking-wider hover:bg-muted border-l-2 border-foreground"
+            >
+              Fit
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0">
           <Timeline
             project={project}
             media={media}
@@ -750,33 +910,175 @@ function VideoEditorPage() {
             onDropMedia={addMediaToTimeline}
             onZoom={setPps}
           />
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Space play · S split · T text · ⌫ delete · ⌘D duplicate · ⌘Z undo · ←/→ frame step · ⌘+scroll zoom · drag
-            clips in the preview to move them
-          </p>
-
-          {error && <ErrorBox message={error} />}
-
-          {exporting ? (
-            <div className="space-y-3">
-              <ProgressBar progress={Math.round((exportProgress ?? 0) * 100)} label={`Exporting… ${Math.round((exportProgress ?? 0) * 100)}%`} />
-              <button type="button" className="btn-secondary w-full" onClick={() => exportAbort.current?.abort()}>
-                Cancel export
-              </button>
-            </div>
-          ) : (
-            <button type="button" className="btn-primary w-full" disabled={duration <= 0} onClick={runExport}>
-              Export MP4 ({project.width}×{project.height}, {fmtTime(duration)})
-            </button>
-          )}
         </div>
+      </section>
+
+      {/* ── Overlays ── */}
+      {error && (
+        <div className="absolute left-4 bottom-4 z-30 max-w-md flex items-start gap-2 border-2 border-foreground bg-card p-3 shadow-[4px_4px_0_0_var(--foreground)]">
+          <AlertIcon className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+          <p className="text-sm flex-1">{error}</p>
+          <button type="button" onClick={() => setError(null)} title="Dismiss" className="shrink-0 hover:text-destructive">
+            <XIcon className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {exporting && (
+        <Modal>
+          <p className={kicker}>Exporting</p>
+          <h2 className="font-display text-3xl mt-1 mb-5">Rendering your video…</h2>
+          <ProgressBar
+            progress={Math.round((exportProgress ?? 0) * 100)}
+            label={`${Math.round((exportProgress ?? 0) * 100)}% · ${project.width}×${project.height} · ${fmtTime(duration)}`}
+          />
+          <button type="button" className="btn-secondary w-full mt-5" onClick={() => exportAbort.current?.abort()}>
+            Cancel
+          </button>
+        </Modal>
+      )}
+
+      {result && (
+        <Modal wide>
+          <VideoResultView
+            blob={result}
+            title="Video Exported!"
+            subtitle={`${project.width}×${project.height} · ${fmtTime(duration)}`}
+            downloadLabel="Download Video"
+            onDownload={download}
+            onHoldInBuffer={holdInBuffer}
+            onStartOver={() => setResult(null)}
+            startOverLabel="Back to Editor"
+          />
+        </Modal>
       )}
     </div>
   );
 }
 
 // ── Small pieces ─────────────────────────────────────────────
+
+function IconButton({
+  children,
+  onClick,
+  disabled,
+  title,
+  active,
+  className = "",
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  title: string;
+  active?: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+      className={`w-9 h-9 border-2 border-foreground flex items-center justify-center transition-colors disabled:text-foreground/30 disabled:pointer-events-none ${
+        active ? "bg-foreground text-background" : "bg-card hover:bg-muted"
+      } ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MiniButton({
+  children,
+  onClick,
+  title,
+  danger,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  title: string;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className={`w-7 h-7 border-2 border-foreground bg-card flex items-center justify-center transition-colors ${
+        danger ? "hover:bg-destructive hover:text-white" : "hover:bg-accent"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SkipIcon({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
+      <polygon points="5 4 15 12 5 20 5 4" />
+      <rect x="17" y="4" width="2.5" height="16" />
+    </svg>
+  );
+}
+
+function Modal({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center p-6 bg-foreground/40">
+      <div
+        className={`w-full ${wide ? "max-w-3xl" : "max-w-md"} max-h-full overflow-y-auto border-2 border-foreground bg-background p-6 shadow-[8px_8px_0_0_var(--foreground)] select-text`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const SHORTCUTS: [string, string][] = [
+  ["Space", "Play / pause"],
+  ["S", "Split at playhead"],
+  ["T", "Add text"],
+  ["⌫", "Delete clip"],
+  ["⌘D", "Duplicate clip"],
+  ["⌘Z / ⇧⌘Z", "Undo / redo"],
+  ["← →", "Step one frame"],
+  ["⇧← ⇧→", "Step one second"],
+  ["Home / End", "Jump to start / end"],
+  ["⌘ + scroll", "Zoom timeline"],
+];
+
+function ShortcutsCard({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const close = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement).closest("[data-shortcuts]")) onClose();
+    };
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
+  }, [onClose]);
+  return (
+    <div
+      data-shortcuts
+      className="absolute right-0 top-11 z-40 w-72 border-2 border-foreground bg-card p-4 shadow-[5px_5px_0_0_var(--foreground)]"
+    >
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] mb-3">Shortcuts</p>
+      <dl className="space-y-1.5">
+        {SHORTCUTS.map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between gap-3 text-xs">
+            <dt className="text-muted-foreground">{v}</dt>
+            <dd>
+              <kbd className="font-mono text-[11px] font-bold border-2 border-foreground bg-background px-1.5 py-px">{k}</kbd>
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-3 pt-3 border-t border-foreground/20 text-[11px] text-muted-foreground">
+        Drag clips in the preview to move them.
+      </p>
+    </div>
+  );
+}
 
 function ToolButton({
   children,
@@ -797,8 +1099,8 @@ function ToolButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`text-xs font-bold border-2 border-foreground px-3 py-1.5 transition-colors disabled:opacity-40 disabled:pointer-events-none ${
-        danger ? "hover:bg-destructive hover:text-white" : "hover:bg-muted"
+      className={`h-8 inline-flex items-center gap-1.5 text-xs font-bold border-2 border-foreground bg-background px-2.5 transition-colors disabled:opacity-35 disabled:pointer-events-none ${
+        danger ? "hover:bg-destructive hover:text-white" : "hover:bg-accent"
       }`}
     >
       {children}
@@ -823,43 +1125,74 @@ function MediaCard({
         e.dataTransfer.setData("application/x-editor-media", item.id);
         e.dataTransfer.effectAllowed = "copy";
       }}
-      className="group flex items-center gap-2 border-2 border-foreground p-1.5 bg-background cursor-grab active:cursor-grabbing"
+      className="group min-w-0 cursor-grab active:cursor-grabbing"
     >
-      <div className="w-14 h-9 shrink-0 bg-muted flex items-center justify-center overflow-hidden">
+      <div className="relative aspect-video border-2 border-foreground bg-muted overflow-hidden transition-transform group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 group-hover:shadow-[3px_3px_0_0_var(--foreground)]">
         {thumb ? (
           <img src={thumb} alt="" draggable={false} className="w-full h-full object-cover" />
         ) : (
-          <span className="text-[10px] font-bold text-muted-foreground">AUDIO</span>
+          <MiniWave peaks={item.peaks} />
         )}
+        <span className="absolute left-1 top-1 px-1 text-[9px] font-bold uppercase tracking-wider bg-card border border-foreground">
+          {item.kind === "video" ? "Video" : item.kind === "audio" ? "Audio" : "Image"}
+        </span>
+        {item.kind !== "image" && (
+          <span className="absolute right-1 bottom-1 px-1 text-[10px] font-mono font-bold bg-foreground text-background">
+            {fmtTime(item.duration)}
+          </span>
+        )}
+        <div className="absolute right-1 top-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            title="Remove from project"
+            onClick={() => onRemove(item)}
+            className="w-6 h-6 flex items-center justify-center border-2 border-foreground bg-card hover:bg-destructive hover:text-white"
+          >
+            <TrashIcon className="w-3 h-3" />
+          </button>
+          <button
+            type="button"
+            title="Add at playhead"
+            onClick={() => onAdd(item.id)}
+            className="w-6 h-6 flex items-center justify-center border-2 border-foreground bg-primary text-primary-foreground font-bold leading-none"
+          >
+            +
+          </button>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-bold truncate" title={item.name}>
-          {item.name}
-        </p>
-        <p className="text-[10px] text-muted-foreground">
-          {item.kind === "image" ? "Image" : fmtTime(item.duration)}
-          {item.kind === "video" && !item.hasAudio ? " · no audio" : ""}
-        </p>
-      </div>
-      <div className="flex flex-col gap-0.5">
-        <button
-          type="button"
-          title="Add at playhead"
-          onClick={() => onAdd(item.id)}
-          className="w-6 h-6 text-sm font-bold border border-foreground/40 hover:bg-muted"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          title="Remove from project"
-          onClick={() => onRemove(item)}
-          className="w-6 h-6 flex items-center justify-center border border-foreground/40 hover:bg-destructive hover:text-white opacity-0 group-hover:opacity-100"
-        >
-          <TrashIcon className="w-3 h-3" />
-        </button>
-      </div>
+      <p className="mt-1 text-[11px] font-bold truncate" title={item.name}>
+        {item.name}
+      </p>
+      {item.kind === "video" && !item.hasAudio && <p className="text-[10px] text-muted-foreground -mt-0.5">No audio</p>}
     </div>
+  );
+}
+
+function MiniWave({ peaks }: { peaks: number[] }) {
+  const bars = useMemo(() => {
+    const n = 28;
+    return Array.from({ length: n }, (_, i) => peaks[Math.floor((i / n) * peaks.length)] ?? 0.2);
+  }, [peaks]);
+  return (
+    <div className="w-full h-full flex items-center gap-[2px] px-2 bg-emerald-100">
+      {bars.map((v, i) => (
+        <div key={i} className="flex-1 bg-emerald-700/70" style={{ height: `${Math.max(8, v * 70)}%` }} />
+      ))}
+    </div>
+  );
+}
+
+// ── Inspector building blocks ────────────────────────────────
+
+function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <section className="px-4 py-4 border-b-2 border-foreground/10 space-y-3.5">
+      <div className="flex items-center justify-between">
+        <h3 className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{title}</h3>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -883,10 +1216,12 @@ function Slider({
   onCommit: () => void;
 }) {
   return (
-    <label className="block space-y-1">
-      <span className="flex justify-between text-xs font-bold">
-        {label}
-        <span className="font-mono text-muted-foreground">{format(value)}</span>
+    <label className="block">
+      <span className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-bold">{label}</span>
+        <span className="text-[11px] font-mono font-bold px-1.5 bg-muted border border-foreground/20 tabular-nums">
+          {format(value)}
+        </span>
       </span>
       <input
         type="range"
@@ -905,6 +1240,74 @@ function Slider({
   );
 }
 
+function Segmented<T extends string | number>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: React.ReactNode; title?: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex border-2 border-foreground bg-background">
+      {options.map((o, i) => (
+        <button
+          key={String(o.value)}
+          type="button"
+          title={o.title}
+          onClick={() => onChange(o.value)}
+          className={`flex-1 h-8 text-xs font-bold transition-colors ${i > 0 ? "border-l-2 border-foreground" : ""} ${
+            o.value === value ? "bg-foreground text-background" : "hover:bg-accent"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const TEXT_COLORS = ["#ffffff", "#1a1612", "#facc15", "#c84c1c", "#38bdf8"];
+
+function ColorField({
+  value,
+  onLive,
+  onCommit,
+  presets = TEXT_COLORS,
+}: {
+  value: string;
+  onLive: (v: string) => void;
+  onCommit: () => void;
+  presets?: string[];
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {presets.map((c) => (
+        <button
+          key={c}
+          type="button"
+          title={c}
+          onClick={() => {
+            onLive(c);
+            onCommit();
+          }}
+          className={`w-6 h-6 border-2 border-foreground ${value.toLowerCase() === c ? "ring-2 ring-primary ring-offset-1" : ""}`}
+          style={{ background: c }}
+        />
+      ))}
+      <input
+        type="color"
+        title="Custom colour"
+        className="swatch-brutal ml-auto"
+        value={value}
+        onChange={(e) => onLive(e.target.value)}
+        onBlur={onCommit}
+      />
+    </div>
+  );
+}
+
 /** Track fill up to the thumb, for .range-brutal. */
 const fill = (v: number, min: number, max: number) =>
   ({ "--fill": `${((v - min) / (max - min || 1)) * 100}%` }) as React.CSSProperties;
@@ -914,7 +1317,7 @@ const secs = (v: number) => `${v.toFixed(1)}s`;
 
 type TransformPatch = { x?: number; y?: number; opacity?: number; scale?: number };
 
-function TransformControls({
+function TransformSection({
   clip,
   onLive,
   onCommit,
@@ -928,21 +1331,50 @@ function TransformControls({
   withScale: boolean;
 }) {
   return (
-    <>
-      <Slider label="Opacity" value={clip.opacity} min={0} max={1} step={0.01} format={pct} onLive={(v) => onLive({ opacity: v })} onCommit={onCommit} />
+    <Section
+      title="Transform"
+      action={
+        <button
+          type="button"
+          className="text-[11px] font-bold underline underline-offset-2 text-muted-foreground hover:text-foreground"
+          onClick={() => onPatch(withScale ? { x: 0.5, y: 0.5, scale: 1, opacity: 1 } : { x: 0.5, y: 0.5, opacity: 1 })}
+        >
+          Reset
+        </button>
+      }
+    >
       {withScale && clip.type === "media" && (
         <Slider label="Scale" value={clip.scale} min={0.1} max={3} step={0.01} format={pct} onLive={(v) => onLive({ scale: v })} onCommit={onCommit} />
       )}
-      <Slider label="Position X" value={clip.x} min={-0.5} max={1.5} step={0.005} format={pct} onLive={(v) => onLive({ x: v })} onCommit={onCommit} />
-      <Slider label="Position Y" value={clip.y} min={-0.5} max={1.5} step={0.005} format={pct} onLive={(v) => onLive({ y: v })} onCommit={onCommit} />
-      <button
-        type="button"
-        className="text-xs font-bold underline text-muted-foreground hover:text-foreground"
-        onClick={() => onPatch(withScale ? { x: 0.5, y: 0.5, scale: 1 } : { x: 0.5, y: 0.5 })}
-      >
-        Reset position
-      </button>
-    </>
+      <Slider label="Opacity" value={clip.opacity} min={0} max={1} step={0.01} format={pct} onLive={(v) => onLive({ opacity: v })} onCommit={onCommit} />
+      <div className="grid grid-cols-2 gap-3">
+        <Slider label="X" value={clip.x} min={-0.5} max={1.5} step={0.005} format={pct} onLive={(v) => onLive({ x: v })} onCommit={onCommit} />
+        <Slider label="Y" value={clip.y} min={-0.5} max={1.5} step={0.005} format={pct} onLive={(v) => onLive({ y: v })} onCommit={onCommit} />
+      </div>
+      <p className="text-[11px] text-muted-foreground">Tip: drag it around in the preview.</p>
+    </Section>
+  );
+}
+
+function ClipSummary({ thumb, name, clip, kind }: { thumb?: string | null; name: string; clip: Clip; kind: string }) {
+  return (
+    <div className="px-4 py-4 border-b-2 border-foreground/10 flex items-center gap-3">
+      <div className="w-16 aspect-video shrink-0 border-2 border-foreground bg-muted overflow-hidden flex items-center justify-center">
+        {thumb ? (
+          <img src={thumb} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{kind}</span>
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold truncate" title={name}>
+          {name}
+        </p>
+        <p className="text-[11px] font-mono text-muted-foreground">
+          {fmtTime(clip.start)} → {fmtTime(clipEnd(clip))} · {clip.duration.toFixed(1)}s
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -963,39 +1395,38 @@ function MediaInspector({
   onPatch: (p: Partial<MediaClip>) => void;
   onDetach: () => void;
 }) {
-  if (!item) return <p className="text-xs text-muted-foreground">This clip's media was removed.</p>;
+  if (!item) return <p className="p-4 text-xs text-muted-foreground">This clip's media was removed.</p>;
   const visual = onTrackKind !== "audio" && item.kind !== "audio";
-  const audible = item.hasAudio;
   const maxFade = Math.max(0, Math.min(10, clip.duration / 2));
+  const thumb = item.kind === "video" ? item.thumbs.find(Boolean) : item.kind === "image" ? item.url : null;
   return (
     <>
-      <div className="text-xs space-y-0.5">
-        <p className="font-bold truncate" title={item.name}>
-          {item.name}
-        </p>
-        <p className="text-muted-foreground font-mono">
-          {fmtTime(clip.start)} → {fmtTime(clipEnd(clip))} ({clip.duration.toFixed(2)}s)
-        </p>
-      </div>
-      {audible && (
-        <>
+      <ClipSummary thumb={visual ? thumb : null} name={item.name} clip={clip} kind={onTrackKind === "audio" ? "Audio" : item.kind} />
+      {item.hasAudio && (
+        <Section title="Audio">
           <Slider label="Volume" value={clip.volume} min={0} max={2} step={0.01} format={pct} onLive={(v) => onLive({ volume: v })} onCommit={onCommit} />
           {visual && clip.volume > 0 && (
-            <button type="button" className="w-full text-xs font-bold border-2 border-foreground px-3 py-1.5 hover:bg-muted" onClick={onDetach}>
+            <button
+              type="button"
+              className="w-full h-8 text-xs font-bold border-2 border-foreground bg-background hover:bg-accent transition-colors"
+              onClick={onDetach}
+            >
               Detach audio to its own track
             </button>
           )}
-        </>
+        </Section>
       )}
       {maxFade > 0 && (
-        <>
-          <Slider label="Fade in" value={Math.min(clip.fadeIn, maxFade)} min={0} max={maxFade} step={0.1} format={secs} onLive={(v) => onLive({ fadeIn: v })} onCommit={onCommit} />
-          <Slider label="Fade out" value={Math.min(clip.fadeOut, maxFade)} min={0} max={maxFade} step={0.1} format={secs} onLive={(v) => onLive({ fadeOut: v })} onCommit={onCommit} />
-        </>
+        <Section title="Fades">
+          <div className="grid grid-cols-2 gap-3">
+            <Slider label="In" value={Math.min(clip.fadeIn, maxFade)} min={0} max={maxFade} step={0.1} format={secs} onLive={(v) => onLive({ fadeIn: v })} onCommit={onCommit} />
+            <Slider label="Out" value={Math.min(clip.fadeOut, maxFade)} min={0} max={maxFade} step={0.1} format={secs} onLive={(v) => onLive({ fadeOut: v })} onCommit={onCommit} />
+          </div>
+        </Section>
       )}
-      {visual && <TransformControls clip={clip} onLive={onLive} onCommit={onCommit} onPatch={onPatch} withScale />}
+      {visual && <TransformSection clip={clip} onLive={onLive} onCommit={onCommit} onPatch={onPatch} withScale />}
       {item.kind === "image" && (
-        <p className="text-[11px] text-muted-foreground">Drag the clip's right edge on the timeline to change how long it shows.</p>
+        <p className="px-4 py-3 text-[11px] text-muted-foreground">Drag the clip's right edge on the timeline to change how long it shows.</p>
       )}
     </>
   );
@@ -1014,87 +1445,114 @@ function TextInspector({
 }) {
   return (
     <>
-      <label className="block space-y-1">
-        <span className="text-xs font-bold">Text</span>
+      <Section title="Content">
         <textarea
           value={clip.text}
           rows={3}
           onChange={(e) => onLive({ text: e.target.value })}
           onBlur={onCommit}
-          className="input-field w-full text-sm"
+          className="w-full resize-y border-2 border-foreground bg-background p-2.5 text-sm font-medium focus:outline-none focus:shadow-[3px_3px_0_0_var(--primary)] transition-shadow"
         />
-      </label>
-      <Slider label="Size" value={clip.size} min={16} max={300} step={1} format={(v) => `${v}px`} onLive={(v) => onLive({ size: v })} onCommit={onCommit} />
-      <div className="flex items-center gap-3 flex-wrap">
-        <label className="flex items-center gap-1.5 text-xs font-bold">
-          Color
-          <input type="color" className="swatch-brutal" value={clip.color} onChange={(e) => onLive({ color: e.target.value })} onBlur={onCommit} />
-        </label>
-        <label className="flex items-center gap-1.5 text-xs font-bold">
-          <input type="checkbox" className="w-4 h-4 accent-primary" checked={clip.bold} onChange={(e) => onPatch({ bold: e.target.checked })} />
-          Bold
-        </label>
-      </div>
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-1.5 text-xs font-bold">
-          <input
-            type="checkbox"
-            className="w-4 h-4 accent-primary"
-            checked={!!clip.background}
-            onChange={(e) => onPatch({ background: e.target.checked ? "#000000" : null })}
+      </Section>
+      <Section title="Style">
+        <Slider label="Size" value={clip.size} min={16} max={300} step={1} format={(v) => `${v}px`} onLive={(v) => onLive({ size: v })} onCommit={onCommit} />
+        <div className="space-y-1.5">
+          <span className="text-xs font-bold">Weight</span>
+          <Segmented
+            options={[
+              { value: "regular", label: "Regular" },
+              { value: "bold", label: <span className="font-black">Bold</span> },
+            ]}
+            value={clip.bold ? "bold" : "regular"}
+            onChange={(v) => onPatch({ bold: v === "bold" })}
           />
-          Background
-        </label>
-        {clip.background && (
-          <input type="color" className="swatch-brutal" value={clip.background} onChange={(e) => onLive({ background: e.target.value })} onBlur={onCommit} />
-        )}
-      </div>
-      <TransformControls clip={clip} onLive={onLive} onCommit={onCommit} onPatch={onPatch} withScale={false} />
+        </div>
+        <div className="space-y-1.5">
+          <span className="text-xs font-bold">Colour</span>
+          <ColorField value={clip.color} onLive={(c) => onLive({ color: c })} onCommit={onCommit} />
+        </div>
+        <div className="space-y-1.5">
+          <span className="text-xs font-bold">Background</span>
+          <Segmented
+            options={[
+              { value: "none", label: "None" },
+              { value: "box", label: "Box" },
+            ]}
+            value={clip.background ? "box" : "none"}
+            onChange={(v) => onPatch({ background: v === "box" ? "#1a1612" : null })}
+          />
+          {clip.background && (
+            <ColorField value={clip.background} onLive={(c) => onLive({ background: c })} onCommit={onCommit} />
+          )}
+        </div>
+      </Section>
+      <TransformSection clip={clip} onLive={onLive} onCommit={onCommit} onPatch={onPatch} withScale={false} />
     </>
   );
 }
 
 function ProjectInspector({ project, onChange }: { project: Project; onChange: (patch: Partial<Project>) => void }) {
-  const preset = RESOLUTIONS.find((r) => r.w === project.width && r.h === project.height);
+  const isPreset = RESOLUTIONS.some((r) => r.w === project.width && r.h === project.height);
+  const duration = projectDuration(project);
   return (
     <>
-      <label className="block space-y-1">
-        <span className="text-xs font-bold">Frame size</span>
-        <select
-          className="input-field w-full text-sm"
-          value={preset ? `${preset.w}x${preset.h}` : "custom"}
-          onChange={(e) => {
-            const r = RESOLUTIONS.find((x) => `${x.w}x${x.h}` === e.target.value);
-            if (r) onChange({ width: r.w, height: r.h });
-          }}
-        >
-          {!preset && (
-            <option value="custom">
-              From video ({project.width}×{project.height})
-            </option>
-          )}
-          {RESOLUTIONS.map((r) => (
-            <option key={r.label} value={`${r.w}x${r.h}`}>
-              {r.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="block space-y-1">
-        <span className="text-xs font-bold">Frame rate</span>
-        <select className="input-field w-full text-sm" value={project.fps} onChange={(e) => onChange({ fps: Number(e.target.value) })}>
-          {[24, 25, 30, 50, 60].map((f) => (
-            <option key={f} value={f}>
-              {f} fps
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex items-center gap-2 text-xs font-bold">
-        Background
-        <input type="color" className="swatch-brutal" value={project.background} onChange={(e) => onChange({ background: e.target.value })} />
-      </label>
-      <p className="text-[11px] text-muted-foreground">Select a clip on the timeline or in the preview to edit it.</p>
+      <Section title="Frame size">
+        <div className="grid grid-cols-3 gap-2">
+          {RESOLUTIONS.map((r) => {
+            const active = r.w === project.width && r.h === project.height;
+            const a = r.w / r.h;
+            const bw = a >= 1 ? 28 : 28 * a;
+            const bh = a >= 1 ? 28 / a : 28;
+            return (
+              <button
+                key={r.label}
+                type="button"
+                title={r.label}
+                onClick={() => onChange({ width: r.w, height: r.h })}
+                className={`h-16 flex flex-col items-center justify-center gap-1.5 border-2 border-foreground transition-colors ${
+                  active ? "bg-foreground text-background" : "bg-background hover:bg-accent"
+                }`}
+              >
+                <span className={`border-2 ${active ? "border-background" : "border-foreground"}`} style={{ width: bw, height: bh }} />
+                <span className="text-[10px] font-bold leading-none">{r.short}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] font-mono text-muted-foreground">
+          {project.width}×{project.height}
+          {!isPreset && " · from your video"}
+        </p>
+      </Section>
+      <Section title="Frame rate">
+        <Segmented
+          options={[24, 25, 30, 50, 60].map((f) => ({ value: f, label: f, title: `${f} fps` }))}
+          value={project.fps}
+          onChange={(fps) => onChange({ fps })}
+        />
+      </Section>
+      <Section title="Background">
+        <ColorField
+          value={project.background}
+          presets={["#000000", "#ffffff", "#faf7f2", "#1a1612"]}
+          onLive={(c) => onChange({ background: c })}
+          onCommit={() => {}}
+        />
+      </Section>
+      <div className="px-4 py-4 grid grid-cols-2 gap-2">
+        <Stat label="Length" value={fmtTime(duration)} />
+        <Stat label="Clips" value={String(project.clips.length)} />
+      </div>
+      <p className="px-4 pb-4 text-[11px] text-muted-foreground">Select a clip on the timeline or in the preview to edit it.</p>
     </>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-2 border-foreground bg-background px-3 py-2">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="font-mono text-lg font-bold tabular-nums">{value}</p>
+    </div>
   );
 }
