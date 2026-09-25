@@ -1,9 +1,11 @@
-// Render a video editor project to MP4 with Mediabunny (WebCodecs).
+// Render a video editor project to MP4, WebM or MOV with Mediabunny (WebCodecs).
 //
 // Frames are composited on a canvas one at a time: each active video clip pulls
 // its frames from a samplesAtTimestamps() pipeline, so every source packet is
 // decoded at most once. Audio from every audible clip is mixed up front in an
-// OfflineAudioContext (volume, fades, placement) and encoded as one AAC track.
+// OfflineAudioContext (volume, fades, placement) and encoded as one track.
+// Drawing happens in project coordinates; a canvas transform scales it to the
+// export resolution.
 
 import type { VideoSample } from "mediabunny";
 import { createInput } from "../utils";
@@ -26,23 +28,59 @@ type MBVideoCodec = Parameters<MediabunnyMod["canEncodeVideo"]>[0];
 
 const SAMPLE_RATE = 48_000;
 
-function videoBitrate(w: number, h: number, fps: number) {
-  // ~0.1 bits per pixel per frame: 1080p30 ≈ 6 Mbps.
-  return Math.round(Math.max(1_500_000, w * h * fps * 0.1));
+export type ExportFormat = "mp4" | "webm" | "mov";
+export type ExportQuality = "high" | "standard" | "small";
+
+export interface ExportSettings {
+  format: ExportFormat;
+  /** Short side of the output in pixels; the project's own size when it isn't smaller. */
+  resolution: number;
+  quality: ExportQuality;
 }
 
-async function resolveVideoCodec(mod: MediabunnyMod, width: number, height: number, bitrate: number) {
-  for (const codec of ["avc", "vp9", "hevc", "av1"] as MBVideoCodec[]) {
-    if (await mod.canEncodeVideo(codec, { width, height, bitrate })) return codec;
-  }
-  throw new Error("Your browser can't encode video at this resolution. Try Chrome or Edge, or a smaller size.");
+const EXPORT_FORMATS: Record<ExportFormat, { mime: string; video: MBVideoCodec[]; audio: "aac" | "opus" }> = {
+  mp4: { mime: "video/mp4", video: ["avc", "vp9", "hevc", "av1"], audio: "aac" },
+  mov: { mime: "video/quicktime", video: ["avc", "hevc"], audio: "aac" },
+  webm: { mime: "video/webm", video: ["vp9", "av1", "vp8"], audio: "opus" },
+};
+
+// Bits per pixel per frame: at "standard", 1080p30 ≈ 6 Mbps.
+const QUALITY: Record<ExportQuality, { bpp: number; floor: number; audio: number }> = {
+  high: { bpp: 0.16, floor: 2_500_000, audio: 256_000 },
+  standard: { bpp: 0.1, floor: 1_500_000, audio: 192_000 },
+  small: { bpp: 0.05, floor: 800_000, audio: 128_000 },
+};
+
+/** Output frame size for a project at the chosen resolution, never upscaled. */
+export function exportSize(project: Pick<Project, "width" | "height">, resolution: number) {
+  const short = Math.min(project.width, project.height);
+  const scale = Math.min(1, resolution / short);
+  return {
+    width: Math.round(project.width * scale) & ~1,
+    height: Math.round(project.height * scale) & ~1,
+  };
 }
 
-async function ensureAac(mod: MediabunnyMod) {
-  if (!(await mod.canEncodeAudio("aac"))) {
-    const { registerAacEncoder } = await import("@mediabunny/aac-encoder");
-    registerAacEncoder();
-  }
+export function exportBitrates(width: number, height: number, fps: number, quality: ExportQuality) {
+  const q = QUALITY[quality];
+  return { video: Math.round(Math.max(q.floor, width * height * fps * q.bpp)), audio: q.audio };
+}
+
+async function resolveVideoCodec(mod: MediabunnyMod, format: ExportFormat, width: number, height: number, bitrate: number) {
+  const codec = await mod.getFirstEncodableVideoCodec(EXPORT_FORMATS[format].video, { width, height, bitrate });
+  if (codec) return codec;
+  throw new Error(
+    format === "mp4"
+      ? "Your browser can't encode video at this resolution. Try Chrome or Edge, or a smaller size."
+      : `Your browser can't encode ${format.toUpperCase()} video at this resolution. Try MP4 or a smaller size.`,
+  );
+}
+
+async function ensureAudioEncoder(mod: MediabunnyMod, codec: "aac" | "opus") {
+  if (await mod.canEncodeAudio(codec)) return;
+  if (codec === "opus") throw new Error("Your browser can't encode WebM audio. Try MP4 instead.");
+  const { registerAacEncoder } = await import("@mediabunny/aac-encoder");
+  registerAacEncoder();
 }
 
 function isAudible(p: Project, clip: Clip, media: Map<string, MediaItem>): clip is MediaClip {
@@ -94,37 +132,57 @@ export interface ExportOptions {
   signal?: AbortSignal;
 }
 
+export interface ExportResult {
+  blob: Blob;
+  format: ExportFormat;
+  width: number;
+  height: number;
+}
+
 export async function exportProject(
   project: Project,
   media: Map<string, MediaItem>,
+  settings: ExportSettings,
   { onProgress, signal }: ExportOptions = {},
-): Promise<Blob> {
+): Promise<ExportResult> {
   const duration = projectDuration(project);
   if (duration <= 0) throw new Error("The timeline is empty. Add some clips first.");
 
   const mod = await import("mediabunny");
-  const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, AudioBufferSource, VideoSampleSink } = mod;
+  const { Output, Mp4OutputFormat, MovOutputFormat, WebMOutputFormat, BufferTarget, CanvasSource, AudioBufferSource, VideoSampleSink } =
+    mod;
 
-  const W = project.width & ~1;
-  const H = project.height & ~1;
+  // Everything is drawn in project coordinates (W×H) onto an outW×outH canvas.
+  const W = project.width;
+  const H = project.height;
+  const { width: outW, height: outH } = exportSize(project, settings.resolution);
   const fps = project.fps;
-  const bitrate = videoBitrate(W, H, fps);
-  const codec = await resolveVideoCodec(mod, W, H, bitrate);
+  const { format } = settings;
+  const bitrates = exportBitrates(outW, outH, fps, settings.quality);
+  const codec = await resolveVideoCodec(mod, format, outW, outH, bitrates.video);
+  const audioCodec = EXPORT_FORMATS[format].audio;
 
   onProgress?.(0.01);
   const mixed = await mixAudio(project, media, duration);
-  if (mixed) await ensureAac(mod);
+  if (mixed) await ensureAudioEncoder(mod, audioCodec);
   onProgress?.(0.08);
 
   const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext("2d", { alpha: false })!;
+  ctx.setTransform(outW / W, 0, 0, outH / H, 0, 0);
 
-  const output = new Output({ format: new Mp4OutputFormat({ fastStart: "in-memory" }), target: new BufferTarget() });
-  const videoSource = new CanvasSource(canvas, { codec, bitrate, keyFrameInterval: 2 });
+  const container =
+    format === "webm"
+      ? new WebMOutputFormat()
+      : format === "mov"
+        ? new MovOutputFormat({ fastStart: "in-memory" })
+        : new Mp4OutputFormat({ fastStart: "in-memory" });
+  const output = new Output({ format: container, target: new BufferTarget() });
+  const videoSource = new CanvasSource(canvas, { codec, bitrate: bitrates.video, keyFrameInterval: 2 });
   output.addVideoTrack(videoSource, { frameRate: fps });
-  const audioSource = mixed ? new AudioBufferSource({ codec: "aac", bitrate: 192_000 }) : null;
+  const audioSource = mixed ? new AudioBufferSource({ codec: audioCodec, bitrate: bitrates.audio }) : null;
   if (audioSource) output.addAudioTrack(audioSource);
   await output.start();
 
@@ -236,5 +294,6 @@ export async function exportProject(
   }
 
   onProgress?.(1);
-  return new Blob([output.target.buffer!], { type: "video/mp4" });
+  const blob = new Blob([output.target.buffer!], { type: EXPORT_FORMATS[format].mime });
+  return { blob, format, width: outW, height: outH };
 }

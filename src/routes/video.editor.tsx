@@ -51,7 +51,15 @@ import {
   saveDraft,
   saveMediaFile,
 } from "@/lib/video/editor/draft";
-import { exportProject } from "@/lib/video/editor/export";
+import {
+  type ExportFormat,
+  type ExportQuality,
+  type ExportResult,
+  type ExportSettings,
+  exportBitrates,
+  exportProject,
+  exportSize,
+} from "@/lib/video/editor/export";
 import { forgetMedia, importMedia, loadVideoPeaks, mediaKindOf } from "@/lib/video/editor/media";
 import {
   type Clip,
@@ -116,7 +124,13 @@ function VideoEditorPage() {
   const [importing, setImporting] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
-  const [result, setResult] = useState<Blob | null>(null);
+  const [result, setResult] = useState<ExportResult | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportSettings, setExportSettings] = useState<ExportSettings>({
+    format: "mp4",
+    resolution: Number.POSITIVE_INFINITY,
+    quality: "standard",
+  });
   const exportAbort = useRef<AbortController | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -206,6 +220,15 @@ function VideoEditorPage() {
 
   const seek = useCallback((t: number) => engineRef.current?.seek(t), []);
   const togglePlay = useCallback(() => engineRef.current?.toggle(), []);
+
+  // Listening to a bin item and playing the timeline are exclusive.
+  const binPreview = useBinPreview(useCallback(() => engineRef.current?.pause(), []));
+  const stopBinPreview = binPreview.stop;
+  const binPlayingRef = useRef(false);
+  binPlayingRef.current = binPreview.playing;
+  useEffect(() => {
+    if (playing) stopBinPreview();
+  }, [playing, stopBinPreview]);
 
   // ── Autosave ───────────────────────────────────────────────
   // Same contract as the PDF editor: the edit lives in IndexedDB until the user
@@ -527,10 +550,11 @@ function VideoEditorPage() {
     (item: MediaItem) => {
       commit((p) => ({ ...p, clips: p.clips.filter((c) => c.type !== "media" || c.mediaId !== item.id) }));
       setMediaList((list) => list.filter((m) => m.id !== item.id));
+      stopBinPreview(item.id);
       forgetMedia(item);
       forgetStoredFile(item.id);
     },
-    [commit, forgetStoredFile],
+    [commit, forgetStoredFile, stopBinPreview],
   );
 
   const toggleTrack = useCallback(
@@ -578,18 +602,25 @@ function VideoEditorPage() {
   );
 
   // ── Export ─────────────────────────────────────────────────
-  const runExport = useCallback(async () => {
+  const openExport = useCallback(() => {
     engineRef.current?.pause();
+    setExportOpen(true);
+  }, []);
+
+  const runExport = useCallback(async (settings: ExportSettings) => {
+    engineRef.current?.pause();
+    setExportOpen(false);
+    setExportSettings(settings);
     setError(null);
     setExportProgress(0);
     const abort = new AbortController();
     exportAbort.current = abort;
     try {
-      const blob = await exportProject(projectRef.current, media, {
+      const out = await exportProject(projectRef.current, media, settings, {
         onProgress: (p) => setExportProgress(p),
         signal: abort.signal,
       });
-      setResult(blob);
+      setResult(out);
     } catch (err) {
       if (!abort.signal.aborted) setError(getErrorMessage(err, "Export failed."));
     } finally {
@@ -601,7 +632,7 @@ function VideoEditorPage() {
   const download = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      if (result) downloadBlob(result, "edited-video.mp4", "video/mp4");
+      if (result) downloadBlob(result.blob, `edited-video.${result.format}`, result.blob.type);
     },
     [result],
   );
@@ -610,10 +641,10 @@ function VideoEditorPage() {
   const holdInBuffer = useCallback(() => {
     if (!result) return;
     addToBuffer({
-      filename: "edited-video.mp4",
-      blob: result,
-      mimeType: "video/mp4",
-      size: result.size,
+      filename: `edited-video.${result.format}`,
+      blob: result.blob,
+      mimeType: result.blob.type,
+      size: result.blob.size,
       fileType: "video",
       sourceToolLabel: "Video Editor",
     });
@@ -628,7 +659,7 @@ function VideoEditorPage() {
 
   // ── Keyboard shortcuts ─────────────────────────────────────
   useEffect(() => {
-    if (!hasMedia || result) return;
+    if (!hasMedia || result || exportOpen) return;
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
       if (el.closest("input, textarea, select, [contenteditable=true]")) return;
@@ -636,7 +667,9 @@ function VideoEditorPage() {
       const fps = projectRef.current.fps;
       if (e.code === "Space") {
         e.preventDefault();
-        togglePlay();
+        // Space stops a bin preview first, then drives the timeline.
+        if (binPlayingRef.current) stopBinPreview();
+        else togglePlay();
       } else if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault();
         if (e.shiftKey) redo();
@@ -672,7 +705,7 @@ function VideoEditorPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [hasMedia, result, togglePlay, undo, redo, duplicateSelected, splitAtPlayhead, addText, deleteSelected, seek]);
+  }, [hasMedia, result, exportOpen, togglePlay, undo, redo, duplicateSelected, splitAtPlayhead, addText, deleteSelected, seek, stopBinPreview]);
 
   // Drop files anywhere on the editor.
   const onEditorDrop = useCallback(
@@ -685,6 +718,7 @@ function VideoEditorPage() {
   );
 
   const exporting = exportProgress !== null;
+  const exportFrame = exportSize(project, exportSettings.resolution);
 
   // ── Workspace layout ───────────────────────────────────────
   const workspace = hasMedia;
@@ -845,7 +879,7 @@ function VideoEditorPage() {
         </div>
         <button
           type="button"
-          onClick={runExport}
+          onClick={openExport}
           disabled={duration <= 0 || exporting}
           className="h-9 px-4 inline-flex items-center gap-2 border-2 border-foreground bg-primary text-primary-foreground text-sm font-bold shadow-[3px_3px_0_0_var(--foreground)] hover:-translate-x-px hover:-translate-y-px hover:shadow-[4px_4px_0_0_var(--foreground)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0"
         >
@@ -873,7 +907,13 @@ function VideoEditorPage() {
                 <span className="text-[10px] font-bold uppercase tracking-wider">Import</span>
               </button>
               {mediaList.map((item) => (
-                <MediaCard key={item.id} item={item} onAdd={addMediaToTimeline} onRemove={removeMedia} />
+                <MediaCard
+                  key={item.id}
+                  item={item}
+                  preview={binPreview}
+                  onAdd={addMediaToTimeline}
+                  onRemove={removeMedia}
+                />
               ))}
               {Array.from({ length: importing }, (_, i) => (
                 <div key={`loading-${i}`} className="aspect-video border-2 border-foreground/30 bg-muted animate-pulse" />
@@ -1079,13 +1119,25 @@ function VideoEditorPage() {
         </div>
       )}
 
+      {exportOpen && (
+        <ExportDialog
+          project={project}
+          duration={duration}
+          hasAudio={project.clips.some((c) => c.type === "media" && c.volume > 0 && !!media.get(c.mediaId)?.hasAudio)}
+          settings={exportSettings}
+          onChange={setExportSettings}
+          onCancel={() => setExportOpen(false)}
+          onExport={runExport}
+        />
+      )}
+
       {exporting && (
         <Modal>
           <p className={kicker}>Exporting</p>
           <h2 className="font-display text-3xl mt-1 mb-5">Rendering your video…</h2>
           <ProgressBar
             progress={Math.round((exportProgress ?? 0) * 100)}
-            label={`${Math.round((exportProgress ?? 0) * 100)}% · ${project.width}×${project.height} · ${fmtTime(duration)}`}
+            label={`${Math.round((exportProgress ?? 0) * 100)}% · ${exportSettings.format.toUpperCase()} · ${exportFrame.width}×${exportFrame.height} · ${fmtTime(duration)}`}
           />
           <button type="button" className="btn-secondary w-full mt-5" onClick={() => exportAbort.current?.abort()}>
             Cancel
@@ -1096,9 +1148,9 @@ function VideoEditorPage() {
       {result && (
         <Modal wide>
           <VideoResultView
-            blob={result}
+            blob={result.blob}
             title="Video Exported!"
-            subtitle={`${project.width}×${project.height} · ${fmtTime(duration)}`}
+            subtitle={`${result.format.toUpperCase()} · ${result.width}×${result.height} · ${fmtTime(duration)}`}
             downloadLabel="Download Video"
             onDownload={download}
             onHoldInBuffer={holdInBuffer}
@@ -1214,6 +1266,120 @@ function Modal({ children, wide }: { children: React.ReactNode; wide?: boolean }
   );
 }
 
+const FORMAT_OPTIONS: { value: ExportFormat; label: string; hint: string }[] = [
+  { value: "mp4", label: "MP4", hint: "Plays everywhere: YouTube, Instagram, TikTok, WhatsApp." },
+  { value: "webm", label: "WebM", hint: "Smaller files for the web. VP9 video, Opus audio." },
+  { value: "mov", label: "MOV", hint: "QuickTime, for Mac and Final Cut workflows." },
+];
+
+const QUALITY_OPTIONS: { value: ExportQuality; label: string; hint: string }[] = [
+  { value: "high", label: "High", hint: "Best picture, biggest file." },
+  { value: "standard", label: "Standard", hint: "Looks great at a sensible size." },
+  { value: "small", label: "Small", hint: "For sharing in chats and email." },
+];
+
+const RESOLUTION_STEPS = [2160, 1440, 1080, 720, 480];
+const resolutionLabel = (short: number) => (short === 2160 ? "4K" : `${short}p`);
+
+function fmtBytes(n: number) {
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)} GB`;
+  if (n >= 1e6) return `${Math.max(1, Math.round(n / 1e6))} MB`;
+  return `${Math.max(1, Math.round(n / 1e3))} KB`;
+}
+
+function ExportDialog({
+  project,
+  duration,
+  hasAudio,
+  settings,
+  onChange,
+  onCancel,
+  onExport,
+}: {
+  project: Project;
+  duration: number;
+  hasAudio: boolean;
+  settings: ExportSettings;
+  onChange: React.Dispatch<React.SetStateAction<ExportSettings>>;
+  onCancel: () => void;
+  /** Called with the settings as shown, so a resolution the project no longer offers falls back to full size. */
+  onExport: (settings: ExportSettings) => void;
+}) {
+  const short = Math.min(project.width, project.height);
+  // "Full" is the project size; smaller steps are downscales, never upscales.
+  const resolutions = [
+    { value: Number.POSITIVE_INFINITY, label: resolutionLabel(short), title: "Project size" },
+    ...RESOLUTION_STEPS.filter((r) => r < short).map((r) => ({ value: r, label: resolutionLabel(r), title: undefined })),
+  ].slice(0, 4);
+  const resolution = resolutions.some((r) => r.value === settings.resolution) ? settings.resolution : resolutions[0].value;
+  const size = exportSize(project, resolution);
+  const rates = exportBitrates(size.width, size.height, project.fps, settings.quality);
+  const bytes = ((rates.video + (hasAudio ? rates.audio : 0)) * duration) / 8;
+  const set = (patch: Partial<ExportSettings>) => onChange((s) => ({ ...s, ...patch }));
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  const label = "font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground";
+  return (
+    <Modal>
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em]">Export</p>
+      <h2 className="font-display text-3xl mt-1 mb-5">Export your video</h2>
+
+      <div className="space-y-5">
+        <div className="space-y-2">
+          <h3 className={label}>Format</h3>
+          <Segmented options={FORMAT_OPTIONS} value={settings.format} onChange={(format) => set({ format })} />
+          <p className="text-xs text-muted-foreground">{FORMAT_OPTIONS.find((o) => o.value === settings.format)?.hint}</p>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className={label}>Resolution</h3>
+          <Segmented options={resolutions} value={resolution} onChange={(r) => set({ resolution: r })} />
+        </div>
+
+        <div className="space-y-2">
+          <h3 className={label}>Quality</h3>
+          <Segmented options={QUALITY_OPTIONS} value={settings.quality} onChange={(quality) => set({ quality })} />
+          <p className="text-xs text-muted-foreground">{QUALITY_OPTIONS.find((o) => o.value === settings.quality)?.hint}</p>
+        </div>
+
+        <div className="grid grid-cols-3 border-2 border-foreground bg-card divide-x-2 divide-foreground">
+          {[
+            ["Frame", `${size.width}×${size.height}`],
+            ["Length", fmtTime(duration)],
+            ["File", `≈ ${fmtBytes(bytes)}`],
+          ].map(([k, v]) => (
+            <div key={k} className="px-3 py-2 min-w-0">
+              <p className={label}>{k}</p>
+              <p className="font-mono text-sm font-bold tabular-nums truncate">{v}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-3 mt-6">
+        <button type="button" className="btn-secondary flex-1" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn-primary flex-1"
+          onClick={() => onExport({ ...settings, resolution })}
+        >
+          <DownloadIcon className="w-4 h-4" />
+          Export {settings.format.toUpperCase()}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 const SHORTCUTS: [string, string][] = [
   ["Space", "Play / pause"],
   ["S", "Split at playhead"],
@@ -1286,16 +1452,104 @@ function ToolButton({
   );
 }
 
+interface BinPreview {
+  id: string | null;
+  playing: boolean;
+  /** Seconds into the previewed item. */
+  time: number;
+  toggle: (item: MediaItem) => void;
+  playFrom: (item: MediaItem, t: number) => void;
+  /** Stop the preview, or only if it is playing `id`. */
+  stop: (id?: string) => void;
+}
+
+/** One shared <audio> element for listening to bin items before they go on the timeline. */
+function useBinPreview(onStart: () => void): BinPreview {
+  const elRef = useRef<HTMLAudioElement | null>(null);
+  const idRef = useRef<string | null>(null);
+  const rafRef = useRef(0);
+  const [id, setId] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [time, setTime] = useState(0);
+
+  const stop = useCallback((only?: string) => {
+    if (only && idRef.current !== only) return;
+    cancelAnimationFrame(rafRef.current);
+    const el = elRef.current;
+    if (el) {
+      el.pause();
+      el.removeAttribute("src");
+      el.load();
+    }
+    idRef.current = null;
+    setId(null);
+    setPlaying(false);
+    setTime(0);
+  }, []);
+
+  const playFrom = useCallback(
+    (item: MediaItem, t: number) => {
+      if (!elRef.current) {
+        const el = new Audio();
+        el.addEventListener("play", () => setPlaying(true));
+        el.addEventListener("pause", () => setPlaying(false));
+        el.addEventListener("ended", () => setTime(0));
+        elRef.current = el;
+      }
+      const el = elRef.current;
+      if (idRef.current !== item.id) {
+        el.src = item.url;
+        idRef.current = item.id;
+        setId(item.id);
+      }
+      el.currentTime = Math.max(0, Math.min(t, item.duration));
+      setTime(el.currentTime);
+      onStart();
+      el.play().catch(() => {});
+      cancelAnimationFrame(rafRef.current);
+      const tick = () => {
+        setTime(el.currentTime);
+        if (!el.paused) rafRef.current = requestAnimationFrame(tick);
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    },
+    [onStart],
+  );
+
+  const toggle = useCallback(
+    (item: MediaItem) => {
+      const el = elRef.current;
+      if (el && idRef.current === item.id && !el.paused) {
+        el.pause();
+        return;
+      }
+      // Resume where it paused; after the end, start over.
+      playFrom(item, idRef.current === item.id && el && !el.ended ? el.currentTime : 0);
+    },
+    [playFrom],
+  );
+
+  useEffect(() => () => stop(), [stop]);
+
+  return useMemo(() => ({ id, playing, time, toggle, playFrom, stop }), [id, playing, time, toggle, playFrom, stop]);
+}
+
 function MediaCard({
   item,
+  preview,
   onAdd,
   onRemove,
 }: {
   item: MediaItem;
+  preview: BinPreview;
   onAdd: (id: string) => void;
   onRemove: (item: MediaItem) => void;
 }) {
   const thumb = item.kind === "video" ? item.thumbs.find(Boolean) : item.kind === "image" ? item.url : null;
+  const isAudio = item.kind === "audio";
+  const active = preview.id === item.id;
+  const listening = active && preview.playing;
+  const progress = active && item.duration > 0 ? preview.time / item.duration : 0;
   return (
     <div
       draggable
@@ -1305,18 +1559,45 @@ function MediaCard({
       }}
       className="group min-w-0 cursor-grab active:cursor-grabbing"
     >
-      <div className="relative aspect-video border-2 border-foreground bg-muted overflow-hidden transition-transform group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 group-hover:shadow-[3px_3px_0_0_var(--foreground)]">
+      <div
+        className={`relative aspect-video border-2 border-foreground bg-muted overflow-hidden transition-transform group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 group-hover:shadow-[3px_3px_0_0_var(--foreground)] ${
+          active ? "shadow-[3px_3px_0_0_var(--primary)] -translate-x-0.5 -translate-y-0.5" : ""
+        }`}
+      >
         {thumb ? (
           <img src={thumb} alt="" draggable={false} className="w-full h-full object-cover" />
         ) : (
-          <MiniWave peaks={item.peaks} />
+          <button
+            type="button"
+            title="Click to listen from here"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              preview.playFrom(item, ((e.clientX - r.left) / r.width) * item.duration);
+            }}
+            className="block w-full h-full cursor-pointer"
+          >
+            <MiniWave peaks={item.peaks} progress={active ? progress : null} />
+          </button>
         )}
-        <span className="absolute left-1 top-1 px-1 text-[9px] font-bold uppercase tracking-wider bg-card border border-foreground">
-          {item.kind === "video" ? "Video" : item.kind === "audio" ? "Audio" : "Image"}
+        <span className="pointer-events-none absolute left-1 top-1 px-1 text-[9px] font-bold uppercase tracking-wider bg-card border border-foreground">
+          {item.kind === "video" ? "Video" : isAudio ? "Audio" : "Image"}
         </span>
+        {isAudio && (
+          <button
+            type="button"
+            title={listening ? "Pause preview" : "Listen"}
+            aria-label={listening ? "Pause preview" : "Listen"}
+            onClick={() => preview.toggle(item)}
+            className={`absolute left-1 bottom-1 w-6 h-6 flex items-center justify-center border-2 border-foreground transition-colors ${
+              listening ? "bg-primary text-primary-foreground" : "bg-card hover:bg-accent"
+            }`}
+          >
+            {listening ? <PauseIcon className="w-3 h-3" /> : <PlayIcon className="w-3 h-3 translate-x-px" />}
+          </button>
+        )}
         {item.kind !== "image" && (
-          <span className="absolute right-1 bottom-1 px-1 text-[10px] font-mono font-bold bg-foreground text-background">
-            {fmtTime(item.duration)}
+          <span className="pointer-events-none absolute right-1 bottom-1 px-1 text-[10px] font-mono font-bold bg-foreground text-background">
+            {active ? fmtTime(preview.time) : fmtTime(item.duration)}
           </span>
         )}
         <div className="absolute right-1 top-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1346,16 +1627,26 @@ function MediaCard({
   );
 }
 
-function MiniWave({ peaks }: { peaks: number[] }) {
+function MiniWave({ peaks, progress }: { peaks: number[]; progress: number | null }) {
   const bars = useMemo(() => {
     const n = 28;
     return Array.from({ length: n }, (_, i) => peaks[Math.floor((i / n) * peaks.length)] ?? 0.2);
   }, [peaks]);
   return (
-    <div className="w-full h-full flex items-center gap-[2px] px-2 bg-emerald-100">
+    <div className="relative w-full h-full flex items-center gap-[2px] px-2 bg-emerald-100">
       {bars.map((v, i) => (
-        <div key={i} className="flex-1 bg-emerald-700/70" style={{ height: `${Math.max(8, v * 70)}%` }} />
+        <div
+          key={i}
+          className={`flex-1 ${progress !== null && (i + 0.5) / bars.length <= progress ? "bg-primary" : "bg-emerald-700/70"}`}
+          style={{ height: `${Math.max(8, v * 70)}%` }}
+        />
       ))}
+      {progress !== null && (
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-primary"
+          style={{ left: `calc(0.5rem + ${Math.min(1, progress)} * (100% - 1rem))` }}
+        />
+      )}
     </div>
   );
 }

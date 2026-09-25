@@ -21,11 +21,19 @@ export const Route = createFileRoute("/video/speed")({
   component: SpeedVideoPage,
 });
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { VolumeIcon, MuteIcon } from "@/components/icons/audio";
 import { VideoSpeedIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { ErrorBox, InfoBox, VideoFileInfo, VideoPageHeader, VideoResultView } from "@/components/video/shared";
-import { useFileBuffer, useFileProcessing } from "@/hooks";
+import {
+  ErrorBox,
+  InfoBox,
+  PreviewPlayOverlay,
+  VideoFileInfo,
+  VideoPageHeader,
+  VideoResultView,
+} from "@/components/video/shared";
+import { useFileBuffer, useFileProcessing, useObjectURL } from "@/hooks";
 import { MEDIABUNNY_VIDEO_EXTENSIONS as VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
@@ -41,6 +49,152 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/**
+ * The source video playing at the chosen speed, so the result can be judged
+ * before anything is processed. The element's own playbackRate and
+ * preservesPitch match what the export does to the frames and the audio, and
+ * the clock reads in the output's time.
+ */
+function SpeedPreview({
+  url,
+  speed,
+  preservePitch,
+  paused,
+}: {
+  url: string;
+  speed: number;
+  preservePitch: boolean;
+  paused: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+  const [aspect, setAspect] = useState("16 / 9");
+  const [muted, setMuted] = useState(true);
+  const [time, setTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const apply = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.playbackRate = speed;
+    v.preservesPitch = preservePitch;
+  }, [speed, preservePitch]);
+
+  useEffect(apply, [apply]);
+
+  useEffect(() => {
+    if (paused) videoRef.current?.pause();
+  }, [paused]);
+
+  // Follow the playhead every frame; timeupdate only fires a few times a second.
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const v = videoRef.current;
+      if (v) setTime(v.currentTime);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const seek = (clientX: number) => {
+    const v = videoRef.current;
+    const bar = barRef.current;
+    if (!v || !bar || !duration) return;
+    const r = bar.getBoundingClientRect();
+    v.currentTime = Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * duration;
+  };
+
+  const onBarDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    seek(e.clientX);
+  };
+
+  if (failed) {
+    return (
+      <div className="border-2 border-dashed border-foreground/40 p-6 text-center text-xs text-muted-foreground">
+        This browser can't play the file, but it can still change its speed.
+      </div>
+    );
+  }
+
+  const pct = duration ? (time / duration) * 100 : 0;
+  return (
+    <div className="space-y-2">
+      <div
+        className="relative h-64 sm:h-72 max-w-full mx-auto border-2 border-foreground bg-foreground overflow-hidden"
+        style={{ aspectRatio: aspect }}
+      >
+        <video
+          ref={videoRef}
+          src={url}
+          autoPlay
+          loop
+          muted={muted}
+          playsInline
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            if (v.videoWidth && v.videoHeight) setAspect(`${v.videoWidth} / ${v.videoHeight}`);
+            setDuration(v.duration);
+            // Loading a source resets the element's rate.
+            apply();
+          }}
+          onError={() => setFailed(true)}
+          className="absolute inset-0 w-full h-full object-contain"
+        />
+        <PreviewPlayOverlay videoRef={videoRef} />
+        <span className="pointer-events-none absolute left-2 top-2 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider bg-primary text-primary-foreground border-2 border-foreground">
+          Preview · {speed}x
+        </span>
+        <button
+          type="button"
+          onClick={() => setMuted((m) => !m)}
+          aria-label={muted ? "Turn preview sound on" : "Mute preview"}
+          title={muted ? "Hear it" : "Mute"}
+          className={`absolute right-2 top-2 h-8 px-2 inline-flex items-center gap-1.5 text-xs font-bold border-2 border-foreground transition-colors ${
+            muted ? "bg-background hover:bg-accent" : "bg-foreground text-background"
+          }`}
+        >
+          {muted ? <MuteIcon className="w-4 h-4" /> : <VolumeIcon className="w-4 h-4" />}
+          {muted ? "Sound off" : "Sound on"}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div
+          ref={barRef}
+          role="slider"
+          tabIndex={0}
+          aria-label="Preview position"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration / speed)}
+          aria-valuenow={Math.round(time / speed)}
+          onPointerDown={onBarDown}
+          onPointerMove={(e) => {
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) seek(e.clientX);
+          }}
+          onKeyDown={(e) => {
+            const v = videoRef.current;
+            if (!v || (e.key !== "ArrowRight" && e.key !== "ArrowLeft")) return;
+            e.preventDefault();
+            // One second of the result per press.
+            const step = e.key === "ArrowRight" ? speed : -speed;
+            v.currentTime = Math.max(0, Math.min(duration, v.currentTime + step));
+          }}
+          className="relative flex-1 h-3 border-2 border-foreground bg-background cursor-pointer touch-none"
+        >
+          <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${pct}%` }} />
+        </div>
+        <span className="text-xs font-mono font-bold tabular-nums whitespace-nowrap">
+          {formatDuration(time / speed)} / {formatDuration(duration / speed)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function SpeedVideoPage() {
   const [file, setFile] = useState<File | null>(null);
   const [info, setInfo] = useState<VideoInfo | null>(null);
@@ -51,6 +205,7 @@ function SpeedVideoPage() {
 
   const { isProcessing, progress, error, startProcessing, stopProcessing, setProgress, setError, clearError } =
     useFileProcessing();
+  const { url: previewUrl, setSource: setPreview, revoke: revokePreview } = useObjectURL();
 
   const processFile = useCallback(
     async (f: File, s: number, keepPitch: boolean) => {
@@ -74,6 +229,7 @@ function SpeedVideoPage() {
       if (files.length === 0) return;
       const f = files[0];
       setFile(f);
+      setPreview(f);
       setInfo(null);
       setResult(null);
       clearError();
@@ -82,7 +238,7 @@ function SpeedVideoPage() {
         .then(setInfo)
         .catch(() => {});
     },
-    [clearError],
+    [clearError, setPreview],
   );
 
   const handleDownload = useCallback(
@@ -95,11 +251,12 @@ function SpeedVideoPage() {
   );
 
   const handleStartOver = useCallback(() => {
+    revokePreview();
     setFile(null);
     setInfo(null);
     setResult(null);
     clearError();
-  }, [clearError]);
+  }, [clearError, revokePreview]);
 
   const { add: addToBuffer } = useFileBuffer();
   const handleHoldInBuffer = useCallback(() => {
@@ -149,7 +306,8 @@ function SpeedVideoPage() {
             subtitle="MP4, MOV, WebM, MKV"
           />
           <InfoBox>
-            Re-times the video without re-encoding it, so the picture keeps its original quality. Audio is resampled to match, so its pitch shifts like a record played faster or slower.
+            Re-times the video without re-encoding it, so the picture keeps its original quality. You can watch and
+            hear the new speed before you process it, with the audio at its normal pitch or shifted like a record.
           </InfoBox>
         </div>
       ) : (
@@ -160,6 +318,16 @@ function SpeedVideoPage() {
             onClear={handleStartOver}
             icon={<VideoToolIcon className="w-5 h-5" />}
           />
+
+          {previewUrl && (
+            <SpeedPreview
+              key={previewUrl}
+              url={previewUrl}
+              speed={speed}
+              preservePitch={preservePitch}
+              paused={isProcessing}
+            />
+          )}
 
           {!isProcessing && (
             <fieldset className="space-y-3">
