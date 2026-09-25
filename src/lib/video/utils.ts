@@ -3,8 +3,8 @@
 import { ensureAacDecoder } from "./aac-decoder";
 
 export async function getInputFormats() {
-  const { MP4, WEBM, MATROSKA, QTFF } = await import("mediabunny");
-  return [MP4, WEBM, MATROSKA, QTFF];
+  const { MP4, WEBM, MATROSKA, QTFF, MPEG_TS } = await import("mediabunny");
+  return [MP4, WEBM, MATROSKA, QTFF, MPEG_TS];
 }
 
 export async function createInput(file: File) {

@@ -1,6 +1,7 @@
 // Media import for the video editor: probe, thumbnails, peaks and decoded audio.
 
 import { loadAudioFile } from "@/lib/audio-utils";
+import { isTransportStream, remuxTransportStream } from "../transport-stream";
 import { createInput } from "../utils";
 import { type MediaItem, type MediaKind, uid } from "./model";
 
@@ -13,7 +14,7 @@ export function mediaKindOf(file: File): MediaKind | null {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   if (t.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "avif", "bmp"].includes(ext)) return "image";
   if (t.startsWith("audio/") || ["mp3", "wav", "ogg", "m4a", "aac", "flac", "opus"].includes(ext)) return "audio";
-  if (t.startsWith("video/") || ["mp4", "mov", "mkv", "webm", "m4v", "lrv"].includes(ext)) return "video";
+  if (t.startsWith("video/") || ["mp4", "mov", "mkv", "webm", "m4v", "lrv", "ts"].includes(ext)) return "video";
   return null;
 }
 
@@ -114,7 +115,9 @@ async function probeVideo(file: File) {
   }
 }
 
-export async function importMedia(file: File): Promise<MediaItem> {
+export async function importMedia(source: File): Promise<MediaItem> {
+  // The preview plays media in <video> elements, which can't play a .ts.
+  const file = isTransportStream(source) ? await remuxTransportStream(source) : source;
   const kind = mediaKindOf(file);
   if (!kind) throw new Error(`"${file.name}" isn't a video, audio or image file.`);
   const url = URL.createObjectURL(file);

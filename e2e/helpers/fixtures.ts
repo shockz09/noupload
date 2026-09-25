@@ -232,3 +232,40 @@ export function mkvTone(name: string, hz: number, duration = 2) {
 		]),
 	);
 }
+
+/**
+ * H.264 + AAC in an MPEG transport stream. ffmpeg starts TS timestamps at 1.4s,
+ * like most recorders, so this also exercises the non-zero start.
+ */
+export function tsWithAudio(name: string, duration = 3) {
+	return cached(name, (out) =>
+		ffmpeg([
+			"-f", "lavfi", "-i", `testsrc=size=320x240:rate=15:duration=${duration}`,
+			"-f", "lavfi", "-i", `sine=frequency=440:duration=${duration}`,
+			"-c:v", "libx264", "-pix_fmt", "yuv420p",
+			"-c:a", "aac", "-ar", "48000", "-ac", "2",
+			"-shortest", "-f", "mpegts", out,
+		]),
+	);
+}
+
+/** MPEG-2 video in a transport stream, the way TV recordings come. */
+export function tsMpeg2(name: string, duration = 2) {
+	return cached(name, (out) =>
+		ffmpeg([
+			"-f", "lavfi", "-i", `testsrc=size=320x240:rate=15:duration=${duration}`,
+			"-c:v", "mpeg2video", "-an", "-f", "mpegts", out,
+		]),
+	);
+}
+
+/** A WhatsApp-style voice note: mono Opus in Ogg, saved as .opus. */
+export function opusVoiceNote(name: string, duration = 3) {
+	return cached(name, (out) =>
+		ffmpeg([
+			"-f", "lavfi", "-i", `sine=frequency=300:duration=${duration}`,
+			"-c:a", "libopus", "-b:a", "24k", "-ac", "1", "-application", "voip",
+			"-f", "ogg", out,
+		]),
+	);
+}

@@ -222,7 +222,7 @@ function WaveformPage() {
         />
       ) : !file ? (
         <FileDropzone
-          accept=".mp3,.wav,.ogg,.m4a,.webm"
+          accept=".mp3,.wav,.ogg,.opus,.m4a,.webm"
           multiple={false}
           onFilesSelected={handleFileSelected}
           title="Drop your audio file here"

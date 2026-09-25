@@ -18,6 +18,32 @@ interface FileDropzoneProps {
   compact?: boolean;
 }
 
+// Checked by name here so the video code only loads when a .ts actually turns up.
+const isTransportStreamName = (f: File) => /\.ts$/i.test(f.name) || f.type === "video/mp2t";
+
+/** Rewrap every .ts as MP4 (see lib/video/transport-stream); other files pass through. */
+async function prepareTransportStreams(
+  files: File[],
+  onStatus: (s: { name: string; progress: number }) => void,
+): Promise<{ files: File[]; failure: string | null }> {
+  const { remuxTransportStream } = await import("@/lib/video/transport-stream");
+  const out: File[] = [];
+  let failure: string | null = null;
+  for (const file of files) {
+    if (!isTransportStreamName(file)) {
+      out.push(file);
+      continue;
+    }
+    onStatus({ name: file.name, progress: 0 });
+    try {
+      out.push(await remuxTransportStream(file, (progress) => onStatus({ name: file.name, progress })));
+    } catch (err) {
+      failure = err instanceof Error ? err.message : `Could not read "${file.name}".`;
+    }
+  }
+  return { files: out, failure };
+}
+
 export const FileDropzone = memo(function FileDropzone({
   accept = ".pdf",
   multiple = true,
@@ -31,6 +57,9 @@ export const FileDropzone = memo(function FileDropzone({
 }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Set while .ts files are being rewrapped as MP4, before the tool sees them. */
+  const [preparing, setPreparing] = useState<{ name: string; progress: number } | null>(null);
+  const busy = preparing !== null;
 
   // Buffer integration — show compatible buffered files & auto-consume pending items
   const { items: bufferItems, pendingItem, toFile, consumePendingItem } = useFileBuffer();
@@ -43,7 +72,7 @@ export const FileDropzone = memo(function FileDropzone({
 
   const handleFiles = useCallback(
     (fileArray: File[]) => {
-      if (fileArray.length === 0) return;
+      if (fileArray.length === 0 || busy) return;
 
       setError(null);
       if (fileArray.length > (multiple ? maxFiles : 1)) {
@@ -63,11 +92,18 @@ export const FileDropzone = memo(function FileDropzone({
         setError(`Some files were skipped. Only ${accept} files are accepted.`);
       }
 
-      if (validFiles.length > 0) {
+      if (validFiles.length === 0) return;
+      if (!validFiles.some(isTransportStreamName)) {
         onFilesSelected(validFiles);
+        return;
       }
+      prepareTransportStreams(validFiles, setPreparing).then(({ files, failure }) => {
+        setPreparing(null);
+        if (failure) setError(failure);
+        if (files.length > 0) onFilesSelected(files);
+      });
     },
-    [accept, maxFiles, maxSize, multiple, onFilesSelected],
+    [accept, busy, maxFiles, maxSize, multiple, onFilesSelected],
   );
 
   useEffect(() => {
@@ -107,6 +143,7 @@ export const FileDropzone = memo(function FileDropzone({
   );
 
   const handleClick = useCallback(() => {
+    if (busy) return;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = accept;
@@ -120,7 +157,7 @@ export const FileDropzone = memo(function FileDropzone({
     // Safari requires the input to be in the DOM before .click() works
     document.body.appendChild(input);
     input.click();
-  }, [accept, multiple, handleFiles]);
+  }, [accept, busy, multiple, handleFiles]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -163,8 +200,14 @@ export const FileDropzone = memo(function FileDropzone({
       >
         <div className="flex items-center justify-center gap-2 text-muted-foreground">
           <UploadIcon className="w-5 h-5" />
-          <span className="text-sm font-bold">{isDragging ? "Drop here" : title || "Add more files"}</span>
-          {subtitle && <span className="text-xs">({subtitle})</span>}
+          <span className="text-sm font-bold">
+            {preparing
+              ? `Preparing ${preparing.name}… ${Math.round(preparing.progress * 100)}%`
+              : isDragging
+                ? "Drop here"
+                : title || "Add more files"}
+          </span>
+          {subtitle && !preparing && <span className="text-xs">({subtitle})</span>}
         </div>
         {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
       </div>
@@ -196,34 +239,51 @@ export const FileDropzone = memo(function FileDropzone({
         </div>
 
         {/* Text */}
-        <div className="space-y-2">
-          <p className="text-xl font-bold text-foreground">
-            {isDragging ? "Drop it like it's hot" : title || "Drop your files here"}
-          </p>
-          <p className="text-muted-foreground">{subtitle || "or click to browse from your device"}</p>
-        </div>
+        {preparing ? (
+          <div className="space-y-3" aria-live="polite">
+            <p className="text-xl font-bold text-foreground truncate">Preparing {preparing.name}…</p>
+            <p className="text-muted-foreground">
+              Rewrapping it as MP4 so every tool can play it. Nothing is re-encoded.
+            </p>
+            <div className="mx-auto max-w-xs h-3 border-2 border-foreground bg-background">
+              <div
+                className="h-full bg-primary transition-[width]"
+                style={{ width: `${Math.round(preparing.progress * 100)}%` }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xl font-bold text-foreground">
+              {isDragging ? "Drop it like it's hot" : title || "Drop your files here"}
+            </p>
+            <p className="text-muted-foreground">{subtitle || "or click to browse from your device"}</p>
+          </div>
+        )}
 
         {/* CTA Button */}
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 px-5 py-3 bg-foreground text-background font-bold text-sm border-2 border-foreground hover:bg-primary hover:border-primary transition-colors"
-        >
-          <svg
-            aria-hidden="true"
-            className="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {!preparing && (
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 px-5 py-3 bg-foreground text-background font-bold text-sm border-2 border-foreground hover:bg-primary hover:border-primary transition-colors"
           >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          Select Files
-        </button>
+            <svg
+              aria-hidden="true"
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            Select Files
+          </button>
+        )}
 
         {/* File info */}
         <p className="text-xs text-muted-foreground font-medium pt-2">

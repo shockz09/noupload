@@ -1,11 +1,13 @@
 // Shared constants used across the app
 
 // File extension constants for dropzones
-export const VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.avi,.webm,.flv,.wmv,.m4v,.3gp,.lrv";
+export const VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.avi,.webm,.flv,.wmv,.m4v,.3gp,.lrv,.ts";
 // Formats mediabunny can actually demux (used by video tools)
 // .lrv is GoPro's low-res preview — an MP4 container (avc1/isom brand), demuxes natively
-export const MEDIABUNNY_VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.webm,.m4v,.lrv";
-export const AUDIO_EXTENSIONS = ".mp3,.wav,.ogg,.m4a,.aac,.flac";
+// .ts (MPEG transport stream) is rewrapped as MP4 on intake — see lib/video/transport-stream
+export const MEDIABUNNY_VIDEO_EXTENSIONS = ".mp4,.mov,.mkv,.webm,.m4v,.lrv,.ts";
+// .opus is Ogg Opus under another name — what WhatsApp voice notes are saved as
+export const AUDIO_EXTENSIONS = ".mp3,.wav,.ogg,.opus,.m4a,.aac,.flac";
 export const AUDIO_VIDEO_EXTENSIONS = `${AUDIO_EXTENSIONS},${VIDEO_EXTENSIONS}`;
 // 2 GB — client-side processing, no upload, so limit is just browser memory
 export const VIDEO_MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024;

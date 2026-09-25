@@ -31,7 +31,7 @@ import { getErrorMessage } from "@/lib/error";
 const FORMATS: { key: AudioOutputFormat; label: string; desc: string }[] = [
   { key: "mp3", label: "MP3", desc: "Universal" },
   { key: "wav", label: "WAV", desc: "Lossless" },
-  { key: "ogg", label: "OGG", desc: "Open format" },
+  { key: "ogg", label: "OGG", desc: "Opus audio" },
   { key: "flac", label: "FLAC", desc: "Lossless" },
   { key: "aac", label: "AAC", desc: "Apple/web" },
 ];
