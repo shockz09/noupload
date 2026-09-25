@@ -503,7 +503,7 @@ test.describe("video speed page", () => {
 		await expect(page.getByText(/Max 2048MB/)).toBeVisible();
 	});
 
-	test("offers the pitch toggle, on by default", async ({ page }) => {
+	test("previews the chosen speed before processing, with pitch always kept", async ({ page }) => {
 		await onApp(page);
 		const chooser = page.waitForEvent("filechooser");
 		await page
@@ -512,13 +512,16 @@ test.describe("video speed page", () => {
 			.click();
 		await (await chooser).setFiles(mp4WithAudio("speed_ui.mp4", 48000, 3));
 
-		const toggle = page.getByRole("checkbox");
-		await expect(toggle).toBeVisible({ timeout: 15_000 });
-		// Preserving pitch is the default: a video sped up should sound faster, not
-		// higher, unless the user asks for the tape effect.
-		await expect(toggle).toBeChecked();
-		await toggle.uncheck();
-		await expect(toggle).not.toBeChecked();
+		const preview = page.locator("video").first();
+		await expect(preview).toBeVisible({ timeout: 15_000 });
+		// The pitch toggle is gone: sped-up video always keeps its normal pitch.
+		await expect(page.getByRole("checkbox")).toHaveCount(0);
+
+		const state = () =>
+			preview.evaluate((v: HTMLVideoElement) => ({ rate: v.playbackRate, pitch: v.preservesPitch }));
+		await expect.poll(state).toEqual({ rate: 2, pitch: true });
+		await page.getByRole("button", { name: "0.5x", exact: true }).click();
+		await expect.poll(state).toEqual({ rate: 0.5, pitch: true });
 	});
 
 	test("processes a dropped file and shows the result player", async ({ page }) => {

@@ -22,13 +22,13 @@ export const Route = createFileRoute("/video/speed")({
 });
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { VolumeIcon, MuteIcon } from "@/components/icons/audio";
+import { MuteIcon, VolumeIcon } from "@/components/icons/audio";
+import { PauseIcon, PlayIcon } from "@/components/icons/ui";
 import { VideoSpeedIcon, VideoToolIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import {
   ErrorBox,
   InfoBox,
-  PreviewPlayOverlay,
   VideoFileInfo,
   VideoPageHeader,
   VideoResultView,
@@ -51,53 +51,46 @@ function formatDuration(seconds: number): string {
 
 /**
  * The source video playing at the chosen speed, so the result can be judged
- * before anything is processed. The element's own playbackRate and
- * preservesPitch match what the export does to the frames and the audio, and
- * the clock reads in the output's time.
+ * before anything is processed. The element's playbackRate (with its default
+ * pitch correction) matches what the export does to the frames and the audio,
+ * and the clock reads in the output's time. Controls sit in a bar under the
+ * video so nothing covers the picture, whatever its shape.
  */
-function SpeedPreview({
-  url,
-  speed,
-  preservePitch,
-  paused,
-}: {
-  url: string;
-  speed: number;
-  preservePitch: boolean;
-  paused: boolean;
-}) {
+function SpeedPreview({ url, speed, paused }: { url: string; speed: number; paused: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
-  const [aspect, setAspect] = useState("16 / 9");
+  const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  const apply = useCallback(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.playbackRate = speed;
-    v.preservesPitch = preservePitch;
-  }, [speed, preservePitch]);
-
-  useEffect(apply, [apply]);
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.playbackRate = speed;
+  }, [speed]);
 
   useEffect(() => {
     if (paused) videoRef.current?.pause();
   }, [paused]);
 
-  // Follow the playhead every frame; timeupdate only fires a few times a second.
+  // Follow the playhead every frame while playing; timeupdate only fires a few times a second.
   useEffect(() => {
+    if (!playing) return;
     let raf = 0;
     const tick = () => {
-      const v = videoRef.current;
-      if (v) setTime(v.currentTime);
+      if (videoRef.current) setTime(videoRef.current.currentTime);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [playing]);
+
+  const toggle = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) v.play().catch(() => {});
+    else v.pause();
+  };
 
   const seek = (clientX: number) => {
     const v = videoRef.current;
@@ -105,11 +98,7 @@ function SpeedPreview({
     if (!v || !bar || !duration) return;
     const r = bar.getBoundingClientRect();
     v.currentTime = Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * duration;
-  };
-
-  const onBarDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    seek(e.clientX);
+    setTime(v.currentTime);
   };
 
   if (failed) {
@@ -121,12 +110,10 @@ function SpeedPreview({
   }
 
   const pct = duration ? (time / duration) * 100 : 0;
+  const square = "w-9 h-9 shrink-0 flex items-center justify-center border-2 border-foreground transition-colors";
   return (
-    <div className="space-y-2">
-      <div
-        className="relative h-64 sm:h-72 max-w-full mx-auto border-2 border-foreground bg-foreground overflow-hidden"
-        style={{ aspectRatio: aspect }}
-      >
+    <div className="border-2 border-foreground bg-card">
+      <div className="relative h-64 sm:h-80 bg-foreground">
         <video
           ref={videoRef}
           src={url}
@@ -134,35 +121,32 @@ function SpeedPreview({
           loop
           muted={muted}
           playsInline
+          onClick={toggle}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
           onLoadedMetadata={(e) => {
-            const v = e.currentTarget;
-            if (v.videoWidth && v.videoHeight) setAspect(`${v.videoWidth} / ${v.videoHeight}`);
-            setDuration(v.duration);
+            setDuration(e.currentTarget.duration);
             // Loading a source resets the element's rate.
-            apply();
+            e.currentTarget.playbackRate = speed;
           }}
           onError={() => setFailed(true)}
-          className="absolute inset-0 w-full h-full object-contain"
+          className="absolute inset-0 w-full h-full object-contain cursor-pointer"
         />
-        <PreviewPlayOverlay videoRef={videoRef} />
-        <span className="pointer-events-none absolute left-2 top-2 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider bg-primary text-primary-foreground border-2 border-foreground">
-          Preview · {speed}x
-        </span>
-        <button
-          type="button"
-          onClick={() => setMuted((m) => !m)}
-          aria-label={muted ? "Turn preview sound on" : "Mute preview"}
-          title={muted ? "Hear it" : "Mute"}
-          className={`absolute right-2 top-2 h-8 px-2 inline-flex items-center gap-1.5 text-xs font-bold border-2 border-foreground transition-colors ${
-            muted ? "bg-background hover:bg-accent" : "bg-foreground text-background"
-          }`}
-        >
-          {muted ? <MuteIcon className="w-4 h-4" /> : <VolumeIcon className="w-4 h-4" />}
-          {muted ? "Sound off" : "Sound on"}
-        </button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 p-2 border-t-2 border-foreground">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={playing ? "Pause preview" : "Play preview"}
+          className={`${square} ${playing ? "bg-background hover:bg-accent" : "bg-primary text-primary-foreground"}`}
+        >
+          {playing ? <PauseIcon className="w-4 h-4" /> : <PlayIcon className="w-4 h-4 translate-x-px" />}
+        </button>
+        <span className="shrink-0 px-2 h-9 flex items-center border-2 border-foreground bg-foreground text-background text-xs font-mono font-bold tabular-nums">
+          {speed}x
+        </span>
         <div
           ref={barRef}
           role="slider"
@@ -171,7 +155,10 @@ function SpeedPreview({
           aria-valuemin={0}
           aria-valuemax={Math.round(duration / speed)}
           aria-valuenow={Math.round(time / speed)}
-          onPointerDown={onBarDown}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            seek(e.clientX);
+          }}
           onPointerMove={(e) => {
             if (e.currentTarget.hasPointerCapture(e.pointerId)) seek(e.clientX);
           }}
@@ -182,14 +169,24 @@ function SpeedPreview({
             // One second of the result per press.
             const step = e.key === "ArrowRight" ? speed : -speed;
             v.currentTime = Math.max(0, Math.min(duration, v.currentTime + step));
+            setTime(v.currentTime);
           }}
-          className="relative flex-1 h-3 border-2 border-foreground bg-background cursor-pointer touch-none"
+          className="relative flex-1 min-w-0 h-4 border-2 border-foreground bg-background cursor-pointer touch-none"
         >
           <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${pct}%` }} />
         </div>
-        <span className="text-xs font-mono font-bold tabular-nums whitespace-nowrap">
+        <span className="shrink-0 text-xs font-mono font-bold tabular-nums">
           {formatDuration(time / speed)} / {formatDuration(duration / speed)}
         </span>
+        <button
+          type="button"
+          onClick={() => setMuted((m) => !m)}
+          aria-label={muted ? "Unmute preview" : "Mute preview"}
+          title={muted ? "Unmute" : "Mute"}
+          className={`${square} ${muted ? "bg-background hover:bg-accent" : "bg-foreground text-background"}`}
+        >
+          {muted ? <MuteIcon className="w-4 h-4" /> : <VolumeIcon className="w-4 h-4" />}
+        </button>
       </div>
     </div>
   );
@@ -199,7 +196,6 @@ function SpeedVideoPage() {
   const [file, setFile] = useState<File | null>(null);
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const [speed, setSpeed] = useState(2);
-  const [preservePitch, setPreservePitch] = useState(true);
   const [usedSpeed, setUsedSpeed] = useState(2);
   const [result, setResult] = useState<{ blob: Blob; filename: string } | null>(null);
 
@@ -208,11 +204,11 @@ function SpeedVideoPage() {
   const { url: previewUrl, setSource: setPreview, revoke: revokePreview } = useObjectURL();
 
   const processFile = useCallback(
-    async (f: File, s: number, keepPitch: boolean) => {
+    async (f: File, s: number) => {
       if (!startProcessing()) return;
       setResult(null);
       try {
-        const r = await changeVideoSpeed(f, { speed: s, preservePitch: keepPitch }, (p) => setProgress(p * 100));
+        const r = await changeVideoSpeed(f, { speed: s }, (p) => setProgress(p * 100));
         setUsedSpeed(s);
         setResult(r);
       } catch (err) {
@@ -306,8 +302,8 @@ function SpeedVideoPage() {
             subtitle="MP4, MOV, WebM, MKV"
           />
           <InfoBox>
-            Re-times the video without re-encoding it, so the picture keeps its original quality. You can watch and
-            hear the new speed before you process it, with the audio at its normal pitch or shifted like a record.
+            Re-times the video without re-encoding it, so the picture keeps its original quality. Voices and music
+            keep their normal pitch, and you can watch and hear the new speed before you process it.
           </InfoBox>
         </div>
       ) : (
@@ -324,7 +320,6 @@ function SpeedVideoPage() {
               key={previewUrl}
               url={previewUrl}
               speed={speed}
-              preservePitch={preservePitch}
               paused={isProcessing}
             />
           )}
@@ -350,24 +345,6 @@ function SpeedVideoPage() {
             </fieldset>
           )}
 
-          {!isProcessing && (
-            <label className="flex items-start gap-3 border-2 border-foreground p-3 cursor-pointer hover:bg-muted transition-colors">
-              <input
-                type="checkbox"
-                checked={preservePitch}
-                onChange={(e) => setPreservePitch(e.target.checked)}
-                className="mt-0.5 w-4 h-4 accent-foreground shrink-0"
-              />
-              <span className="text-sm">
-                <span className="font-bold">Keep the original pitch</span>
-                <span className="block text-muted-foreground">
-                  Voices and music stay at their normal pitch. Uncheck for the tape effect, where speeding up sounds
-                  higher.
-                </span>
-              </span>
-            </label>
-          )}
-
           {duration > 0 && (
             <div className="bg-muted/50 border-2 border-foreground p-4">
               <div className="flex justify-between text-sm">
@@ -385,7 +362,7 @@ function SpeedVideoPage() {
 
           <button
             type="button"
-            onClick={() => processFile(file, speed, preservePitch)}
+            onClick={() => processFile(file, speed)}
             disabled={isProcessing}
             className="btn-primary w-full"
           >
