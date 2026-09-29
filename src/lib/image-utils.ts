@@ -1,5 +1,7 @@
 // Image processing utilities - all client-side using Canvas API
 
+import { presetJpegQuality, type QualityPreset } from "@/lib/jpeg-quality";
+
 export interface ImageDimensions {
   width: number;
   height: number;
@@ -97,14 +99,19 @@ export interface CompressImageResult {
   blob: Blob;
   /** True when the JPEG re-encode came out no smaller, so the original bytes were kept. */
   keptOriginal: boolean;
+  /** The JPEG quality used, 0-1. For a preset, the one this browser's encoder needs. */
+  quality: number;
 }
 
 // Compress image. Never returns something bigger than what came in: an input
 // that is already a low-quality JPEG (or a flat PNG that JPEG handles badly)
 // grows when re-encoded, and a compressor that inflates files is just broken.
+//
+// `quality` is either a fixed 0-1 value, or a preset, which becomes the
+// number this browser's JPEG encoder needs for it (see jpeg-quality.ts).
 export async function compressImage(
   file: File,
-  quality: number = 0.8,
+  quality: number | QualityPreset = 0.8,
   maxWidth?: number,
   maxHeight?: number,
 ): Promise<CompressImageResult> {
@@ -136,15 +143,17 @@ export async function compressImage(
 
     ctx.drawImage(img, 0, 0, width, height);
 
+    const q = typeof quality === "number" ? quality : (await presetJpegQuality(quality)) / 100;
+
     // Use JPEG for compression (better compression than PNG)
-    const compressed = await canvasToBlob(canvas, "jpeg", quality);
+    const compressed = await canvasToBlob(canvas, "jpeg", q);
 
     // Scaling down changes the pixel dimensions, so the original is not a
     // substitute for it however big the re-encode turns out.
     const scaled = width !== img.width || height !== img.height;
-    if (scaled || compressed.size < file.size) return { blob: compressed, keptOriginal: false };
+    if (scaled || compressed.size < file.size) return { blob: compressed, keptOriginal: false, quality: q };
 
-    return { blob: file, keptOriginal: true };
+    return { blob: file, keptOriginal: true, quality: q };
   } finally {
     URL.revokeObjectURL(img.src);
   }

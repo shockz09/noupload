@@ -25,17 +25,32 @@ import {
   ProgressBar,
 } from "@/components/image/shared";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
-import { InfoBox, QualitySlider } from "@/components/shared";
+import { FormatSelector, InfoBox, QualitySlider } from "@/components/shared";
 import { useFileBuffer, useFileProcessing, useImagePaste, useObjectURL, useProcessingResult } from "@/hooks";
 import { downloadMultiple } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { compressImage, copyImageToClipboard, downloadImage, formatFileSize, getOutputFilename } from "@/lib/image-utils";
+import type { QualityPreset } from "@/lib/jpeg-quality";
 import { formatCompressionResult, formatSizeDelta } from "@/lib/utils";
 
 interface CompressMetadata {
   originalSize: number;
   compressedSize: number;
   keptOriginal: boolean;
+  quality: number;
+}
+
+type CompressMode = QualityPreset | "custom";
+
+const MODES = [
+  { value: "balanced", label: "Balanced", desc: "Much smaller, near identical" },
+  { value: "high", label: "High", desc: "No visible difference" },
+  { value: "custom", label: "Custom", desc: "Set the quality yourself" },
+];
+
+function describeQuality(mode: CompressMode, quality: number): string {
+  const q = Math.round(quality * 100);
+  return mode === "custom" ? `Quality ${q}` : `${mode === "high" ? "High" : "Balanced"} · quality ${q}`;
 }
 
 interface FileItem {
@@ -48,10 +63,15 @@ interface CompressedItem {
   blob: Blob;
   filename: string;
   keptOriginal: boolean;
+  quality: number;
 }
 
 function ImageCompressPage() {
+  const [mode, setMode] = useState<CompressMode>("balanced");
   const [quality, setQuality] = useState(80);
+  const setting = mode === "custom" ? quality / 100 : mode;
+
+  const handleModeChange = useCallback((value: string) => setMode(value as CompressMode), []);
 
   // Single file state
   const [file, setFile] = useState<File | null>(null);
@@ -71,11 +91,11 @@ function ImageCompressPage() {
   // --- Single file handlers ---
 
   const processFile = useCallback(
-    async (fileToProcess: File, q: number) => {
+    async (fileToProcess: File, q: number | QualityPreset) => {
       if (!startProcessing()) return;
       try {
         setProgress(30);
-        const { blob, keptOriginal } = await compressImage(fileToProcess, q / 100);
+        const { blob, keptOriginal, quality: used } = await compressImage(fileToProcess, q);
         setProgress(90);
         const filename = keptOriginal
           ? fileToProcess.name
@@ -84,6 +104,7 @@ function ImageCompressPage() {
           originalSize: fileToProcess.size,
           compressedSize: blob.size,
           keptOriginal,
+          quality: used,
         });
         setProgress(100);
       } catch (err) {
@@ -143,9 +164,9 @@ function ImageCompressPage() {
         const batch = files.slice(i, i + BATCH_SIZE);
         const batchResults = await Promise.all(
           batch.map(async ({ file: f }) => {
-            const { blob, keptOriginal } = await compressImage(f, quality / 100);
+            const { blob, keptOriginal, quality: used } = await compressImage(f, setting);
             const filename = keptOriginal ? f.name : getOutputFilename(f.name, "jpeg", "_compressed");
-            return { original: f, blob, filename, keptOriginal };
+            return { original: f, blob, filename, keptOriginal, quality: used };
           }),
         );
         compressed.push(...batchResults);
@@ -157,7 +178,7 @@ function ImageCompressPage() {
     } finally {
       setBulkProcessing(false);
     }
-  }, [files, quality]);
+  }, [files, setting]);
 
   const handleDownloadOne = useCallback((item: CompressedItem) => downloadImage(item.blob, item.filename), []);
   const handleDownloadAll = useCallback(() => {
@@ -249,6 +270,7 @@ function ImageCompressPage() {
                   <p className="font-bold text-sm truncate">{item.filename}</p>
                   <p className="text-xs text-muted-foreground">
                     {formatCompressionResult(item.original.size, item.blob.size, item.keptOriginal)}
+                    {!item.keptOriginal && ` · quality ${Math.round(item.quality * 100)}`}
                   </p>
                 </div>
                 <button
@@ -272,7 +294,7 @@ function ImageCompressPage() {
 
   // --- Single result view ---
   if (result) {
-    const { originalSize = 0, compressedSize = 0, keptOriginal = false } = result.metadata ?? {};
+    const { originalSize = 0, compressedSize = 0, keptOriginal = false, quality: used = 0 } = result.metadata ?? {};
     return (
       <div className="page-enter max-w-2xl mx-auto space-y-8">
         <ImagePageHeader
@@ -284,7 +306,11 @@ function ImageCompressPage() {
         <ImageResultView
           blob={result.blob}
           title={keptOriginal ? "Already As Small As It Gets" : "Image Compressed!"}
-          subtitle={formatCompressionResult(originalSize, compressedSize, keptOriginal)}
+          subtitle={
+            keptOriginal
+              ? formatCompressionResult(originalSize, compressedSize, keptOriginal)
+              : `${formatCompressionResult(originalSize, compressedSize, keptOriginal)} · ${describeQuality(mode, used)}`
+          }
           downloadLabel="Download Image"
           onDownload={handleSingleDownload}
           onCopy={result.blob.type === "image/png" ? () => copyImageToClipboard(result.blob) : undefined}
@@ -317,7 +343,8 @@ function ImageCompressPage() {
             subtitle="Single or multiple files · Ctrl+V to paste"
           />
           <InfoBox title="About compression">
-            Compresses images using JPEG encoding. Drop one or multiple files.
+            Compresses images to JPEG. Balanced and High are tuned to look the same on every browser, since Safari and
+            Chrome treat the same quality number very differently. Drop one or multiple files.
           </InfoBox>
         </div>
       ) : isMulti ? (
@@ -364,7 +391,8 @@ function ImageCompressPage() {
             <p className="text-xs text-muted-foreground">Total: {formatFileSize(totalOriginalSize)}</p>
           </div>
 
-          <QualitySlider label="Quality" value={quality} onChange={setQuality} />
+          <FormatSelector label="Quality" formats={MODES} value={mode} onChange={handleModeChange} />
+          {mode === "custom" && <QualitySlider label="Quality" value={quality} onChange={setQuality} />}
 
           {bulkError && <ErrorBox message={bulkError} />}
           {bulkProcessing && (
@@ -415,13 +443,14 @@ function ImageCompressPage() {
             icon={<ImageIcon className="w-5 h-5" />}
           />
 
-          <QualitySlider label="Quality" value={quality} onChange={setQuality} />
+          <FormatSelector label="Quality" formats={MODES} value={mode} onChange={handleModeChange} />
+          {mode === "custom" && <QualitySlider label="Quality" value={quality} onChange={setQuality} />}
 
           {singleError && <ErrorBox message={singleError} />}
           {isSingleProcessing && <ProgressBar progress={progress} label="Compressing..." />}
 
           <ProcessButton
-            onClick={() => processFile(file!, quality)}
+            onClick={() => processFile(file!, setting)}
             isProcessing={isSingleProcessing}
             processingLabel="Compressing..."
             icon={<ImageCompressIcon className="w-5 h-5" />}
