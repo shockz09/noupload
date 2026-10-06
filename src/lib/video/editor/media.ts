@@ -149,3 +149,25 @@ export async function loadVideoPeaks(item: MediaItem): Promise<number[]> {
   const buffer = await getMediaAudio(item);
   return buffer ? computePeaks(buffer) : [];
 }
+
+/** The source frame of a video at `time` seconds, as a PNG file at full size. */
+export async function captureFrame(item: MediaItem, time: number): Promise<File> {
+  const { CanvasSink } = await import("mediabunny");
+  const input = await createInput(item.file);
+  try {
+    const track = await input.getPrimaryVideoTrack();
+    if (!track) throw new Error("This clip has no picture to freeze.");
+    const frame = await new CanvasSink(track).getCanvas(Math.max(0, Math.min(time, item.duration - 0.001)));
+    if (!frame) throw new Error("Couldn't read that frame.");
+    const c = frame.canvas;
+    const blob =
+      c instanceof HTMLCanvasElement
+        ? await new Promise<Blob | null>((resolve) => c.toBlob(resolve, "image/png"))
+        : await c.convertToBlob({ type: "image/png" });
+    if (!blob) throw new Error("Couldn't read that frame.");
+    const base = item.name.replace(/\.[^.]+$/, "");
+    return new File([blob], `${base}-frame-${time.toFixed(2)}s.png`, { type: "image/png" });
+  } finally {
+    input[Symbol.dispose]();
+  }
+}

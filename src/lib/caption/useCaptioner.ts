@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Cue, layoutLine, type TimedWord, wordsToCues } from "./cues";
-import { decodeToMono16k, NoAudioError } from "./decode";
+import { type DecodedAudio, decodeToMono16k, NoAudioError } from "./decode";
 import { cachedBytes, MODEL_TOTAL_BYTES } from "./model";
 import type { CaptionFailure, CaptionResponse } from "./protocol";
 
@@ -118,6 +118,8 @@ export interface UseCaptioner {
   finished: boolean;
   error: string | null;
   start: (file: File) => Promise<void>;
+  /** Transcribe audio that is already 16 kHz mono, such as an editor's mix. */
+  startPcm: (pcm: Float32Array, sampleRate: number) => void;
   cancel: () => void;
   reset: () => void;
   editCue: (index: number, text: string) => void;
@@ -231,6 +233,20 @@ export function useCaptioner(): UseCaptioner {
     };
   }, []);
 
+  const transcribe = useCallback((instance: Worker, decoded: DecodedAudio, runId: number) => {
+    durationRef.current = decoded.duration;
+    setRun((previous) => ({ ...previous, phase: "transcribing", duration: decoded.duration }));
+
+    const message = { type: "transcribe" as const, pcm: decoded.pcm, sampleRate: decoded.sampleRate, runId };
+    try {
+      // Hand the samples over rather than copying them: an hour of audio is
+      // 230 MB, and the page has no further use for it.
+      instance.postMessage(message, [decoded.pcm.buffer]);
+    } catch {
+      instance.postMessage(message);
+    }
+  }, []);
+
   const start = useCallback(async (file: File) => {
     const instance = getWorker();
     const runId = runIdRef.current + 1;
@@ -262,18 +278,23 @@ export function useCaptioner(): UseCaptioner {
 
     if (runIdRef.current !== runId) return; // superseded while decoding
 
-    durationRef.current = decoded.duration;
-    setRun((previous) => ({ ...previous, phase: "transcribing", duration: decoded.duration }));
-
-    const message = { type: "transcribe" as const, pcm: decoded.pcm, sampleRate: decoded.sampleRate, runId };
-    try {
-      // Hand the samples over rather than copying them: an hour of audio is
-      // 230 MB, and the page has no further use for it.
-      instance.postMessage(message, [decoded.pcm.buffer]);
-    } catch {
-      instance.postMessage(message);
-    }
+    transcribe(instance, decoded, runId);
   }, []);
+
+  const startPcm = useCallback(
+    (pcm: Float32Array, sampleRate: number) => {
+      const instance = getWorker();
+      const runId = runIdRef.current + 1;
+      runIdRef.current = runId;
+      instance.postMessage({ type: "cancel" });
+      setError(null);
+      setCues([]);
+      setPeaks([]);
+      setRun({ ...IDLE_RUN, phase: "reading", startedAt: performance.now() });
+      transcribe(instance, { pcm, sampleRate, duration: pcm.length / sampleRate }, runId);
+    },
+    [transcribe],
+  );
 
   /**
    * Stop where we are and keep what has been transcribed so far. A run halfway
@@ -320,6 +341,7 @@ export function useCaptioner(): UseCaptioner {
     finished: run.phase === "done",
     error,
     start,
+    startPcm,
     cancel,
     reset,
     editCue,

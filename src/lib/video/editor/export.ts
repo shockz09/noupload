@@ -1,32 +1,33 @@
 // Render a video editor project to MP4, WebM or MOV with Mediabunny (WebCodecs).
 //
-// Frames are composited on a canvas one at a time: each active video clip pulls
-// its frames from a samplesAtTimestamps() pipeline, so every source packet is
-// decoded at most once. Audio from every audible clip is mixed up front in an
-// OfflineAudioContext (volume, fades, placement) and encoded as one track.
-// Drawing happens in project coordinates; a canvas transform scales it to the
-// export resolution.
+// Frames are composited by the same renderFrame() the preview uses: each active
+// video clip pulls its frames from a samplesAtTimestamps() pipeline, so every
+// source packet is decoded at most once. Audio from every audible clip is mixed
+// up front (speed, volume, fades, transitions, ducking) and encoded as one
+// track. Drawing happens in project coordinates; a canvas transform scales it
+// to the export resolution.
 
 import type { VideoSample } from "mediabunny";
 import { createInput } from "../utils";
-import { getMediaAudio } from "./media";
+import { mixAudio } from "./audio";
 import {
-  type Clip,
+  type Drawable,
   type MediaClip,
   type MediaItem,
   type Project,
-  clipEnd,
+  createScratch,
   drawOrder,
-  drawText,
-  fadeGain,
-  placement,
+  imageDrawable,
   projectDuration,
+  projectFonts,
+  renderFrame,
+  sourceTime,
+  transitionMap,
+  visualWindow,
 } from "./model";
 
 type MediabunnyMod = typeof import("mediabunny");
 type MBVideoCodec = Parameters<MediabunnyMod["canEncodeVideo"]>[0];
-
-const SAMPLE_RATE = 48_000;
 
 export type ExportFormat = "mp4" | "webm" | "mov";
 export type ExportQuality = "high" | "standard" | "small";
@@ -83,43 +84,10 @@ async function ensureAudioEncoder(mod: MediabunnyMod, codec: "aac" | "opus") {
   registerAacEncoder();
 }
 
-function isAudible(p: Project, clip: Clip, media: Map<string, MediaItem>): clip is MediaClip {
-  if (clip.type !== "media" || clip.volume <= 0) return false;
-  const track = p.tracks.find((t) => t.id === clip.trackId);
-  const item = media.get(clip.mediaId);
-  return !!track && !track.muted && !!item && item.hasAudio;
-}
-
-async function mixAudio(p: Project, media: Map<string, MediaItem>, duration: number): Promise<AudioBuffer | null> {
-  const clips = p.clips.filter((c): c is MediaClip => isAudible(p, c, media));
-  if (clips.length === 0) return null;
-
-  const ctx = new OfflineAudioContext(2, Math.ceil(duration * SAMPLE_RATE), SAMPLE_RATE);
-  let scheduled = 0;
-  for (const clip of clips) {
-    const buffer = await getMediaAudio(media.get(clip.mediaId)!);
-    if (!buffer || clip.in >= buffer.duration) continue;
-    const src = ctx.createBufferSource();
-    src.buffer = buffer;
-    const gain = ctx.createGain();
-    const end = clipEnd(clip);
-    const g = gain.gain;
-    g.setValueAtTime(clip.fadeIn > 0 ? 0 : clip.volume, clip.start);
-    if (clip.fadeIn > 0) g.linearRampToValueAtTime(clip.volume, clip.start + Math.min(clip.fadeIn, clip.duration));
-    if (clip.fadeOut > 0) {
-      g.setValueAtTime(clip.volume, Math.max(clip.start, end - clip.fadeOut));
-      g.linearRampToValueAtTime(0, end);
-    }
-    src.connect(gain).connect(ctx.destination);
-    src.start(clip.start, clip.in, clip.duration);
-    scheduled++;
-  }
-  return scheduled > 0 ? ctx.startRendering() : null;
-}
-
 /** Frame pipeline for one video clip: yields the source frame for each output frame the clip covers. */
 interface ClipFrames {
   clip: MediaClip;
+  item: MediaItem;
   first: number;
   last: number;
   iterator: AsyncGenerator<VideoSample | null> | null;
@@ -189,32 +157,43 @@ export async function exportProject(
   const tracks = drawOrder(project);
   const visibleTrackIds = new Set(tracks.map((t) => t.id));
   const frameCount = Math.max(1, Math.ceil(duration * fps));
+  const edges = transitionMap(project);
+  const scratch = createScratch();
+  await Promise.all(projectFonts(project).map((f) => document.fonts?.load(f).catch(() => {})));
 
-  // Images decode once; video clips get lazily opened frame pipelines.
-  const images = new Map<string, ImageBitmap>();
+  // Images decode once; video clips get lazily opened frame pipelines covering
+  // every frame they are on screen, transition overlaps included.
+  const images = new Map<string, Drawable & { bitmap: ImageBitmap }>();
   const pipelines = new Map<string, ClipFrames>();
   for (const clip of project.clips) {
     if (clip.type !== "media" || !visibleTrackIds.has(clip.trackId)) continue;
     const item = media.get(clip.mediaId);
     if (!item) continue;
-    if (item.kind === "image" && !images.has(item.id)) images.set(item.id, await createImageBitmap(item.file));
+    if (item.kind === "image" && !images.has(item.id)) {
+      const bitmap = await createImageBitmap(item.file);
+      images.set(item.id, { ...imageDrawable(bitmap, bitmap.width, bitmap.height), bitmap });
+    }
     if (item.kind === "video") {
-      const first = Math.ceil(clip.start * fps - 1e-6);
-      const last = Math.ceil(clipEnd(clip) * fps - 1e-6) - 1;
-      if (last >= first) pipelines.set(clip.id, { clip, first, last, iterator: null, current: null, dispose: null });
+      const [from, to] = visualWindow(clip, edges.get(clip.id));
+      const first = Math.max(0, Math.ceil(from * fps - 1e-6));
+      const last = Math.min(frameCount - 1, Math.ceil(to * fps - 1e-6) - 1);
+      if (last >= first) pipelines.set(clip.id, { clip, item, first, last, iterator: null, current: null, dispose: null });
     }
   }
+  const ordered = [...pipelines.values()];
 
   const open = async (pf: ClipFrames) => {
-    const input = await createInput(media.get(pf.clip.mediaId)!.file);
+    const input = await createInput(pf.item.file);
     const track = await input.getPrimaryVideoTrack();
     if (!track) {
       input[Symbol.dispose]();
       return;
     }
     const { clip } = pf;
+    // Beyond either end of the source (a transition's overlap), hold the edge frame.
+    const lastFrame = Math.max(0, pf.item.duration - 0.5 / fps);
     const times = function* () {
-      for (let i = pf.first; i <= pf.last; i++) yield clip.in + (i / fps - clip.start);
+      for (let i = pf.first; i <= pf.last; i++) yield Math.min(lastFrame, Math.max(0, sourceTime(clip, i / fps)));
     };
     pf.iterator = new VideoSampleSink(track).samplesAtTimestamps(times());
     pf.dispose = () => input[Symbol.dispose]();
@@ -229,51 +208,40 @@ export async function exportProject(
     pf.dispose = null;
   };
 
+  const sampleDrawable = (s: VideoSample): Drawable => ({
+    width: s.displayWidth,
+    height: s.displayHeight,
+    draw: (c, sx, sy, sw, sh, dx, dy, dw, dh) => s.draw(c, sx, sy, sw, sh, dx, dy, dw, dh),
+  });
+
+  const sources = {
+    visual(clip: MediaClip): Drawable | null {
+      const item = media.get(clip.mediaId);
+      if (!item) return null;
+      if (item.kind === "image") return images.get(item.id) ?? null;
+      const s = pipelines.get(clip.id)?.current;
+      return s ? sampleDrawable(s) : null;
+    },
+  };
+
   try {
     for (let i = 0; i < frameCount; i++) {
       if (signal?.aborted) throw new DOMException("Export cancelled", "AbortError");
       const t = i / fps;
 
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = project.background;
-      ctx.fillRect(0, 0, W, H);
-
-      for (const track of tracks) {
-        for (const clip of project.clips) {
-          if (clip.trackId !== track.id || t < clip.start || t >= clipEnd(clip)) continue;
-          if (clip.type === "text") {
-            drawText(ctx, clip, W, H);
-            continue;
-          }
-          const item = media.get(clip.mediaId);
-          if (!item) continue;
-          const alpha = clip.opacity * fadeGain(clip, t - clip.start);
-          if (item.kind === "image") {
-            const bmp = images.get(item.id)!;
-            const r = placement(clip, bmp.width, bmp.height, W, H);
-            ctx.globalAlpha = alpha;
-            ctx.drawImage(bmp, r.dx, r.dy, r.dw, r.dh);
-            ctx.globalAlpha = 1;
-            continue;
-          }
-          const pf = pipelines.get(clip.id);
-          if (!pf || i < pf.first || i > pf.last) continue;
-          if (!pf.iterator) await open(pf);
-          const next = pf.iterator ? await pf.iterator.next() : null;
-          if (next && !next.done && next.value) {
-            pf.current?.close();
-            pf.current = next.value;
-          }
-          if (pf.current) {
-            const s = pf.current;
-            const r = placement(clip, s.displayWidth, s.displayHeight, W, H);
-            ctx.globalAlpha = alpha;
-            s.draw(ctx, r.dx, r.dy, r.dw, r.dh);
-            ctx.globalAlpha = 1;
-          }
-          if (i === pf.last) await close(pf);
+      for (const pf of ordered) {
+        if (i < pf.first || i > pf.last) continue;
+        if (!pf.iterator) await open(pf);
+        const next = pf.iterator ? await pf.iterator.next() : null;
+        if (next && !next.done && next.value) {
+          pf.current?.close();
+          pf.current = next.value;
         }
       }
+
+      renderFrame(ctx, project, t, sources, edges, scratch);
+
+      for (const pf of ordered) if (i === pf.last) await close(pf);
 
       await videoSource.add(t, 1 / fps);
       if (i % 5 === 0) onProgress?.(0.08 + (i / frameCount) * 0.87);
@@ -290,7 +258,7 @@ export async function exportProject(
     throw err;
   } finally {
     for (const pf of pipelines.values()) await close(pf).catch(() => {});
-    for (const bmp of images.values()) bmp.close();
+    for (const img of images.values()) img.bitmap.close();
   }
 
   onProgress?.(1);

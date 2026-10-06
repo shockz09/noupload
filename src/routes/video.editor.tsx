@@ -7,7 +7,7 @@ export const Route = createFileRoute("/video/editor")({
       {
         name: "description",
         content:
-          "Edit video in your browser: multi-track timeline, audio tracks, text, images, trim, split, fades and MP4 export. Nothing is uploaded.",
+          "Edit video in your browser: multi-track timeline, keyframes, speed, crop, colour, transitions, text animations, auto captions and MP4 export. Nothing is uploaded.",
       },
       {
         name: "keywords",
@@ -21,7 +21,19 @@ export const Route = createFileRoute("/video/editor")({
 });
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fmtTime, type Gesture, TRACK_HEADER_W, Timeline } from "@/components/video-editor/Timeline";
+import { CaptionsDialog } from "@/components/video-editor/CaptionsDialog";
+import { ContextMenu, type MenuItem, type MenuState } from "@/components/video-editor/ContextMenu";
+import {
+  type ClipActions,
+  type MediaActions,
+  MediaInspector,
+  MultiInspector,
+  ProjectInspector,
+  Segmented,
+  TextInspector,
+  fill,
+} from "@/components/video-editor/Inspector";
+import { fmtTime, type Gesture, TRACK_HEADER_W, Timeline, type TimelineTarget } from "@/components/video-editor/Timeline";
 import {
   AlertIcon,
   ArrowLeftIcon,
@@ -39,9 +51,11 @@ import { VideoEditorIcon, VideoTrimIcon } from "@/components/icons/video";
 import { FileDropzone } from "@/components/pdf/file-dropzone";
 import { ErrorBox, InfoBox, ProgressBar, VideoPageHeader, VideoResultView } from "@/components/video/shared";
 import { useFileBuffer } from "@/hooks";
+import type { Cue } from "@/lib/caption/cues";
 import { downloadBlob } from "@/lib/download";
 import { getErrorMessage } from "@/lib/error";
 import { DraftRecoveryDialog } from "@/components/shared/DraftRecoveryDialog";
+import { clipPeak, mixForCaptions } from "@/lib/video/editor/audio";
 import {
   type VideoEditorDraft,
   clearDraft,
@@ -60,28 +74,52 @@ import {
   exportProject,
   exportSize,
 } from "@/lib/video/editor/export";
-import { forgetMedia, importMedia, loadVideoPeaks, mediaKindOf } from "@/lib/video/editor/media";
+import { captureFrame, forgetMedia, importMedia, loadVideoPeaks, mediaKindOf } from "@/lib/video/editor/media";
 import {
+  type AnimProp,
   type Clip,
   type MediaClip,
   type MediaItem,
+  type Pose,
   type Project,
   type TextClip,
   type Track,
+  FONT_STACKS,
   IMAGE_DEFAULT_DURATION,
+  MAX_VOLUME,
   TEXT_DEFAULT_DURATION,
-  clipAt,
+  applyPose,
   clipEnd,
+  closeGap,
   createProject,
   findFreeStart,
+  gapAt,
+  geometryCorners,
+  isAnimated,
+  keyframeIndex,
+  mapClip,
+  newMediaClip,
+  newTextClip,
+  normalizeProject,
+  partners,
+  poseAt,
   projectDuration,
   removeClips,
-  splitClip,
+  rippleDelete,
+  rippleShift,
+  setLink,
+  setSpeed,
+  sourceTime,
+  splitClips,
+  toggleKeyframe,
   trackKindFor,
+  trimToTime,
   uid,
   updateClip,
+  withLinked,
 } from "@/lib/video/editor/model";
-import { PreviewEngine } from "@/lib/video/editor/preview";
+import { type Guide, HANDLE_HIT, PreviewEngine, rotateHandle } from "@/lib/video/editor/preview";
+import { reverseRange } from "@/lib/video/editor/reverse";
 import { AUDIO_EXTENSIONS, MEDIABUNNY_VIDEO_EXTENSIONS, VIDEO_MAX_FILE_SIZE } from "@/lib/constants";
 
 const IMAGE_EXTENSIONS = ".png,.jpg,.jpeg,.webp,.gif,.avif,.bmp";
@@ -89,18 +127,12 @@ const ACCEPT = `${MEDIABUNNY_VIDEO_EXTENSIONS},${AUDIO_EXTENSIONS},${IMAGE_EXTEN
 const HISTORY_LIMIT = 100;
 const MIN_PPS = 4;
 const MAX_PPS = 400;
+const FREEZE_LENGTH = 2;
+/** Screen pixels within which a dragged clip snaps to the frame's centre and edges. */
+const SNAP_SCREEN_PX = 8;
 // The zoom slider is logarithmic so each notch feels the same at any zoom level.
 const zoomToSlider = (pps: number) => Math.log(pps / MIN_PPS) / Math.log(MAX_PPS / MIN_PPS);
 const sliderToZoom = (v: number) => MIN_PPS * (MAX_PPS / MIN_PPS) ** v;
-
-const RESOLUTIONS = [
-  { label: "1080p landscape (1920×1080)", short: "1080p", w: 1920, h: 1080 },
-  { label: "720p landscape (1280×720)", short: "720p", w: 1280, h: 720 },
-  { label: "4K landscape (3840×2160)", short: "4K", w: 3840, h: 2160 },
-  { label: "Vertical 1080×1920", short: "9:16", w: 1080, h: 1920 },
-  { label: "Square 1080×1080", short: "1:1", w: 1080, h: 1080 },
-  { label: "Portrait 4:5 (1080×1350)", short: "4:5", w: 1080, h: 1350 },
-];
 
 interface History {
   past: Project[];
@@ -112,20 +144,65 @@ function even(n: number) {
   return Math.max(2, Math.round(n / 2) * 2);
 }
 
+/** Clips that are linked (or the same clip) count as one thing being selected. */
+function groupCount(p: Project, ids: Iterable<string>) {
+  const groups = new Set<string>();
+  for (const id of ids) {
+    const c = p.clips.find((x) => x.id === id);
+    if (c) groups.add(c.linkId ?? c.id);
+  }
+  return groups.size;
+}
+
+/** Copy clips with fresh ids, keeping links inside the copied set. */
+function cloneClips(clips: Clip[]): Clip[] {
+  const links = new Map<string, string>();
+  return clips.map((c) => {
+    let linkId: string | null = null;
+    if (c.linkId) {
+      if (!links.has(c.linkId)) links.set(c.linkId, uid("l"));
+      linkId = links.get(c.linkId)!;
+    }
+    return { ...c, id: uid("c"), linkId };
+  });
+}
+
+/** Lay copied clips onto the timeline from `at`, each on its own track or the nearest free spot there. */
+function placeClips(p: Project, clips: Clip[], at: number): { project: Project; ids: string[] } {
+  if (!clips.length) return { project: p, ids: [] };
+  const origin = Math.min(...clips.map((c) => c.start));
+  let next = p;
+  const ids: string[] = [];
+  for (const c of cloneClips(clips)) {
+    if (!next.tracks.some((t) => t.id === c.trackId)) continue;
+    const start = findFreeStart(next, c.trackId, at + (c.start - origin), c.duration);
+    next = { ...next, clips: [...next.clips, { ...c, start } as Clip] };
+    ids.push(c.id);
+  }
+  return { project: next, ids };
+}
+
 function VideoEditorPage() {
   const [hist, setHist] = useState<History>(() => ({ past: [], present: createProject(), future: [] }));
   const project = hist.present;
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const media = useMemo(() => new Map(mediaList.map((m) => [m.id, m])), [mediaList]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<string[]>([]);
+  const [primaryId, setPrimaryId] = useState<string | null>(null);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [rate, setRate] = useState(1);
   const [pps, setPps] = useState(40);
   const [importing, setImporting] = useState(0);
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [result, setResult] = useState<ExportResult | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [captionsOpen, setCaptionsOpen] = useState(false);
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  const [editingText, setEditingText] = useState<string | null>(null);
+  const [guides, setGuides] = useState<Guide[]>([]);
   const [exportSettings, setExportSettings] = useState<ExportSettings>({
     format: "mp4",
     resolution: Number.POSITIVE_INFINITY,
@@ -136,17 +213,38 @@ function VideoEditorPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<PreviewEngine | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const clipboard = useRef<Clip[]>([]);
   const projectRef = useRef(project);
   projectRef.current = project;
   const mediaListRef = useRef(mediaList);
   mediaListRef.current = mediaList;
+  const mediaRef = useRef(media);
+  mediaRef.current = media;
   const ppsRef = useRef(pps);
   ppsRef.current = pps;
   const timeRef = useRef(time);
   timeRef.current = time;
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  const primaryRef = useRef(primaryId);
+  primaryRef.current = primaryId;
 
   const duration = projectDuration(project);
-  const selected = project.clips.find((c) => c.id === selectedId) ?? null;
+  const selectedSet = useMemo(() => new Set(selection), [selection]);
+  const selected = project.clips.find((c) => c.id === primaryId) ?? null;
+  const groups = groupCount(project, selection);
+  const tol = 0.5 / project.fps;
+
+  const select = useCallback((ids: Iterable<string>, primary: string | null) => {
+    const list = [...new Set(ids)];
+    setSelection(list);
+    setPrimaryId(primary && list.includes(primary) ? primary : (list[list.length - 1] ?? null));
+  }, []);
+  /** Select one clip and whatever is linked to it. */
+  const selectClip = useCallback(
+    (id: string | null) => select(id ? withLinked(projectRef.current, [id]) : [], id),
+    [select],
+  );
 
   // ── History ────────────────────────────────────────────────
   const commit = useCallback((fn: (p: Project) => Project) => {
@@ -195,8 +293,11 @@ function VideoEditorPage() {
     if (!canvas || !hasMedia) return;
     const engine = new PreviewEngine(canvas);
     engine.onTime = setTime;
-    engine.onPlayingChange = setPlaying;
-    engine.setProject(projectRef.current, media);
+    engine.onPlayingChange = (on) => {
+      setPlaying(on);
+      setRate(engine.rate);
+    };
+    engine.setProject(projectRef.current, mediaRef.current);
     engine.seek(timeRef.current);
     engineRef.current = engine;
     return () => {
@@ -211,15 +312,29 @@ function VideoEditorPage() {
   }, [project, media]);
 
   useEffect(() => {
-    engineRef.current?.setSelected(selectedId);
-  }, [selectedId]);
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.editingId = editingText;
+    engine.requestDraw();
+  }, [editingText]);
 
+  // Drop selected ids whose clips are gone (undo, delete, media removed).
   useEffect(() => {
-    if (selectedId && !project.clips.some((c) => c.id === selectedId)) setSelectedId(null);
-  }, [project, selectedId]);
+    const live = selection.filter((id) => project.clips.some((c) => c.id === id));
+    if (live.length !== selection.length) select(live, primaryId);
+    if (editingText && !project.clips.some((c) => c.id === editingText)) setEditingText(null);
+  }, [project, selection, primaryId, select, editingText]);
 
   const seek = useCallback((t: number) => engineRef.current?.seek(t), []);
   const togglePlay = useCallback(() => engineRef.current?.toggle(), []);
+  const shuttle = useCallback((dir: 1 | -1) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    // Each press in the same direction doubles the speed, up to 8×.
+    const next = engine.playing && Math.sign(engine.rate) === dir ? Math.max(-8, Math.min(8, engine.rate * 2)) : dir;
+    engine.play(next);
+    setRate(next);
+  }, []);
 
   // Listening to a bin item and playing the timeline are exclusive.
   const binPreview = useBinPreview(useCallback(() => engineRef.current?.pause(), []));
@@ -298,10 +413,10 @@ function VideoEditorPage() {
     if (!loaded) return;
     const { draft, media: items } = loaded;
     const known = new Set(items.map((m) => m.id));
-    const project = {
+    const project = normalizeProject({
       ...draft.project,
       clips: draft.project.clips.filter((c) => c.type !== "media" || known.has(c.mediaId)),
-    };
+    });
     sizedFromMedia.current = true;
     setMediaList(items);
     setHist({ past: [], present: project, future: [] });
@@ -352,6 +467,37 @@ function VideoEditorPage() {
   }, [persist]);
 
   // ── Import ─────────────────────────────────────────────────
+  /** Bring a file into the bin; resolves with the new item, or null if it couldn't be read. */
+  const importOne = useCallback(
+    async (file: File): Promise<MediaItem | null> => {
+      try {
+        const item = await importMedia(file);
+        setMediaList((list) => [...list, item]);
+        mediaRef.current = new Map(mediaRef.current).set(item.id, item);
+        storeFile(item);
+        // First video sets the frame size, while nothing is on the timeline yet.
+        if (item.kind === "video" && item.width && item.height && !sizedFromMedia.current) {
+          sizedFromMedia.current = true;
+          setHist((h) => {
+            if (h.present.clips.length > 0 || h.past.length > 0) return h;
+            const scale = Math.min(1, 3840 / Math.max(item.width, item.height));
+            return { ...h, present: { ...h.present, width: even(item.width * scale), height: even(item.height * scale) } };
+          });
+        }
+        if (item.kind === "video" && item.hasAudio) {
+          loadVideoPeaks(item).then((peaks) => {
+            setMediaList((list) => list.map((m) => (m.id === item.id ? { ...m, peaks } : m)));
+          });
+        }
+        return item;
+      } catch (err) {
+        setError(getErrorMessage(err, `Could not import "${file.name}".`));
+        return null;
+      }
+    },
+    [storeFile],
+  );
+
   const addFiles = useCallback(
     async (files: File[]) => {
       setError(null);
@@ -359,62 +505,18 @@ function VideoEditorPage() {
       if (usable.length < files.length) setError("Some files were skipped: only video, audio and image files work here.");
       setImporting((n) => n + usable.length);
       for (const file of usable) {
-        try {
-          const item = await importMedia(file);
-          setMediaList((list) => [...list, item]);
-          storeFile(item);
-          // First video sets the frame size, while nothing is on the timeline yet.
-          if (item.kind === "video" && item.width && item.height && !sizedFromMedia.current) {
-            sizedFromMedia.current = true;
-            setHist((h) => {
-              if (h.present.clips.length > 0 || h.past.length > 0) return h;
-              const scale = Math.min(1, 3840 / Math.max(item.width, item.height));
-              return { ...h, present: { ...h.present, width: even(item.width * scale), height: even(item.height * scale) } };
-            });
-          }
-          if (item.kind === "video" && item.hasAudio) {
-            loadVideoPeaks(item).then((peaks) => {
-              setMediaList((list) => list.map((m) => (m.id === item.id ? { ...m, peaks } : m)));
-            });
-          }
-        } catch (err) {
-          setError(getErrorMessage(err, `Could not import "${file.name}".`));
-        } finally {
-          setImporting((n) => n - 1);
-        }
+        await importOne(file);
+        setImporting((n) => n - 1);
       }
     },
-    [storeFile],
+    [importOne],
   );
 
   // ── Clip creation ──────────────────────────────────────────
-  const newMediaClip = useCallback(
-    (id: string, item: MediaItem, trackId: string, start: number, p: Project): MediaClip => {
-      const dur = item.kind === "image" ? IMAGE_DEFAULT_DURATION : item.duration;
-      return {
-        id,
-        type: "media",
-        mediaId: item.id,
-        trackId,
-        start: findFreeStart(p, trackId, start, dur),
-        duration: dur,
-        in: 0,
-        x: 0.5,
-        y: 0.5,
-        scale: 1,
-        opacity: 1,
-        volume: 1,
-        fadeIn: 0,
-        fadeOut: 0,
-      };
-    },
-    [],
-  );
-
   /** Add media at `t` on `trackId`, or the bottom-most compatible track at the playhead. */
   const addMediaToTimeline = useCallback(
     (mediaId: string, trackId?: string, t?: number) => {
-      const item = media.get(mediaId);
+      const item = mediaRef.current.get(mediaId);
       if (!item) return;
       const id = uid("c");
       commit((p) => {
@@ -425,42 +527,34 @@ function VideoEditorPage() {
         // Default to "Video 1" (bottom of the video stack) or "Audio 1" (top of the audio stack).
         if (!ok) track = want === "video" ? p.tracks.findLast((tr) => tr.kind === "video") : p.tracks.find((tr) => tr.kind === want);
         if (!track) return p;
-        return { ...p, clips: [...p.clips, newMediaClip(id, item, track.id, t ?? timeRef.current, p)] };
+        const dur = item.kind === "image" ? IMAGE_DEFAULT_DURATION : item.duration;
+        const start = findFreeStart(p, track.id, t ?? timeRef.current, dur);
+        return { ...p, clips: [...p.clips, newMediaClip({ id, trackId: track.id, mediaId: item.id, start, duration: dur })] };
       });
-      setSelectedId(id);
+      selectClip(id);
     },
-    [commit, media, newMediaClip],
+    [commit, selectClip],
   );
 
-  const addText = useCallback(() => {
-    const id = uid("c");
-    commit((p) => {
-      let tracks = p.tracks;
-      let track = tracks.find((t) => t.kind === "text");
-      if (!track) {
-        track = { id: uid("t"), kind: "text", name: "Text", muted: false, hidden: false };
-        tracks = [track, ...tracks];
-      }
-      const next = { ...p, tracks };
-      const clip: TextClip = {
-        id,
-        type: "text",
-        trackId: track.id,
-        start: findFreeStart(next, track.id, timeRef.current, TEXT_DEFAULT_DURATION),
-        duration: TEXT_DEFAULT_DURATION,
-        text: "Your text",
-        size: 96,
-        color: "#ffffff",
-        background: null,
-        bold: true,
-        x: 0.5,
-        y: 0.5,
-        opacity: 1,
-      };
-      return { ...next, clips: [...next.clips, clip] };
-    });
-    setSelectedId(id);
-  }, [commit]);
+  const addText = useCallback(
+    (at?: number) => {
+      const id = uid("c");
+      commit((p) => {
+        let tracks = p.tracks;
+        let track = tracks.find((t) => t.kind === "text");
+        if (!track) {
+          track = { id: uid("t"), kind: "text", name: "Text", muted: false, hidden: false };
+          tracks = [track, ...tracks];
+        }
+        const next = { ...p, tracks };
+        const start = findFreeStart(next, track.id, at ?? timeRef.current, TEXT_DEFAULT_DURATION);
+        const clip = newTextClip({ id, trackId: track.id, start, duration: TEXT_DEFAULT_DURATION });
+        return { ...next, clips: [...next.clips, clip] };
+      });
+      selectClip(id);
+    },
+    [commit, selectClip],
+  );
 
   const addTrack = useCallback(
     (kind: Track["kind"]) => {
@@ -479,59 +573,128 @@ function VideoEditorPage() {
   );
 
   // ── Clip operations ────────────────────────────────────────
+  /** Selected clips the playhead crosses, or every clip it crosses when none of the selection does. */
+  const underPlayhead = useCallback((p: Project, t: number) => {
+    const crosses = (c: Clip) => t > c.start + 0.01 && t < clipEnd(c) - 0.01;
+    const sel = new Set(selectionRef.current);
+    const picked = p.clips.filter((c) => sel.has(c.id) && crosses(c));
+    return (picked.length ? picked : p.clips.filter(crosses)).map((c) => c.id);
+  }, []);
+
   const splitAtPlayhead = useCallback(() => {
     const t = timeRef.current;
-    commit((p) => {
-      if (selectedId) {
-        const c = p.clips.find((x) => x.id === selectedId);
-        if (c && t > c.start && t < clipEnd(c)) return splitClip(p, c.id, t);
-      }
-      // Nothing selected under the playhead: cut every clip it crosses.
-      let next = p;
-      for (const track of p.tracks) {
-        const c = clipAt(p, track.id, t);
-        if (c) next = splitClip(next, c.id, t);
-      }
-      return next;
-    });
-  }, [commit, selectedId]);
+    commit((p) => splitClips(p, underPlayhead(p, t), t));
+  }, [commit, underPlayhead]);
 
-  const deleteSelected = useCallback(() => {
-    if (!selectedId) return;
-    commit((p) => removeClips(p, new Set([selectedId])));
-    setSelectedId(null);
-  }, [commit, selectedId]);
+  const trimAtPlayhead = useCallback(
+    (side: "start" | "end") => {
+      const t = timeRef.current;
+      commit((p) => trimToTime(p, underPlayhead(p, t), t, side));
+    },
+    [commit, underPlayhead],
+  );
+
+  const deleteSelected = useCallback(
+    (ripple = false) => {
+      const ids = selectionRef.current;
+      if (!ids.length) return;
+      commit((p) => (ripple ? rippleDelete(p, ids) : removeClips(p, withLinked(p, ids))));
+      select([], null);
+    },
+    [commit, select],
+  );
 
   const duplicateSelected = useCallback(() => {
-    if (!selected) return;
-    const id = uid("c");
-    commit((p) => {
-      const start = findFreeStart(p, selected.trackId, clipEnd(selected), selected.duration);
-      return { ...p, clips: [...p.clips, { ...selected, id, start } as Clip] };
-    });
-    setSelectedId(id);
-  }, [commit, selected]);
+    const p = projectRef.current;
+    const clips = p.clips.filter((c) => withLinked(p, selectionRef.current).has(c.id));
+    if (!clips.length) return;
+    const end = Math.max(...clips.map(clipEnd));
+    const placed = placeClips(p, clips, end);
+    commit(() => placed.project);
+    select(placed.ids, placed.ids[0] ?? null);
+  }, [commit, select]);
+
+  const copySelected = useCallback(() => {
+    const p = projectRef.current;
+    const ids = withLinked(p, selectionRef.current);
+    clipboard.current = p.clips.filter((c) => ids.has(c.id)).map((c) => ({ ...c }));
+  }, []);
+
+  const paste = useCallback(
+    (at?: number) => {
+      if (!clipboard.current.length) return;
+      const placed = placeClips(projectRef.current, clipboard.current, at ?? timeRef.current);
+      commit(() => placed.project);
+      select(placed.ids, placed.ids[0] ?? null);
+    },
+    [commit, select],
+  );
+
+  const setLinked = useCallback(
+    (linked: boolean) => commit((p) => setLink(p, selectionRef.current, linked)),
+    [commit],
+  );
+
+  const toggleMarker = useCallback(
+    (at?: number) => {
+      const t = at ?? timeRef.current;
+      commit((p) => {
+        const near = p.markers.find((m) => Math.abs(m.time - t) <= 0.5 / p.fps);
+        return near
+          ? { ...p, markers: p.markers.filter((m) => m !== near) }
+          : { ...p, markers: [...p.markers, { id: uid("k"), time: t }].sort((a, b) => a.time - b.time) };
+      });
+    },
+    [commit],
+  );
+
+  /** Jump to the previous or next clip edge or marker. */
+  const jumpEdit = useCallback(
+    (dir: 1 | -1) => {
+      const p = projectRef.current;
+      const t = timeRef.current;
+      const points = [0, ...p.markers.map((m) => m.time), ...p.clips.flatMap((c) => [c.start, clipEnd(c)])];
+      const next =
+        dir > 0
+          ? Math.min(...points.filter((x) => x > t + 1e-3), Number.POSITIVE_INFINITY)
+          : Math.max(...points.filter((x) => x < t - 1e-3), Number.NEGATIVE_INFINITY);
+      if (Number.isFinite(next)) seek(next);
+    },
+    [seek],
+  );
 
   const patchSelected = useCallback(
     (patch: Partial<MediaClip> | Partial<TextClip>) => {
-      if (selectedId) commit((p) => updateClip(p, selectedId, patch));
+      const id = primaryRef.current;
+      if (id) commit((p) => updateClip(p, id, patch));
     },
-    [commit, selectedId],
+    [commit],
   );
 
-  /** Continuous edits (sliders) record one history step per interaction. */
-  const livePatch = useCallback(
-    (patch: Partial<MediaClip> | Partial<TextClip>) => {
-      if (!selectedId) return;
+  /** Continuous edits (sliders, drags) record one history step per interaction. */
+  const liveMap = useCallback(
+    (fn: (c: Clip) => Clip) => {
+      const id = primaryRef.current;
+      if (!id) return;
       if (!gestureBase.current) gesture.begin();
-      gesture.live(updateClip(projectRef.current, selectedId, patch));
+      gesture.live(mapClip(projectRef.current, id, fn));
     },
-    [gesture, selectedId],
+    [gesture],
   );
+  const livePatch = useCallback(
+    (patch: Partial<MediaClip> | Partial<TextClip>) => liveMap((c) => ({ ...c, ...patch }) as Clip),
+    [liveMap],
+  );
+
+  /** Seconds into the primary clip at the playhead, where keyframes land. */
+  const localTime = useCallback(() => {
+    const c = projectRef.current.clips.find((x) => x.id === primaryRef.current);
+    return c ? Math.min(Math.max(timeRef.current - c.start, 0), c.duration) : 0;
+  }, []);
 
   const detachAudio = useCallback(() => {
-    if (!selected || selected.type !== "media") return;
-    const clip = selected;
+    const clip = projectRef.current.clips.find((c) => c.id === primaryRef.current);
+    if (!clip || clip.type !== "media") return;
     commit((p) => {
       let tracks = p.tracks;
       let target = tracks.find(
@@ -541,10 +704,110 @@ function VideoEditorPage() {
         target = { id: uid("t"), kind: "audio", name: `Audio ${tracks.filter((t) => t.kind === "audio").length + 1}`, muted: false, hidden: false };
         tracks = [...tracks, target];
       }
-      const audio: MediaClip = { ...clip, id: uid("c"), trackId: target.id, x: 0.5, y: 0.5, scale: 1, opacity: 1 };
-      return { ...p, tracks, clips: [...p.clips.map((c) => (c.id === clip.id ? { ...clip, volume: 0 } : c)), audio] };
+      const linkId = clip.linkId ?? uid("l");
+      const audio = newMediaClip({
+        id: uid("c"),
+        trackId: target.id,
+        mediaId: clip.mediaId,
+        start: clip.start,
+        duration: clip.duration,
+        in: clip.in,
+        speed: clip.speed,
+        volume: clip.volume,
+        fadeIn: clip.fadeIn,
+        fadeOut: clip.fadeOut,
+        duck: clip.duck,
+        linkId,
+      });
+      return {
+        ...p,
+        tracks,
+        clips: [...p.clips.map((c) => (c.id === clip.id ? { ...clip, volume: 0, duck: false, linkId } : c)), audio],
+      };
     });
-  }, [commit, selected]);
+  }, [commit]);
+
+  const normalize = useCallback(async () => {
+    const clip = projectRef.current.clips.find((c) => c.id === primaryRef.current);
+    const item = clip?.type === "media" ? mediaRef.current.get(clip.mediaId) : undefined;
+    if (!clip || clip.type !== "media" || !item) return;
+    setBusy("Measuring loudness…");
+    try {
+      const peak = await clipPeak(clip, item);
+      if (peak <= 0) setError("This clip is silent, so there's nothing to normalize.");
+      else commit((p) => updateClip(p, clip.id, { volume: Math.min(MAX_VOLUME, 0.89 / peak) }));
+    } finally {
+      setBusy(null);
+    }
+  }, [commit]);
+
+  const reverseClip = useCallback(async () => {
+    const clip = projectRef.current.clips.find((c) => c.id === primaryRef.current);
+    const item = clip?.type === "media" ? mediaRef.current.get(clip.mediaId) : undefined;
+    if (!clip || clip.type !== "media" || !item || item.kind !== "video") return;
+    engineRef.current?.pause();
+    setBusy("Reversing… 0%");
+    try {
+      const from = clip.in;
+      const to = Math.min(item.duration, clip.in + clip.duration * clip.speed);
+      const file = await reverseRange(item, from, to, { onProgress: (f) => setBusy(`Reversing… ${Math.round(f * 100)}%`) });
+      const reversed = await importOne(file);
+      if (!reversed) return;
+      // The picture and any separated sound from the same source flip together.
+      commit((p) => {
+        const group = new Set([clip.id, ...partners(p, clip).filter((c) => c.type === "media" && c.mediaId === item.id).map((c) => c.id)]);
+        return { ...p, clips: p.clips.map((c) => (group.has(c.id) && c.type === "media" ? { ...c, mediaId: reversed.id, in: 0 } : c)) };
+      });
+    } catch (err) {
+      setError(getErrorMessage(err, "Couldn't reverse this clip."));
+    } finally {
+      setBusy(null);
+    }
+  }, [commit, importOne]);
+
+  const freezeFrame = useCallback(async () => {
+    const t = timeRef.current;
+    const clip = projectRef.current.clips.find((c) => c.id === primaryRef.current);
+    const item = clip?.type === "media" ? mediaRef.current.get(clip.mediaId) : undefined;
+    if (!clip || clip.type !== "media" || !item || item.kind !== "video" || t < clip.start || t >= clipEnd(clip)) return;
+    engineRef.current?.pause();
+    setBusy("Grabbing the frame…");
+    try {
+      const image = await importOne(await captureFrame(item, sourceTime(clip, t)));
+      if (!image) return;
+      const id = uid("c");
+      commit((p) => {
+        const c = p.clips.find((x) => x.id === clip.id);
+        if (!c || c.type !== "media") return p;
+        const tracks = new Set([c.trackId, ...partners(p, c).map((x) => x.trackId)]);
+        let next = splitClips(p, [c.id], t);
+        next = rippleShift(next, tracks, t, FREEZE_LENGTH);
+        // Whatever room the ripple managed is how long the hold lasts.
+        const later = next.clips.filter((x) => x.trackId === c.trackId && x.start > t + 1e-3).map((x) => x.start);
+        const room = Math.min(FREEZE_LENGTH, ...later.map((s) => s - t));
+        if (room < 0.1) return p;
+        const pose = poseAt(c, t - c.start);
+        const still = newMediaClip({
+          id,
+          trackId: c.trackId,
+          mediaId: image.id,
+          start: t,
+          duration: room,
+          ...pose,
+          crop: c.crop,
+          color: c.color,
+          flipH: c.flipH,
+          flipV: c.flipV,
+        });
+        return { ...next, clips: [...next.clips, still] };
+      });
+      selectClip(id);
+    } catch (err) {
+      setError(getErrorMessage(err, "Couldn't freeze that frame."));
+    } finally {
+      setBusy(null);
+    }
+  }, [commit, importOne, selectClip]);
 
   const removeMedia = useCallback(
     (item: MediaItem) => {
@@ -563,42 +826,234 @@ function VideoEditorPage() {
     [commit],
   );
   const removeTrack = useCallback(
-    (trackId: string) => commit((p) => ({ ...p, tracks: p.tracks.filter((t) => t.id !== trackId) })),
+    (trackId: string) =>
+      commit((p) => ({ ...p, tracks: p.tracks.filter((t) => t.id !== trackId), clips: p.clips.filter((c) => c.trackId !== trackId) })),
+    [commit],
+  );
+  const renameTrack = useCallback(
+    (trackId: string, name: string) => commit((p) => ({ ...p, tracks: p.tracks.map((t) => (t.id === trackId ? { ...t, name } : t)) })),
+    [commit],
+  );
+  /** Swap a track with its neighbour of the same kind. */
+  const moveTrack = useCallback(
+    (trackId: string, dir: -1 | 1) =>
+      commit((p) => {
+        const i = p.tracks.findIndex((t) => t.id === trackId);
+        const j = i + dir;
+        if (i < 0 || j < 0 || j >= p.tracks.length || p.tracks[j].kind !== p.tracks[i].kind) return p;
+        const tracks = [...p.tracks];
+        [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
+        return { ...p, tracks };
+      }),
     [commit],
   );
 
-  // ── Preview canvas: click to select, drag to reposition ────
-  const onCanvasDown = useCallback(
-    (e: React.PointerEvent<HTMLCanvasElement>) => {
-      const engine = engineRef.current;
-      if (!engine || e.button !== 0) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const p = projectRef.current;
-      const toFrame = (cx: number, cy: number) => ({
-        x: ((cx - rect.left) / rect.width) * p.width,
-        y: ((cy - rect.top) / rect.height) * p.height,
+  const addCaptions = useCallback(
+    (cues: Cue[]) => {
+      commit((p) => {
+        const track: Track = { id: uid("t"), kind: "text", name: "Captions", muted: false, hidden: false };
+        const clips = cues.map((cue, i) => {
+          const next = cues[i + 1];
+          const end = Math.max(cue.start + 0.3, next ? Math.min(cue.end, next.start) : cue.end);
+          return newTextClip({
+            id: uid("c"),
+            trackId: track.id,
+            start: cue.start,
+            duration: end - cue.start,
+            text: cue.text,
+            size: 58,
+            bold: true,
+            outline: "#1a1612",
+            y: 0.86,
+          });
+        });
+        return { ...p, tracks: [track, ...p.tracks], clips: [...p.clips, ...clips] };
       });
+    },
+    [commit],
+  );
+
+  const saveFrame = useCallback(() => {
+    const canvas = engineRef.current?.snapshot();
+    if (!canvas) return;
+    const t = timeRef.current;
+    canvas.toBlob((blob) => {
+      if (blob) downloadBlob(blob, `frame-${fmtTime(t, projectRef.current.fps).replaceAll(":", "-")}.png`, "image/png");
+    }, "image/png");
+  }, []);
+
+  // ── Preview canvas: select, move, resize, rotate ───────────
+  const toFrame = useCallback((clientX: number, clientY: number) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const p = projectRef.current;
+    return { x: ((clientX - rect.left) / rect.width) * p.width, y: ((clientY - rect.top) / rect.height) * p.height };
+  }, []);
+
+  /** What the pointer is over on the canvas: a handle of the primary clip, a clip, or nothing. */
+  const canvasTarget = useCallback((x: number, y: number) => {
+    const engine = engineRef.current;
+    if (!engine) return null;
+    const p = projectRef.current;
+    const u = engine.unit();
+    const primary = p.clips.find((c) => c.id === primaryRef.current);
+    if (primary && engine.onScreen(primary)) {
+      const g = engine.geometry(primary);
+      if (g) {
+        const [, knob] = rotateHandle(g, u, p.width, p.height);
+        if (Math.hypot(x - knob[0], y - knob[1]) <= HANDLE_HIT * u) return { kind: "rotate" as const, clip: primary, g };
+        const corner = geometryCorners(g).findIndex(([cx, cy]) => Math.hypot(x - cx, y - cy) <= HANDLE_HIT * u);
+        if (corner >= 0) return { kind: "corner" as const, clip: primary, g, corner };
+      }
+    }
+    const hit = engine.hitTest(x, y);
+    const clip = hit ? p.clips.find((c) => c.id === hit) : undefined;
+    return clip ? { kind: "body" as const, clip } : null;
+  }, []);
+
+  const onCanvasDown = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      const engine = engineRef.current;
+      if (!engine || e.button !== 0 || (e.target as HTMLElement).closest("textarea")) return;
+      canvasRef.current?.focus();
       const pt = toFrame(e.clientX, e.clientY);
-      const hit = engine.hitTest(pt.x, pt.y);
-      setSelectedId(hit);
-      if (!hit) return;
+      const target = canvasTarget(pt.x, pt.y);
+      if (!target) {
+        if (!e.shiftKey) select([], null);
+        return;
+      }
+      const { clip } = target;
+      if (target.kind === "body") {
+        if (e.shiftKey) {
+          const next = new Set(selectionRef.current);
+          const own = withLinked(projectRef.current, [clip.id]);
+          const adding = !next.has(clip.id);
+          for (const id of own) adding ? next.add(id) : next.delete(id);
+          select(next, adding ? clip.id : null);
+          return;
+        }
+        if (clip.id !== primaryRef.current) selectClip(clip.id);
+      }
+
       const base = gesture.begin();
-      const clip = base.clips.find((c) => c.id === hit)!;
-      const move = (ev: PointerEvent) => {
-        const q = toFrame(ev.clientX, ev.clientY);
-        const x = Math.min(1.5, Math.max(-0.5, clip.x + (q.x - pt.x) / p.width));
-        const y = Math.min(1.5, Math.max(-0.5, clip.y + (q.y - pt.y) / p.height));
-        gesture.live(updateClip(base, hit, { x, y }));
-      };
+      const orig = base.clips.find((c) => c.id === clip.id)!;
+      const p = base;
+      const local = Math.min(Math.max(timeRef.current - orig.start, 0), orig.duration);
+      const pose0 = poseAt(orig, local);
+      const W = p.width;
+      const H = p.height;
+      const u = engine.unit();
+      const g0 = engine.geometry(orig);
+      const tolerance = 0.5 / p.fps;
+      const set = (patch: Partial<Pose>, extra?: Partial<TextClip>) =>
+        gesture.live(mapClip(base, orig.id, (c) => ({ ...applyPose(c, patch, local, tolerance), ...extra }) as Clip));
+
+      let move: (ev: PointerEvent) => void;
+      if (target.kind === "rotate") {
+        const a0 = Math.atan2(pt.y - pose0.y * H, pt.x - pose0.x * W);
+        move = (ev) => {
+          const q = toFrame(ev.clientX, ev.clientY);
+          let r = pose0.rotation + ((Math.atan2(q.y - pose0.y * H, q.x - pose0.x * W) - a0) * 180) / Math.PI;
+          r = ((((r + 180) % 360) + 360) % 360) - 180;
+          if (ev.shiftKey) r = Math.round(r / 15) * 15;
+          else if (Math.abs(r - Math.round(r / 90) * 90) < 3) r = Math.round(r / 90) * 90;
+          set({ rotation: r });
+        };
+      } else if (target.kind === "corner" && g0) {
+        const corners = geometryCorners(g0);
+        const start = corners[target.corner];
+        const opposite = corners[(target.corner + 2) % 4];
+        const centre = { x: pose0.x * W, y: pose0.y * H };
+        move = (ev) => {
+          const q = toFrame(ev.clientX, ev.clientY);
+          // ⌥ or ⇧ scales around the centre; otherwise the opposite corner stays put.
+          const fromCentre = ev.altKey || ev.shiftKey;
+          const anchor = fromCentre ? centre : { x: opposite[0], y: opposite[1] };
+          const d0 = Math.hypot(start[0] - anchor.x, start[1] - anchor.y) || 1;
+          const s = Math.max(0.02, Math.hypot(q.x - anchor.x, q.y - anchor.y) / d0);
+          const cx = anchor.x + (centre.x - anchor.x) * s;
+          const cy = anchor.y + (centre.y - anchor.y) * s;
+          if (orig.type === "text") set({ x: cx / W, y: cy / H }, { size: Math.min(600, Math.max(8, Math.round(orig.size * s))) });
+          else set({ scale: Math.min(10, Math.max(0.02, pose0.scale * s)), x: cx / W, y: cy / H });
+        };
+      } else {
+        // Snap the clip's centre to the frame's centre, and its edges to the frame's edges.
+        const box = g0 ? geometryCorners(g0) : null;
+        const minX = box ? Math.min(...box.map((c) => c[0])) : 0;
+        const maxX = box ? Math.max(...box.map((c) => c[0])) : 0;
+        const minY = box ? Math.min(...box.map((c) => c[1])) : 0;
+        const maxY = box ? Math.max(...box.map((c) => c[1])) : 0;
+        const threshold = SNAP_SCREEN_PX * u;
+        const snapAxis = (d: number, centre: number, lo: number, hi: number, size: number, axis: "x" | "y", guides: Guide[]) => {
+          if (!box) return d;
+          const options = [
+            { delta: size / 2 - (centre + d), at: size / 2 },
+            { delta: -(lo + d), at: 0 },
+            { delta: size - (hi + d), at: size },
+          ];
+          const best = options.reduce((a, b) => (Math.abs(b.delta) < Math.abs(a.delta) ? b : a));
+          if (Math.abs(best.delta) > threshold) return d;
+          guides.push({ axis, at: best.at });
+          return d + best.delta;
+        };
+        move = (ev) => {
+          const q = toFrame(ev.clientX, ev.clientY);
+          const guides: Guide[] = [];
+          let dx = q.x - pt.x;
+          let dy = q.y - pt.y;
+          if (!(ev.metaKey || ev.ctrlKey)) {
+            dx = snapAxis(dx, pose0.x * W, minX, maxX, W, "x", guides);
+            dy = snapAxis(dy, pose0.y * H, minY, maxY, H, "y", guides);
+          }
+          setGuides(guides);
+          set({
+            x: Math.min(1.5, Math.max(-0.5, pose0.x + dx / W)),
+            y: Math.min(1.5, Math.max(-0.5, pose0.y + dy / H)),
+          });
+        };
+      }
       const up = () => {
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
+        setGuides([]);
         gesture.end();
       };
       window.addEventListener("pointermove", move);
       window.addEventListener("pointerup", up);
     },
-    [gesture],
+    [canvasTarget, gesture, select, selectClip, toFrame],
+  );
+
+  const onCanvasHover = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      if (e.buttons || (e.target as HTMLElement).closest("textarea")) return;
+      const pt = toFrame(e.clientX, e.clientY);
+      const target = canvasTarget(pt.x, pt.y);
+      e.currentTarget.style.cursor = !target
+        ? "default"
+        : target.kind === "rotate"
+          ? "grab"
+          : target.kind === "corner"
+            ? target.corner % 2 === 0
+              ? "nwse-resize"
+              : "nesw-resize"
+            : "move";
+    },
+    [canvasTarget, toFrame],
+  );
+
+  const onCanvasDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      if ((e.target as HTMLElement).closest("textarea")) return;
+      const pt = toFrame(e.clientX, e.clientY);
+      const hit = engineRef.current?.hitTest(pt.x, pt.y);
+      const clip = hit ? projectRef.current.clips.find((c) => c.id === hit) : undefined;
+      if (clip?.type !== "text") return;
+      engineRef.current?.pause();
+      selectClip(clip.id);
+      setEditingText(clip.id);
+    },
+    [selectClip, toFrame],
   );
 
   // ── Export ─────────────────────────────────────────────────
@@ -616,7 +1071,7 @@ function VideoEditorPage() {
     const abort = new AbortController();
     exportAbort.current = abort;
     try {
-      const out = await exportProject(projectRef.current, media, settings, {
+      const out = await exportProject(projectRef.current, mediaRef.current, settings, {
         onProgress: (p) => setExportProgress(p),
         signal: abort.signal,
       });
@@ -627,7 +1082,7 @@ function VideoEditorPage() {
       exportAbort.current = null;
       setExportProgress(null);
     }
-  }, [media]);
+  }, []);
 
   const download = useCallback(
     (e: React.MouseEvent) => {
@@ -657,55 +1112,172 @@ function VideoEditorPage() {
     setPps(Math.min(MAX_PPS, Math.max(MIN_PPS, w / (d * 1.05))));
   }, []);
 
+  // ── Context menus ──────────────────────────────────────────
+  const openMenu = useCallback(
+    (target: TimelineTarget, x: number, y: number) => {
+      const p = projectRef.current;
+      const t = timeRef.current;
+      let items: MenuItem[] = [];
+      if (target.kind === "clip") {
+        const clip = p.clips.find((c) => c.id === target.clipId);
+        if (!clip) return;
+        const item = clip.type === "media" ? mediaRef.current.get(clip.mediaId) : undefined;
+        const track = p.tracks.find((tr) => tr.id === clip.trackId);
+        const crosses = t > clip.start + 0.01 && t < clipEnd(clip) - 0.01;
+        const sel = selectionRef.current.length ? selectionRef.current : [clip.id];
+        const multi = groupCount(p, sel) > 1;
+        const isVideo = clip.type === "media" && item?.kind === "video" && track?.kind !== "audio";
+        items = [
+          { label: "Split at playhead", shortcut: "S", onSelect: splitAtPlayhead, disabled: !crosses },
+          { label: "Trim start to playhead", shortcut: "Q", onSelect: () => trimAtPlayhead("start"), disabled: !crosses },
+          { label: "Trim end to playhead", shortcut: "W", onSelect: () => trimAtPlayhead("end"), disabled: !crosses },
+          "sep",
+          { label: "Copy", shortcut: "⌘C", onSelect: copySelected },
+          { label: "Duplicate", shortcut: "⌘D", onSelect: duplicateSelected },
+          "sep",
+        ];
+        if (multi) items.push({ label: "Link together", onSelect: () => setLinked(true) });
+        if (clip.linkId) items.push({ label: "Unlink", onSelect: () => setLinked(false) });
+        if (isVideo && item?.hasAudio && clip.type === "media" && clip.volume > 0 && !multi) {
+          items.push({ label: "Separate audio", onSelect: detachAudio });
+        }
+        if (isVideo && !multi) {
+          items.push({ label: "Reverse", onSelect: reverseClip, disabled: !!busy });
+          items.push({ label: "Freeze frame at playhead", onSelect: freezeFrame, disabled: !crosses || !!busy });
+        }
+        if (items[items.length - 1] !== "sep") items.push("sep");
+        items.push(
+          { label: "Delete", shortcut: "⌫", onSelect: () => deleteSelected(false), danger: true },
+          { label: "Ripple delete", shortcut: "⇧⌫", onSelect: () => deleteSelected(true), danger: true },
+        );
+      } else if (target.kind === "lane") {
+        const gap = gapAt(p, target.trackId, target.time);
+        const track = p.tracks.find((tr) => tr.id === target.trackId);
+        items = [
+          { label: "Paste here", shortcut: "⌘V", onSelect: () => paste(target.time), disabled: !clipboard.current.length },
+          { label: "Close gap", onSelect: () => commit((q) => closeGap(q, target.trackId, target.time)), disabled: !gap || gap.to - gap.from < 0.01 },
+          { label: "Add marker here", shortcut: "M", onSelect: () => toggleMarker(target.time) },
+        ];
+        if (track?.kind === "text") items.push({ label: "Add text here", shortcut: "T", onSelect: () => addText(target.time) });
+      } else if (target.kind === "track") {
+        const track = p.tracks.find((tr) => tr.id === target.trackId);
+        if (!track) return;
+        const i = p.tracks.indexOf(track);
+        const count = p.clips.filter((c) => c.trackId === track.id).length;
+        items = [
+          { label: "Move up", onSelect: () => moveTrack(track.id, -1), disabled: p.tracks[i - 1]?.kind !== track.kind },
+          { label: "Move down", onSelect: () => moveTrack(track.id, 1), disabled: p.tracks[i + 1]?.kind !== track.kind },
+          { label: track.kind === "audio" ? "New audio track" : track.kind === "video" ? "New video track" : "New text track", onSelect: () => addTrack(track.kind) },
+          "sep",
+          { label: count ? `Delete track and its ${count} clip${count === 1 ? "" : "s"}` : "Delete track", onSelect: () => removeTrack(track.id), danger: true },
+        ];
+      } else {
+        items = [
+          { label: "Remove marker", onSelect: () => commit((q) => ({ ...q, markers: q.markers.filter((m) => m.id !== target.markerId) })), danger: true },
+          { label: "Remove all markers", onSelect: () => commit((q) => ({ ...q, markers: [] })), danger: true },
+        ];
+      }
+      setMenu({ x, y, items });
+    },
+    [addText, addTrack, busy, commit, copySelected, deleteSelected, detachAudio, duplicateSelected, freezeFrame, moveTrack, paste, removeTrack, reverseClip, setLinked, splitAtPlayhead, toggleMarker, trimAtPlayhead],
+  );
+  const closeMenu = useCallback(() => setMenu(null), []);
+
   // ── Keyboard shortcuts ─────────────────────────────────────
   useEffect(() => {
-    if (!hasMedia || result || exportOpen) return;
+    if (!hasMedia || result || exportOpen || captionsOpen) return;
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
       if (el.closest("input, textarea, select, [contenteditable=true]")) return;
       const mod = e.metaKey || e.ctrlKey;
-      const fps = projectRef.current.fps;
+      const key = e.key.toLowerCase();
+      const p = projectRef.current;
+      const fps = p.fps;
+      // With the preview focused, arrows nudge the selected clip instead of moving the playhead.
+      const nudging = document.activeElement === canvasRef.current && primaryRef.current && !mod;
       if (e.code === "Space") {
         e.preventDefault();
         // Space stops a bin preview first, then drives the timeline.
         if (binPlayingRef.current) stopBinPreview();
         else togglePlay();
-      } else if (mod && e.key.toLowerCase() === "z") {
+      } else if (mod && key === "z") {
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
-      } else if (mod && e.key.toLowerCase() === "y") {
+      } else if (mod && key === "y") {
         e.preventDefault();
         redo();
-      } else if (mod && e.key.toLowerCase() === "d") {
+      } else if (mod && key === "d") {
         e.preventDefault();
         duplicateSelected();
-      } else if (!mod && e.key.toLowerCase() === "s") {
+      } else if (mod && key === "c") {
+        copySelected();
+      } else if (mod && key === "v") {
+        e.preventDefault();
+        paste();
+      } else if (mod && key === "a") {
+        e.preventDefault();
+        select(
+          p.clips.map((c) => c.id),
+          primaryRef.current,
+        );
+      } else if (mod) {
+        return;
+      } else if (key === "s") {
         e.preventDefault();
         splitAtPlayhead();
-      } else if (!mod && e.key.toLowerCase() === "t") {
+      } else if (key === "q") {
+        trimAtPlayhead("start");
+      } else if (key === "w") {
+        trimAtPlayhead("end");
+      } else if (key === "t") {
         e.preventDefault();
         addText();
+      } else if (key === "m") {
+        toggleMarker();
+      } else if (key === "l") {
+        shuttle(1);
+      } else if (key === "j") {
+        shuttle(-1);
+      } else if (key === "k") {
+        engineRef.current?.pause();
       } else if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
-        deleteSelected();
-      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        deleteSelected(e.shiftKey);
+      } else if (nudging && e.key.startsWith("Arrow")) {
         e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        const id = primaryRef.current!;
+        const local = localTime();
+        commit((q) =>
+          mapClip(q, id, (c) => {
+            const pose = poseAt(c, local);
+            return applyPose(c, { x: pose.x + dx / q.width, y: pose.y + dy / q.height }, local, 0.5 / q.fps);
+          }),
+        );
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "," || e.key === ".") {
+        e.preventDefault();
+        const back = e.key === "ArrowLeft" || e.key === ",";
         const step = e.shiftKey ? 1 : 1 / fps;
-        seek(timeRef.current + (e.key === "ArrowLeft" ? -step : step));
+        seek(timeRef.current + (back ? -step : step));
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        jumpEdit(e.key === "ArrowUp" ? -1 : 1);
       } else if (e.key === "Home") {
         e.preventDefault();
         seek(0);
       } else if (e.key === "End") {
         e.preventDefault();
-        seek(projectDuration(projectRef.current));
+        seek(projectDuration(p));
       } else if (e.key === "Escape") {
-        setSelectedId(null);
+        select([], null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [hasMedia, result, exportOpen, togglePlay, undo, redo, duplicateSelected, splitAtPlayhead, addText, deleteSelected, seek, stopBinPreview]);
+  }, [hasMedia, result, exportOpen, captionsOpen, togglePlay, undo, redo, duplicateSelected, copySelected, paste, select, splitAtPlayhead, trimAtPlayhead, addText, toggleMarker, shuttle, deleteSelected, commit, localTime, seek, jumpEdit, stopBinPreview]);
 
   // Drop files anywhere on the editor.
   const onEditorDrop = useCallback(
@@ -780,11 +1352,61 @@ function VideoEditorPage() {
     wipeDraft();
     setMediaList([]);
     setHist({ past: [], present: createProject(), future: [] });
-    setSelectedId(null);
+    select([], null);
     setResult(null);
     setTime(0);
     sizedFromMedia.current = false;
-  }, [wipeDraft]);
+  }, [select, wipeDraft]);
+
+  // ── Inspector wiring ───────────────────────────────────────
+  const clipActions = useMemo((): ClipActions | null => {
+    if (!selected) return null;
+    const local = Math.min(Math.max(time - selected.start, 0), selected.duration);
+    return {
+      live: livePatch,
+      commit: gesture.end,
+      patch: patchSelected,
+      pose: poseAt(selected, local),
+      livePose: (patch) => liveMap((c) => applyPose(c, patch, localTime(), tol)),
+      patchPose: (patch) => {
+        const id = primaryRef.current;
+        if (id) commit((p) => mapClip(p, id, (c) => applyPose(c, patch, localTime(), tol)));
+      },
+      keyframe: (prop: AnimProp) => ({
+        on: keyframeIndex(selected, prop, local, tol) >= 0,
+        animated: isAnimated(selected, prop),
+        onToggle: () => commit((p) => mapClip(p, selected.id, (c) => toggleKeyframe(c, prop, localTime(), tol))),
+      }),
+    };
+  }, [selected, time, tol, livePatch, gesture, patchSelected, liveMap, localTime, commit]);
+
+  const selectedItem = selected?.type === "media" ? media.get(selected.mediaId) : undefined;
+  const selectedTrack = selected ? project.tracks.find((t) => t.id === selected.trackId) : undefined;
+  const mediaActions = useMemo((): MediaActions | null => {
+    if (!clipActions || selected?.type !== "media") return null;
+    const item = selectedItem;
+    const fit = item?.width ? Math.min(project.width / item.width, project.height / item.height) : 1;
+    const cover = item?.width ? Math.max(project.width / item.width, project.height / item.height) : 1;
+    const visualVideo = item?.kind === "video" && selectedTrack?.kind !== "audio";
+    const linkedAudio = partners(project, selected).some((c) => project.tracks.find((t) => t.id === c.trackId)?.kind === "audio");
+    return {
+      ...(clipActions as unknown as ClipActions<MediaClip>),
+      setSpeed: (speed, live) => {
+        const id = selected.id;
+        if (live) {
+          // Always from where the drag began, so clamping against a neighbour on the way never sticks.
+          const base = gestureBase.current ?? gesture.begin();
+          gesture.live(setSpeed(base, id, speed, mediaRef.current));
+        } else commit((p) => setSpeed(p, id, speed, mediaRef.current));
+      },
+      fillScale: cover / fit,
+      detachAudio: visualVideo && item?.hasAudio && selected.volume > 0 && !linkedAudio ? detachAudio : null,
+      normalize,
+      reverse: reverseClip,
+      freeze: visualVideo && time >= selected.start && time < clipEnd(selected) ? freezeFrame : null,
+      busy,
+    };
+  }, [clipActions, selected, selectedItem, selectedTrack, project, time, gesture, commit, detachAudio, normalize, reverseClip, freezeFrame, busy]);
 
   if (!workspace) {
     return (
@@ -813,8 +1435,9 @@ function VideoEditorPage() {
             onDiscard={discardDraft}
           />
           <InfoBox>
-            Arrange clips on video, audio and text tracks, trim and split them, then export an MP4. Your edit autosaves on
-            this device, so you can close the tab and pick up where you left off. Nothing is uploaded.
+            Arrange clips on video, audio and text tracks: trim, split, change speed, crop, colour, animate with keyframes,
+            add transitions and auto captions, then export an MP4. Your edit autosaves on this device, so you can close the
+            tab and pick up where you left off. Nothing is uploaded.
           </InfoBox>
         </div>
       </div>
@@ -823,6 +1446,7 @@ function VideoEditorPage() {
 
   const panelTitle = "h-10 shrink-0 flex items-center justify-between gap-2 px-3 border-b-2 border-foreground bg-muted";
   const kicker = "text-[11px] font-bold uppercase tracking-[0.14em]";
+  const editingClip = editingText ? project.clips.find((c): c is TextClip => c.id === editingText && c.type === "text") : undefined;
 
   return (
     <div
@@ -845,7 +1469,7 @@ function VideoEditorPage() {
         <h1 className="font-display text-2xl leading-none">Video Editor</h1>
         <button
           type="button"
-          onClick={() => setSelectedId(null)}
+          onClick={() => select([], null)}
           title="Project settings"
           className="hidden md:inline-flex items-center gap-2 ml-2 h-8 px-3 border-2 border-foreground bg-background hover:bg-accent text-xs font-bold font-mono transition-colors"
         >
@@ -940,18 +1564,49 @@ function VideoEditorPage() {
         <main className="flex-1 min-w-0 flex flex-col">
           <div
             className="flex-1 min-h-0 p-5 bg-muted"
+            onPointerDown={onCanvasDown}
+            onPointerMove={onCanvasHover}
+            onDoubleClick={onCanvasDoubleClick}
             style={{
               backgroundImage: "radial-gradient(color-mix(in srgb, var(--foreground) 14%, transparent) 1px, transparent 1px)",
               backgroundSize: "18px 18px",
             }}
           >
             <div ref={stageRef} className="w-full h-full flex items-center justify-center">
-              <canvas
-                ref={canvasRef}
-                onPointerDown={onCanvasDown}
-                className="block border-2 border-foreground bg-black shadow-[6px_6px_0_0_var(--foreground)]"
-                style={{ width: canvasW, height: canvasH }}
-              />
+              <div className="relative" style={{ width: canvasW, height: canvasH }}>
+                <canvas
+                  ref={canvasRef}
+                  tabIndex={0}
+                  aria-label="Preview: drag clips to move, corners to resize, the knob to rotate"
+                  className="block border-2 border-foreground bg-black shadow-[6px_6px_0_0_var(--foreground)] outline-none focus-visible:shadow-[6px_6px_0_0_var(--primary)]"
+                  style={{ width: canvasW, height: canvasH }}
+                />
+                {engineRef.current && (
+                  <SelectionOverlay
+                    engine={engineRef.current}
+                    project={project}
+                    selection={selection}
+                    primaryId={primaryId}
+                    editingId={editingText}
+                    guides={guides}
+                    time={time}
+                    cssScale={canvasW / project.width}
+                  />
+                )}
+                {editingClip && engineRef.current && (
+                  <InlineTextEditor
+                    clip={editingClip}
+                    engine={engineRef.current}
+                    project={project}
+                    cssScale={canvasW / project.width}
+                    onLive={(text) => livePatch({ text })}
+                    onDone={() => {
+                      gesture.end();
+                      setEditingText(null);
+                    }}
+                  />
+                )}
+              </div>
             </div>
           </div>
           <div className="h-14 shrink-0 flex items-center gap-2 px-3 border-t-2 border-foreground bg-card">
@@ -973,14 +1628,26 @@ function VideoEditorPage() {
               <span className="font-bold">{fmtTime(time, project.fps)}</span>
               <span className="text-muted-foreground"> / {fmtTime(duration, project.fps)}</span>
             </div>
+            {playing && rate !== 1 && (
+              <span className="px-1.5 border-2 border-foreground bg-foreground text-background font-mono text-[11px] font-bold">
+                {rate < 0 ? "◀ " : ""}
+                {Math.abs(rate)}×
+              </span>
+            )}
+            <div className="flex-1" />
+            <IconButton onClick={saveFrame} title="Save this frame as a PNG">
+              <CameraIcon className="w-4 h-4" />
+            </IconButton>
           </div>
         </main>
 
         {/* Inspector */}
         <aside className="w-64 xl:w-72 shrink-0 flex flex-col border-l-2 border-foreground bg-card">
           <div className={panelTitle}>
-            <span className={kicker}>{selected ? (selected.type === "text" ? "Text" : "Clip") : "Project"}</span>
-            {selected && (
+            <span className={kicker}>
+              {groups > 1 ? "Selection" : selected ? (selected.type === "text" ? "Text" : "Clip") : "Project"}
+            </span>
+            {selected && groups <= 1 && (
               <div className="flex items-center gap-1">
                 <MiniButton onClick={splitAtPlayhead} title="Split at playhead (S)">
                   <VideoTrimIcon className="w-3.5 h-3.5" />
@@ -988,25 +1655,32 @@ function VideoEditorPage() {
                 <MiniButton onClick={duplicateSelected} title="Duplicate (⌘D)">
                   <CopyIcon className="w-3.5 h-3.5" />
                 </MiniButton>
-                <MiniButton onClick={deleteSelected} title="Delete (⌫)" danger>
+                <MiniButton onClick={() => deleteSelected(false)} title="Delete (⌫)" danger>
                   <TrashIcon className="w-3.5 h-3.5" />
                 </MiniButton>
               </div>
             )}
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto select-text">
-            {selected?.type === "media" ? (
-              <MediaInspector
-                clip={selected}
-                item={media.get(selected.mediaId)}
-                onTrackKind={project.tracks.find((t) => t.id === selected.trackId)?.kind ?? "video"}
-                onLive={livePatch}
-                onCommit={gesture.end}
-                onPatch={patchSelected}
-                onDetach={detachAudio}
+            {groups > 1 ? (
+              <MultiInspector
+                count={selection.length}
+                linked={selection.every((id) => project.clips.find((c) => c.id === id)?.linkId)}
+                onDelete={() => deleteSelected(false)}
+                onRippleDelete={() => deleteSelected(true)}
+                onLink={() => setLinked(true)}
+                onUnlink={() => setLinked(false)}
               />
-            ) : selected?.type === "text" ? (
-              <TextInspector clip={selected} onLive={livePatch} onCommit={gesture.end} onPatch={patchSelected} />
+            ) : selected?.type === "media" && mediaActions ? (
+              <MediaInspector
+                key={selected.id}
+                clip={selected}
+                item={selectedItem}
+                trackKind={selectedTrack?.kind ?? "video"}
+                actions={mediaActions}
+              />
+            ) : selected?.type === "text" && clipActions ? (
+              <TextInspector key={selected.id} clip={selected} actions={clipActions as unknown as ClipActions<TextClip>} />
             ) : (
               <ProjectInspector project={project} onChange={(patch) => commit((p) => ({ ...p, ...patch }))} />
             )}
@@ -1036,15 +1710,31 @@ function VideoEditorPage() {
       </div>
 
       {/* ── Timeline ── */}
-      <section ref={timelineWrapRef} className="shrink-0 flex flex-col bg-card" style={{ height: timelineH }}>
+      <section
+        ref={timelineWrapRef}
+        className="shrink-0 flex flex-col bg-card"
+        style={{ height: timelineH }}
+        // Working on the timeline hands the arrow keys back to the playhead.
+        onPointerDownCapture={() => canvasRef.current?.blur()}
+      >
         <div className="h-11 shrink-0 flex items-center gap-2 px-3 border-b-2 border-foreground">
           <ToolButton onClick={splitAtPlayhead} title="Split at playhead (S)">
             <VideoTrimIcon className="w-3.5 h-3.5" /> Split
           </ToolButton>
-          <ToolButton onClick={addText} title="Add text (T)">
+          <ToolButton onClick={() => addText()} title="Add text (T)">
             <span className="font-display text-base leading-none">T</span> Text
           </ToolButton>
-          <ToolButton onClick={deleteSelected} disabled={!selectedId} title="Delete selected (⌫)" danger>
+          <ToolButton
+            onClick={() => {
+              engineRef.current?.pause();
+              setCaptionsOpen(true);
+            }}
+            disabled={duration <= 0}
+            title="Transcribe the edit's audio into text clips, on this device"
+          >
+            <span className="font-mono text-[10px] leading-none border border-current px-0.5">CC</span> Captions
+          </ToolButton>
+          <ToolButton onClick={() => deleteSelected(false)} disabled={!selection.length} title="Delete selected (⌫)" danger>
             <TrashIcon className="w-3.5 h-3.5" /> Delete
           </ToolButton>
           <div className="w-px h-6 bg-foreground/20 mx-1" />
@@ -1096,19 +1786,24 @@ function VideoEditorPage() {
             time={time}
             playing={playing}
             pps={pps}
-            selectedId={selectedId}
+            selection={selectedSet}
+            primaryId={primaryId}
             gesture={gesture}
             onSeek={seek}
-            onSelect={setSelectedId}
+            onSelect={select}
             onToggleTrack={toggleTrack}
             onRemoveTrack={removeTrack}
+            onRenameTrack={renameTrack}
             onDropMedia={addMediaToTimeline}
             onZoom={setPps}
+            onMenu={openMenu}
           />
         </div>
       </section>
 
       {/* ── Overlays ── */}
+      {menu && <ContextMenu menu={menu} onClose={closeMenu} />}
+
       {error && (
         <div className="absolute left-4 bottom-4 z-30 max-w-md flex items-start gap-2 border-2 border-foreground bg-card p-3 shadow-[4px_4px_0_0_var(--foreground)]">
           <AlertIcon className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
@@ -1117,6 +1812,14 @@ function VideoEditorPage() {
             <XIcon className="w-4 h-4" />
           </button>
         </div>
+      )}
+
+      {captionsOpen && (
+        <CaptionsDialog
+          getPcm={() => mixForCaptions(projectRef.current, mediaRef.current, projectDuration(projectRef.current))}
+          onAdd={addCaptions}
+          onClose={() => setCaptionsOpen(false)}
+        />
       )}
 
       {exportOpen && (
@@ -1160,6 +1863,154 @@ function VideoEditorPage() {
         </Modal>
       )}
     </div>
+  );
+}
+
+/**
+ * Selection outlines, transform handles and snap guides, drawn over the preview
+ * and allowed past its edges so a full-frame clip's handles stay grabbable.
+ */
+function SelectionOverlay({
+  engine,
+  project,
+  selection,
+  primaryId,
+  editingId,
+  guides,
+  time,
+  cssScale,
+}: {
+  engine: PreviewEngine;
+  project: Project;
+  selection: string[];
+  primaryId: string | null;
+  editingId: string | null;
+  guides: Guide[];
+  time: number;
+  cssScale: number;
+}) {
+  if (!cssScale) return null;
+  // The engine's clock may run ahead of React's between frames; draw for the time React has.
+  void time;
+  const u = 1 / cssScale;
+  const pts = (list: [number, number][]) => list.map(([x, y]) => `${x},${y}`).join(" ");
+  const shapes: React.ReactNode[] = [];
+  for (const id of selection) {
+    const clip = project.clips.find((c) => c.id === id);
+    if (!clip || clip.id === editingId || !engine.onScreen(clip)) continue;
+    const g = engine.geometry(clip);
+    if (!g) continue;
+    const corners = geometryCorners(g);
+    const primary = clip.id === primaryId;
+    shapes.push(
+      <polygon
+        key={`o-${id}`}
+        points={pts(corners)}
+        fill="none"
+        stroke="#facc15"
+        strokeWidth={2 * u}
+        strokeDasharray={primary ? undefined : `${8 * u} ${6 * u}`}
+      />,
+    );
+    if (!primary) continue;
+    const [top, knob] = rotateHandle(g, u, project.width, project.height);
+    shapes.push(
+      <g key={`h-${id}`} stroke="#1a1612" strokeWidth={2 * u}>
+        <line x1={top[0]} y1={top[1]} x2={knob[0]} y2={knob[1]} stroke="#facc15" />
+        <circle cx={knob[0]} cy={knob[1]} r={6 * u} fill="#ffffff" />
+        {corners.map(([x, y], i) => (
+          <rect key={i} x={x - 5 * u} y={y - 5 * u} width={10 * u} height={10 * u} fill="#ffffff" />
+        ))}
+      </g>,
+    );
+  }
+  for (const [i, g] of guides.entries()) {
+    shapes.push(
+      g.axis === "x" ? (
+        <line key={`g-${i}`} x1={g.at} y1={0} x2={g.at} y2={project.height} stroke="#ec4899" strokeWidth={1.5 * u} strokeDasharray={`${6 * u} ${4 * u}`} />
+      ) : (
+        <line key={`g-${i}`} x1={0} y1={g.at} x2={project.width} y2={g.at} stroke="#ec4899" strokeWidth={1.5 * u} strokeDasharray={`${6 * u} ${4 * u}`} />
+      ),
+    );
+  }
+  return (
+    <svg
+      aria-hidden="true"
+      className="absolute inset-0 pointer-events-none overflow-visible"
+      width="100%"
+      height="100%"
+      viewBox={`0 0 ${project.width} ${project.height}`}
+      preserveAspectRatio="none"
+    >
+      {shapes}
+    </svg>
+  );
+}
+
+/** Edit a text clip right where it sits on the preview. */
+function InlineTextEditor({
+  clip,
+  engine,
+  project,
+  cssScale,
+  onLive,
+  onDone,
+}: {
+  clip: TextClip;
+  engine: PreviewEngine;
+  project: Project;
+  cssScale: number;
+  onLive: (text: string) => void;
+  onDone: () => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, []);
+  const g = engine.geometry(clip, Math.max(clip.start, Math.min(engine.time, clipEnd(clip) - 1e-3)));
+  if (!g) return null;
+  const pose = poseAt(clip, Math.min(Math.max(engine.time - clip.start, 0), clip.duration));
+  const px = ((clip.size * project.height * pose.scale) / 1080) * cssScale;
+  const w = Math.max(g.rect.w * cssScale, 120);
+  const h = Math.max(g.rect.h * cssScale, px * 1.6);
+  return (
+    <textarea
+      ref={ref}
+      aria-label="Edit text"
+      value={clip.text}
+      onChange={(e) => onLive(e.target.value)}
+      onBlur={onDone}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Escape" || (e.key === "Enter" && (e.metaKey || e.ctrlKey))) e.currentTarget.blur();
+      }}
+      className="absolute resize-none overflow-hidden bg-transparent outline-2 outline-dashed outline-yellow-400 p-0 leading-[1.2]"
+      style={{
+        left: g.cx * cssScale - w / 2,
+        top: g.cy * cssScale - h / 2,
+        width: w,
+        height: h,
+        transform: pose.rotation ? `rotate(${pose.rotation}deg)` : undefined,
+        font: `${clip.italic ? "italic " : ""}${clip.bold ? 700 : 400} ${px}px ${FONT_STACKS[clip.font]}`,
+        color: clip.color,
+        textAlign: clip.align,
+        paddingTop: (h - px * 1.2 * clip.text.split("\n").length) / 2,
+        caretColor: clip.color,
+        textShadow: clip.outline ? `0 0 2px ${clip.outline}` : undefined,
+      }}
+    />
+  );
+}
+
+function CameraIcon({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
+      <path d="M4 8h3l2-3h6l2 3h3v11H4z" strokeLinejoin="round" />
+      <circle cx="12" cy="13" r="3.5" />
+    </svg>
   );
 }
 
@@ -1381,15 +2232,18 @@ function ExportDialog({
 }
 
 const SHORTCUTS: [string, string][] = [
-  ["Space", "Play / pause"],
-  ["S", "Split at playhead"],
-  ["T", "Add text"],
-  ["⌫", "Delete clip"],
-  ["⌘D", "Duplicate clip"],
-  ["⌘Z / ⇧⌘Z", "Undo / redo"],
-  ["← →", "Step one frame"],
+  ["Space / K", "Play / pause"],
+  ["J / L", "Play backwards / forwards (again = faster)"],
+  ["← →  , .", "Step one frame"],
   ["⇧← ⇧→", "Step one second"],
-  ["Home / End", "Jump to start / end"],
+  ["↑ ↓", "Previous / next cut or marker"],
+  ["S", "Split at playhead"],
+  ["Q / W", "Trim start / end to playhead"],
+  ["⌫ / ⇧⌫", "Delete / ripple delete"],
+  ["⌘C ⌘V ⌘D", "Copy, paste, duplicate"],
+  ["⌘A", "Select everything"],
+  ["T / M", "Add text / marker"],
+  ["⌘Z / ⇧⌘Z", "Undo / redo"],
   ["⌘ + scroll", "Zoom timeline"],
 ];
 
@@ -1404,7 +2258,7 @@ function ShortcutsCard({ onClose }: { onClose: () => void }) {
   return (
     <div
       data-shortcuts
-      className="absolute right-0 top-11 z-40 w-72 border-2 border-foreground bg-card p-4 shadow-[5px_5px_0_0_var(--foreground)]"
+      className="absolute right-0 top-11 z-40 w-80 border-2 border-foreground bg-card p-4 shadow-[5px_5px_0_0_var(--foreground)]"
     >
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] mb-3">Shortcuts</p>
       <dl className="space-y-1.5">
@@ -1418,7 +2272,9 @@ function ShortcutsCard({ onClose }: { onClose: () => void }) {
         ))}
       </dl>
       <p className="mt-3 pt-3 border-t border-foreground/20 text-[11px] text-muted-foreground">
-        Drag clips in the preview to move them.
+        In the preview: drag to move, corners to resize (⌥ from the centre), the knob to rotate (⇧ snaps), arrows
+        nudge once it's focused. ⇧-click or drag a box on the timeline to pick several; ⌥-click picks one of a linked
+        pair. Right-click anything for more.
       </p>
     </div>
   );
@@ -1651,377 +2507,3 @@ function MiniWave({ peaks, progress }: { peaks: number[]; progress: number | nul
   );
 }
 
-// ── Inspector building blocks ────────────────────────────────
-
-function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
-  return (
-    <section className="px-4 py-4 border-b-2 border-foreground/10 space-y-3.5">
-      <div className="flex items-center justify-between">
-        <h3 className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{title}</h3>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Slider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  format,
-  onLive,
-  onCommit,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  format: (v: number) => string;
-  onLive: (v: number) => void;
-  onCommit: () => void;
-}) {
-  return (
-    <label className="block">
-      <span className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-bold">{label}</span>
-        <span className="text-[11px] font-mono font-bold px-1.5 bg-muted border border-foreground/20 tabular-nums">
-          {format(value)}
-        </span>
-      </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onLive(Number(e.target.value))}
-        onPointerUp={onCommit}
-        onKeyUp={onCommit}
-        onBlur={onCommit}
-        className="range-brutal w-full"
-        style={fill(value, min, max)}
-      />
-    </label>
-  );
-}
-
-function Segmented<T extends string | number>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: T; label: React.ReactNode; title?: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="flex border-2 border-foreground bg-background">
-      {options.map((o, i) => (
-        <button
-          key={String(o.value)}
-          type="button"
-          title={o.title}
-          onClick={() => onChange(o.value)}
-          className={`flex-1 h-8 text-xs font-bold transition-colors ${i > 0 ? "border-l-2 border-foreground" : ""} ${
-            o.value === value ? "bg-foreground text-background" : "hover:bg-accent"
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-const TEXT_COLORS = ["#ffffff", "#1a1612", "#facc15", "#c84c1c", "#38bdf8"];
-
-function ColorField({
-  value,
-  onLive,
-  onCommit,
-  presets = TEXT_COLORS,
-}: {
-  value: string;
-  onLive: (v: string) => void;
-  onCommit: () => void;
-  presets?: string[];
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {presets.map((c) => (
-        <button
-          key={c}
-          type="button"
-          title={c}
-          onClick={() => {
-            onLive(c);
-            onCommit();
-          }}
-          className={`w-6 h-6 border-2 border-foreground ${value.toLowerCase() === c ? "ring-2 ring-primary ring-offset-1" : ""}`}
-          style={{ background: c }}
-        />
-      ))}
-      <input
-        type="color"
-        title="Custom colour"
-        className="swatch-brutal ml-auto"
-        value={value}
-        onChange={(e) => onLive(e.target.value)}
-        onBlur={onCommit}
-      />
-    </div>
-  );
-}
-
-/** Track fill up to the thumb, for .range-brutal. */
-const fill = (v: number, min: number, max: number) =>
-  ({ "--fill": `${((v - min) / (max - min || 1)) * 100}%` }) as React.CSSProperties;
-
-const pct = (v: number) => `${Math.round(v * 100)}%`;
-const secs = (v: number) => `${v.toFixed(1)}s`;
-
-type TransformPatch = { x?: number; y?: number; opacity?: number; scale?: number };
-
-function TransformSection({
-  clip,
-  onLive,
-  onCommit,
-  onPatch,
-  withScale,
-}: {
-  clip: MediaClip | TextClip;
-  onLive: (p: TransformPatch) => void;
-  onCommit: () => void;
-  onPatch: (p: TransformPatch) => void;
-  withScale: boolean;
-}) {
-  return (
-    <Section
-      title="Transform"
-      action={
-        <button
-          type="button"
-          className="text-[11px] font-bold underline underline-offset-2 text-muted-foreground hover:text-foreground"
-          onClick={() => onPatch(withScale ? { x: 0.5, y: 0.5, scale: 1, opacity: 1 } : { x: 0.5, y: 0.5, opacity: 1 })}
-        >
-          Reset
-        </button>
-      }
-    >
-      {withScale && clip.type === "media" && (
-        <Slider label="Scale" value={clip.scale} min={0.1} max={3} step={0.01} format={pct} onLive={(v) => onLive({ scale: v })} onCommit={onCommit} />
-      )}
-      <Slider label="Opacity" value={clip.opacity} min={0} max={1} step={0.01} format={pct} onLive={(v) => onLive({ opacity: v })} onCommit={onCommit} />
-      <div className="grid grid-cols-2 gap-3">
-        <Slider label="X" value={clip.x} min={-0.5} max={1.5} step={0.005} format={pct} onLive={(v) => onLive({ x: v })} onCommit={onCommit} />
-        <Slider label="Y" value={clip.y} min={-0.5} max={1.5} step={0.005} format={pct} onLive={(v) => onLive({ y: v })} onCommit={onCommit} />
-      </div>
-      <p className="text-[11px] text-muted-foreground">Tip: drag it around in the preview.</p>
-    </Section>
-  );
-}
-
-function ClipSummary({ thumb, name, clip, kind }: { thumb?: string | null; name: string; clip: Clip; kind: string }) {
-  return (
-    <div className="px-4 py-4 border-b-2 border-foreground/10 flex items-center gap-3">
-      <div className="w-16 aspect-video shrink-0 border-2 border-foreground bg-muted overflow-hidden flex items-center justify-center">
-        {thumb ? (
-          <img src={thumb} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{kind}</span>
-        )}
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm font-bold truncate" title={name}>
-          {name}
-        </p>
-        <p className="text-[11px] font-mono text-muted-foreground">
-          {fmtTime(clip.start)} → {fmtTime(clipEnd(clip))} · {clip.duration.toFixed(1)}s
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function MediaInspector({
-  clip,
-  item,
-  onTrackKind,
-  onLive,
-  onCommit,
-  onPatch,
-  onDetach,
-}: {
-  clip: MediaClip;
-  item: MediaItem | undefined;
-  onTrackKind: Track["kind"];
-  onLive: (p: Partial<MediaClip>) => void;
-  onCommit: () => void;
-  onPatch: (p: Partial<MediaClip>) => void;
-  onDetach: () => void;
-}) {
-  if (!item) return <p className="p-4 text-xs text-muted-foreground">This clip's media was removed.</p>;
-  const visual = onTrackKind !== "audio" && item.kind !== "audio";
-  const maxFade = Math.max(0, Math.min(10, clip.duration / 2));
-  const thumb = item.kind === "video" ? item.thumbs.find(Boolean) : item.kind === "image" ? item.url : null;
-  return (
-    <>
-      <ClipSummary thumb={visual ? thumb : null} name={item.name} clip={clip} kind={onTrackKind === "audio" ? "Audio" : item.kind} />
-      {item.hasAudio && (
-        <Section title="Audio">
-          <Slider label="Volume" value={clip.volume} min={0} max={2} step={0.01} format={pct} onLive={(v) => onLive({ volume: v })} onCommit={onCommit} />
-          {visual && clip.volume > 0 && (
-            <button
-              type="button"
-              className="w-full h-8 text-xs font-bold border-2 border-foreground bg-background hover:bg-accent transition-colors"
-              onClick={onDetach}
-            >
-              Detach audio to its own track
-            </button>
-          )}
-        </Section>
-      )}
-      {maxFade > 0 && (
-        <Section title="Fades">
-          <div className="grid grid-cols-2 gap-3">
-            <Slider label="In" value={Math.min(clip.fadeIn, maxFade)} min={0} max={maxFade} step={0.1} format={secs} onLive={(v) => onLive({ fadeIn: v })} onCommit={onCommit} />
-            <Slider label="Out" value={Math.min(clip.fadeOut, maxFade)} min={0} max={maxFade} step={0.1} format={secs} onLive={(v) => onLive({ fadeOut: v })} onCommit={onCommit} />
-          </div>
-        </Section>
-      )}
-      {visual && <TransformSection clip={clip} onLive={onLive} onCommit={onCommit} onPatch={onPatch} withScale />}
-      {item.kind === "image" && (
-        <p className="px-4 py-3 text-[11px] text-muted-foreground">Drag the clip's right edge on the timeline to change how long it shows.</p>
-      )}
-    </>
-  );
-}
-
-function TextInspector({
-  clip,
-  onLive,
-  onCommit,
-  onPatch,
-}: {
-  clip: TextClip;
-  onLive: (p: Partial<TextClip>) => void;
-  onCommit: () => void;
-  onPatch: (p: Partial<TextClip>) => void;
-}) {
-  return (
-    <>
-      <Section title="Content">
-        <textarea
-          value={clip.text}
-          rows={3}
-          onChange={(e) => onLive({ text: e.target.value })}
-          onBlur={onCommit}
-          className="w-full resize-y border-2 border-foreground bg-background p-2.5 text-sm font-medium focus:outline-none focus:shadow-[3px_3px_0_0_var(--primary)] transition-shadow"
-        />
-      </Section>
-      <Section title="Style">
-        <Slider label="Size" value={clip.size} min={16} max={300} step={1} format={(v) => `${v}px`} onLive={(v) => onLive({ size: v })} onCommit={onCommit} />
-        <div className="space-y-1.5">
-          <span className="text-xs font-bold">Weight</span>
-          <Segmented
-            options={[
-              { value: "regular", label: "Regular" },
-              { value: "bold", label: <span className="font-black">Bold</span> },
-            ]}
-            value={clip.bold ? "bold" : "regular"}
-            onChange={(v) => onPatch({ bold: v === "bold" })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <span className="text-xs font-bold">Colour</span>
-          <ColorField value={clip.color} onLive={(c) => onLive({ color: c })} onCommit={onCommit} />
-        </div>
-        <div className="space-y-1.5">
-          <span className="text-xs font-bold">Background</span>
-          <Segmented
-            options={[
-              { value: "none", label: "None" },
-              { value: "box", label: "Box" },
-            ]}
-            value={clip.background ? "box" : "none"}
-            onChange={(v) => onPatch({ background: v === "box" ? "#1a1612" : null })}
-          />
-          {clip.background && (
-            <ColorField value={clip.background} onLive={(c) => onLive({ background: c })} onCommit={onCommit} />
-          )}
-        </div>
-      </Section>
-      <TransformSection clip={clip} onLive={onLive} onCommit={onCommit} onPatch={onPatch} withScale={false} />
-    </>
-  );
-}
-
-function ProjectInspector({ project, onChange }: { project: Project; onChange: (patch: Partial<Project>) => void }) {
-  const isPreset = RESOLUTIONS.some((r) => r.w === project.width && r.h === project.height);
-  const duration = projectDuration(project);
-  return (
-    <>
-      <Section title="Frame size">
-        <div className="grid grid-cols-3 gap-2">
-          {RESOLUTIONS.map((r) => {
-            const active = r.w === project.width && r.h === project.height;
-            const a = r.w / r.h;
-            const bw = a >= 1 ? 28 : 28 * a;
-            const bh = a >= 1 ? 28 / a : 28;
-            return (
-              <button
-                key={r.label}
-                type="button"
-                title={r.label}
-                onClick={() => onChange({ width: r.w, height: r.h })}
-                className={`h-16 flex flex-col items-center justify-center gap-1.5 border-2 border-foreground transition-colors ${
-                  active ? "bg-foreground text-background" : "bg-background hover:bg-accent"
-                }`}
-              >
-                <span className={`border-2 ${active ? "border-background" : "border-foreground"}`} style={{ width: bw, height: bh }} />
-                <span className="text-[10px] font-bold leading-none">{r.short}</span>
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-[11px] font-mono text-muted-foreground">
-          {project.width}×{project.height}
-          {!isPreset && " · from your video"}
-        </p>
-      </Section>
-      <Section title="Frame rate">
-        <Segmented
-          options={[24, 25, 30, 50, 60].map((f) => ({ value: f, label: f, title: `${f} fps` }))}
-          value={project.fps}
-          onChange={(fps) => onChange({ fps })}
-        />
-      </Section>
-      <Section title="Background">
-        <ColorField
-          value={project.background}
-          presets={["#000000", "#ffffff", "#faf7f2", "#1a1612"]}
-          onLive={(c) => onChange({ background: c })}
-          onCommit={() => {}}
-        />
-      </Section>
-      <div className="px-4 py-4 grid grid-cols-2 gap-2">
-        <Stat label="Length" value={fmtTime(duration)} />
-        <Stat label="Clips" value={String(project.clips.length)} />
-      </div>
-      <p className="px-4 pb-4 text-[11px] text-muted-foreground">Select a clip on the timeline or in the preview to edit it.</p>
-    </>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-2 border-foreground bg-background px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <p className="font-mono text-lg font-bold tabular-nums">{value}</p>
-    </div>
-  );
-}

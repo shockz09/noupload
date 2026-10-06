@@ -269,3 +269,34 @@ export function opusVoiceNote(name: string, duration = 3) {
 		]),
 	);
 }
+
+/** One second of solid red, then one of solid blue, so playing it backwards is obvious from two pixels. */
+export function mp4RedThenBlue(name: string) {
+	return cached(name, (out) =>
+		ffmpeg([
+			"-f", "lavfi", "-i", "color=c=red:s=160x120:r=15:d=1",
+			"-f", "lavfi", "-i", "color=c=blue:s=160x120:r=15:d=1",
+			"-filter_complex", "[0][1]concat=n=2:v=1[v]",
+			"-map", "[v]", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "12", out,
+		]),
+	);
+}
+
+/**
+ * A tone in a WAV, optionally silent until `from` and after `to` seconds, for
+ * mixing tests where one sound has to start and stop under another.
+ */
+export function wavTone(name: string, hz: number, duration: number, from = 0, to = duration) {
+	return cached(name, (out) =>
+		ffmpeg([
+			"-f", "lavfi", "-i", `sine=frequency=${hz}:duration=${to - from}`,
+			"-af", `adelay=${Math.round(from * 1000)}:all=1,apad=whole_dur=${duration}`,
+			"-c:a", "pcm_s16le", "-ar", "48000", "-ac", "1", out,
+		]),
+	);
+}
+
+/** A flat orange PNG, the kind of overlay people put on a video. */
+export function pngOverlay(name: string) {
+	return cached(name, (out) => ffmpeg(["-f", "lavfi", "-i", "color=c=orange:s=200x100", "-frames:v", "1", out]));
+}
