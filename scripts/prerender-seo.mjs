@@ -153,21 +153,9 @@ function headTags(route, url) {
 	].join("\n    ");
 }
 
-// What a crawler that doesn't run JS reads. React replaces it on mount.
-function bodyFallback(route) {
-	const heading = (route.meta["og:title"] ?? route.meta.title).replace(/\s*\|\s*noupload$/, "");
-	return `<main data-ssg style="max-width:72rem;margin:0 auto;padding:3rem 1.5rem">
-      <h1>${esc(heading)}</h1>
-      <p>${esc(route.meta.description)}</p>
-      <p><a href="/">noupload</a> — PDF, image, audio, video and QR tools that run in your browser. Your files never get uploaded.</p>
-    </main>`;
-}
-
 function render(template, route) {
 	const url = route.path === "/" ? `${SITE}/` : `${SITE}${route.path}`;
-	return template
-		.replace("</head>", `  ${headTags(route, url)}\n  </head>`)
-		.replace('<div id="root"></div>', `<div id="root">${bodyFallback(route)}</div>`);
+	return template.replace("</head>", `  ${headTags(route, url)}\n  </head>`);
 }
 
 function outFile(path) {
