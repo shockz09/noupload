@@ -2,6 +2,8 @@
 	"framework": "vite",
 	"buildCommand": "pnpm build",
 	"outputDirectory": "dist",
+	"cleanUrls": true,
+	"trailingSlash": false,
 	"headers": [
 		{
 			"source": "/(.*)",
@@ -20,9 +22,7 @@
 		}
 	],
 	"redirects": [
-		{ "source": "/pdf", "destination": "/", "permanent": true }
-	],
-	"rewrites": [
-		{ "source": "/((?!assets|fonts|og|wasm|workers|vendor|manifest|robots|sitemap|favicon|apple).*)", "destination": "/index.html" }
+		{ "source": "/pdf", "destination": "/", "permanent": true },
+		{ "source": "/sanitize", "destination": "/metadata", "permanent": true }
 	]
 }

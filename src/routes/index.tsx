@@ -1,7 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
-
+	head: () => ({
+		meta: [
+			{ title: "noupload — Free PDF, Image, Audio & Video Tools That Never Upload Your Files" },
+			{
+				name: "description",
+				content:
+					"noupload is a free set of PDF, image, audio, video and QR tools that run entirely in your browser. Merge, split, compress, sign and convert files without uploading them anywhere.",
+			},
+			{ property: "og:title", content: "noupload — Free Private PDF, Image, Audio & Video Tools" },
+			{
+				property: "og:description",
+				content: "PDF, image, audio, video and QR tools that run 100% in your browser. Your files never get uploaded.",
+			},
+		],
+	}),
 	component: Home,
 });
 

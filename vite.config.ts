@@ -9,7 +9,7 @@ export default defineConfig(({ command }) => ({
 			target: "react",
 			autoCodeSplitting: true,
 			// Keep dev-only route files out of a production build entirely.
-			...(command === "build" ? { routeFileIgnorePattern: "design-system" } : {}),
+			...(command === "build" ? { routeFileIgnorePattern: "design-system|test-compress" } : {}),
 		}),
 		react(),
 	],
